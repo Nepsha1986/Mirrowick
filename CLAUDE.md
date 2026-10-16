@@ -15,6 +15,7 @@ talk to them in Russian):
 - `docs/characters/`: one file per character or group
 - `docs/mechanics/`: one file per game system (light, mirror travel…)
 - `docs/decisions.md`: what has been decided, newest first
+- `docs/tasks/`: what the owner wants done later, one task per file
 
 Keep them **minimal**. Record only what is built or what the owner has
 decided, never ideas that were only discussed. Don't create files or folders
@@ -23,6 +24,18 @@ character or a mechanic, update or add its file and link it from
 `docs/worlds.md` in the same PR. When the owner makes a decision, add one line
 to `docs/decisions.md`. Folder and file names are English; content is
 Russian.
+
+### Tasks
+
+When the owner says something should be done later, add a short file to
+`docs/tasks/` (or refine the existing one); don't build it until they say
+so. When a task is done, in the same PR:
+
+1. delete its file from `docs/tasks/`;
+2. go through the docs and update what changed (locations, characters,
+   mechanics, `worlds.md`, `decisions.md`).
+
+Write docs and tasks for a human reader first: short and plain, no filler.
 
 Code, comments, commit messages and in-game UI text are in English.
 
