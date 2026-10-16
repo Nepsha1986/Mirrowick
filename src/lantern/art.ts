@@ -464,17 +464,33 @@ function paintAtlas(scene: Phaser.Scene): void {
       0.8,
     );
   });
-  // The lantern-bearer, from above, facing right: hood, crimson scarf, lantern.
-  add('hero', 36, 36, (p) => {
-    shadow(p, 19, 21, 13, 10);
-    p.ell(15, 18, 10, 11, '#4a3526', 1.4);
-    p.ell(13, 18, 6, 9, '#3a2a1e');
-    p.rect(17, 9, 5, 18, '#8a3a2c', 1);
-    p.line(24, 24, 29, 27, '#2a2420', 1.4);
-    p.rect(27, 25, 6, 6, '#ffd58a', 1);
-    p.circ(18, 18, 6.5, '#3d2c20', 1.4);
-    p.circ(20, 18, 3, '#140d08');
-  });
+  // The hero from above, facing right: an ordinary person in an open
+  // jacket over a grey hoodie. 'heroLit' holds the flashlight out ahead.
+  const hero = (p: Painter, lit: boolean) => {
+    const skin = '#d9a77f';
+    const sleeve = '#33475b';
+    shadow(p, 18, 20, 12, 13);
+    p.ell(16.5, 7.6, 5, 2.9, sleeve, 1.2);
+    p.circ(21.2, 7.4, 2.1, skin, 1);
+    if (lit) {
+      p.line(17, 27.4, 27, 25.6, INK, 6.2);
+      p.line(17, 27.4, 27, 25.6, sleeve, 4);
+      p.rect(27.5, 24, 6, 3, '#3a3d42', 0.8);
+      p.rect(32.6, 23.5, 2, 4, '#fff0b8', 0.8);
+      p.circ(27.6, 25.6, 2.1, skin, 1);
+    } else {
+      p.ell(16.8, 28.6, 5, 2.9, sleeve, 1.2);
+      p.circ(21.4, 29, 2.1, skin, 1);
+    }
+    p.ell(16, 18, 6.6, 11.2, '#3d556c', 1.4);
+    p.ell(11.4, 18.4, 2.6, 5.2, '#8d9196', 0.8);
+    p.line(20.6, 10.5, 21.4, 25.5, '#26333f', 1);
+    p.ell(21.9, 18.3, 2.5, 3.5, skin, 1);
+    p.circ(18.6, 18.1, 5.6, '#4b3222', 1.3);
+    p.ell(17, 16.4, 2.2, 1.2, 'rgba(255,255,255,.12)');
+  };
+  add('hero', 36, 36, (p) => hero(p, false));
+  add('heroLit', 36, 36, (p) => hero(p, true));
   add('dot', 8, 8, (p) => p.circ(4, 4, 3.5, '#ffffff'));
   A.refresh();
 }

@@ -285,9 +285,9 @@ export function generateUpperWorld(): World {
     id: 'tv',
     key: 'ln-up',
     frame: 'tv',
-    frameOn: 'tvOn',
     ...C(18, 9),
-    labels: ['Turn on the TV', 'Turn off the TV'],
+    label: 'Turn on the TV',
+    on: { frame: 'tvOn', label: 'Turn off the TV' },
   });
   for (const x of [17, 18, 19]) solid(x, 9);
   obj('desk', 21, 10.5, { y: 11 * T });
@@ -326,6 +326,16 @@ export function generateUpperWorld(): World {
   solid(9, 16);
   objects.push({ key: 'ln-town', frame: 'stable', ...C(9, 14), scale: 0.7 });
   solid(9, 14);
+  // The flashlight waits on the bedside table: you start without it.
+  things.push({
+    id: 'flashlight',
+    key: 'ln-up',
+    frame: 'flashlight',
+    ...C(9.1, 13.9),
+    depth: 15 * T,
+    label: 'Pick up the flashlight',
+    take: true,
+  });
   obj('wardrobe', 12, 14, { x: 12 * T });
   solid(11, 14);
   solid(12, 14);
@@ -384,7 +394,13 @@ export function generateUpperWorld(): World {
     }
     walls.push({ kind: 'post', x: (b + 1) * T - 7.5, y: y - 3.5, w: 7, h: 7 });
   }
-  obj('mailbox', 18, 25);
+  things.push({
+    id: 'mailbox',
+    key: 'ln-up',
+    frame: 'mailbox',
+    ...C(18, 25),
+    label: 'Open the mailbox',
+  });
   solid(18, 25);
   for (const x of [12, 29]) {
     obj('streetlamp', x, 25);

@@ -13,6 +13,8 @@ export interface SaveData {
   day: number;
   /** Things that are switched on. */
   things: string[];
+  /** What you carry. */
+  items: string[];
 }
 
 /** The saved game, or null if there is none or it can't be read. */
@@ -24,8 +26,12 @@ export function loadSave(): SaveData | null {
     const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
     if (d.realm !== 'lower' && d.realm !== 'upper' && d.realm !== 'cellar') return null;
     if (!num(d.x) || !num(d.y) || !num(d.tod) || !num(d.day)) return null;
-    const things = Array.isArray(d.things) ? d.things.filter((t) => typeof t === 'string') : [];
-    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things };
+    const strings = (v: unknown) =>
+      Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : null;
+    const things = strings(d.things) ?? [];
+    // Saves from before you had to find the flashlight already carry it.
+    const items = strings(d.items) ?? ['flashlight'];
+    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items };
   } catch {
     return null;
   }

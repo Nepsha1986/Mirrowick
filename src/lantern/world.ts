@@ -76,16 +76,22 @@ export interface Light extends Pt {
   color: number;
 }
 
-/** Something in the world you can walk up to and use: for now, switch on and off. */
+/**
+ * Something in the world you can walk up to and use. It switches on and off,
+ * or you pick it up, or the scene does something of its own with it, found
+ * by `id`.
+ */
 export interface Thing extends Pt {
   id: string;
   key: string;
-  /** How it looks switched off, and on. */
   frame: string;
-  frameOn: string;
   depth?: number;
-  /** The prompt while it is off, and while it is on. */
-  labels: [string, string];
+  /** The prompt. */
+  label: string;
+  /** Switches on and off: how it looks while on, and the prompt then. */
+  on?: { frame: string; label: string };
+  /** You pick it up: it goes into your pockets and is gone from the world. */
+  take?: boolean;
 }
 
 /** A way through to the other world (world pixels). */
