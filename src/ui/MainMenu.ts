@@ -2,11 +2,9 @@ import { h, uiRoot } from './dom';
 
 export interface MainMenuActions {
   play: () => void;
-  playTopDown: () => void;
-  playLantern: () => void;
 }
 
-/** Title screen. Only the "Play" buttons work for now; the rest are placeholders. */
+/** Title screen. Only "Play" works for now; the rest are placeholders. */
 export class MainMenu {
   private readonly el: HTMLElement;
 
@@ -37,8 +35,6 @@ export class MainMenu {
         'nav',
         { class: 'interactive' },
         play,
-        button('Top-down prototype', { onClick: actions.playTopDown }),
-        button('Lantern prototype', { onClick: actions.playLantern }),
         button('Continue'),
         button('Settings'),
         button('Credits'),
@@ -47,7 +43,7 @@ export class MainMenu {
         'footer',
         {},
         h('span', {}, 'v0.1 · prototype'),
-        h('span', {}, 'Art: Kenney.nl (CC0) · Music: procedural'),
+        h('span', {}, 'Art painted in code · Music: procedural'),
       ),
     );
     uiRoot().append(this.el);

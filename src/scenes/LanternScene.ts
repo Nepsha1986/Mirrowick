@@ -42,7 +42,9 @@ export class LanternScene extends Phaser.Scene {
   private nav!: Nav;
   private hero!: Hero;
   private heroImg!: Phaser.GameObjects.Image;
-  private hud!: LanternHud;
+  private hud?: LanternHud;
+  /** Backdrop for the main menu: no hero control, the camera drifts at dusk. */
+  private demo = false;
   private dark!: Phaser.Textures.DynamicTexture;
   private darkImg!: Phaser.GameObjects.Image;
   private erasers: Phaser.GameObjects.Image[] = [];
@@ -56,7 +58,7 @@ export class LanternScene extends Phaser.Scene {
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
   private cullKey = '';
-  private keys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private keys: Record<string, Phaser.Input.Keyboard.Key> = {};
   private holding = false;
   private lastGo = 0;
   /** Time of day, 0…1 from 06:00. Starts late afternoon so dusk comes soon. */
@@ -65,6 +67,10 @@ export class LanternScene extends Phaser.Scene {
 
   constructor() {
     super('lantern');
+  }
+
+  init(data?: { demo?: boolean }): void {
+    this.demo = !!data?.demo;
   }
 
   create(): void {
@@ -77,6 +83,9 @@ export class LanternScene extends Phaser.Scene {
     this.motes = [];
     this.roofs = [];
     this.walkers = [];
+    this.keys = {};
+    this.tod = 10.5 / 24;
+    this.day = 1;
     createLanternTextures(this);
 
     this.buildGround();
@@ -91,15 +100,26 @@ export class LanternScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, W * T, H * T);
     cam.setBackgroundColor('#0d0a08');
-    cam.startFollow(this.heroImg, true, 0.14, 0.14);
+    if (this.demo) {
+      this.tod = (19.4 - 6) / 24;
+      this.hero.x = 43.5 * T;
+      this.hero.y = 38 * T;
+      this.hero.facing = Math.PI / 2;
+      this.moveHero(0);
+    } else {
+      cam.startFollow(this.heroImg, true, 0.14, 0.14);
+    }
     this.layout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.layout, this);
 
-    this.setupInput();
-    this.hud = new LanternHud(() => this.scene.start('menu'));
+    if (!this.demo) {
+      this.setupInput();
+      this.hud = new LanternHud(() => this.scene.start('menu'));
+    }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
-      this.hud.destroy();
+      this.hud?.destroy();
+      this.hud = undefined;
       this.textures.remove('ln-dark');
     });
     this.cull(true);
@@ -398,9 +418,9 @@ export class LanternScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
-    const k = this.keys;
     const prev = this.hour();
-    this.tod = (this.tod + (dt * (k.T?.isDown ? FAST : 1)) / DAY_LEN) % 1;
+    if (this.demo) this.drift();
+    else this.tod = (this.tod + (dt * (this.keys.T?.isDown ? FAST : 1)) / DAY_LEN) % 1;
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
@@ -408,7 +428,14 @@ export class LanternScene extends Phaser.Scene {
     this.cull();
     this.drawMarker(dt);
     this.updateLighting(dt);
-    this.hud.update(this.day, this.hour(), this.night());
+    this.hud?.update(this.day, this.hour(), this.night());
+  }
+
+  /** The menu backdrop: a slow loop over the square and the rooftops. */
+  private drift(): void {
+    const t = this.time.now / 1000;
+    const { x, y } = this.world.wick;
+    this.cameras.main.centerOn(x + Math.cos(t * 0.06) * 220, y + Math.sin(t * 0.09) * 130);
   }
 
   private moveHero(dt: number): void {

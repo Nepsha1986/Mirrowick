@@ -2,6 +2,10 @@ import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
 import { MainMenu } from '../ui/MainMenu';
 
+/**
+ * The title screen: the DOM menu over a live backdrop — the lantern scene in
+ * demo mode, the camera drifting over the village at dusk.
+ */
 export class MenuScene extends Phaser.Scene {
   private menu?: MainMenu;
 
@@ -10,33 +14,20 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
-    const bg = this.add.image(0, 0, 'menu-bg');
-    const fit = () => {
-      const { width, height } = this.scale;
-      bg.setPosition(width / 2, height / 2);
-      bg.setScale(Math.max(width / bg.width, height / bg.height));
-    };
-    fit();
-    this.scale.on(Phaser.Scale.Events.RESIZE, fit);
-    this.cameras.main.fadeIn(900, 26, 18, 12);
-
-    const start = (key: string) => {
-      music.start();
-      this.menu?.destroy();
-      this.cameras.main.fadeOut(600, 26, 18, 12);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
-        this.scene.start(key),
-      );
-    };
+    this.scene.launch('lantern', { demo: true });
     this.menu = new MainMenu({
-      play: () => start('game'),
-      playTopDown: () => start('topdown'),
-      playLantern: () => start('lantern'),
+      play: () => {
+        music.start();
+        this.menu?.destroy();
+        const cam = this.scene.get('lantern').cameras.main;
+        cam.fadeOut(600, 13, 10, 8);
+        cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          // Restart the backdrop as the real thing.
+          this.scene.stop('lantern');
+          this.scene.start('lantern', { demo: false });
+        });
+      },
     });
-
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.scale.off(Phaser.Scale.Events.RESIZE, fit);
-      this.menu?.destroy();
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.menu?.destroy());
   }
 }
