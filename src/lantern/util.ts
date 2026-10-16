@@ -30,6 +30,19 @@ export const TL = {
   GLASS: 13,
   SAND: 14,
   GATE: 15,
+  // Village and interiors.
+  PLANK: 16,
+  PLANK2: 17,
+  PARQUET: 18,
+  CHECKER: 19,
+  FLAG: 20,
+  EARTH: 21,
+  TIMBER: 22,
+  PAVE2: 23,
+  PAVE3: 24,
+  SOIL: 25,
+  ASHLAR: 26,
+  CARPET: 27,
 } as const;
 
 export interface Pt {

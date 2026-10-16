@@ -94,6 +94,12 @@ middle, roads, a river, ruined hamlets, the forest and the Mirror. Only the
 look and the feel are here: free movement (click, hold or WASD), a darkness
 texture with the lantern's pool and beam cut out of it, street lamps and
 glowing shards, and a day–night cycle (hold T to speed time up).
+The village in the middle (`src/lantern/town.ts`, `src/lantern/town-art.ts`)
+is the showcase: a tavern, a chapel, a smithy and a house you can walk into
+(the roof lifts and the room lights up), each with its own floor — planks,
+parquet, chequered stone, flagstones — plus a mosaic square around the Wick,
+market stalls, strings of lights, a vegetable plot, watchtowers, villagers and
+hens.
 
 ### Rebuilding the art
 
