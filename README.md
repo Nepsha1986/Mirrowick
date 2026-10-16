@@ -3,13 +3,15 @@
 A top-down web game about two parallel worlds that share one name. You carry
 a lantern through the **Lower World** around the village of Mirrowick, where
 the dark is real and only the Wick, a great candle in the square, keeps it
-back.
+back. Above it lies the **Upper World**: an ordinary, sunlit countryside
+where the game begins, at home. The worlds meet in the old windmill — a ruin
+upstairs, whole and turning below — through a mirror set in its floor.
 
 **Play in the browser: https://nepsha1986.github.io/Mirrowick/**
 
 This is an early prototype for the game's look and feel: the main menu, the
-village and the land around it, free movement, light and darkness, and a
-day–night cycle.
+village and the land around it, the homestead in the Upper World, travel
+between the worlds, free movement, light and darkness, and a day–night cycle.
 
 ## Running it
 
@@ -32,6 +34,7 @@ npm run dev        # http://localhost:5173
 | ---------------- | --------------------------- |
 | Click / hold     | Walk there / steer the hero |
 | `WASD` or arrows | Walk                        |
+| `E`              | Step into a mirror          |
 | `T` (hold)       | Speed time up               |
 | `Esc`            | Back to the main menu       |
 
@@ -48,7 +51,11 @@ the game starts:
   stalls, villagers, hens, the mosaic square and a roof for every building.
 - `src/lantern/world.ts` generates the 100×80 map from a fixed seed: the
   village behind its palisade, roads, a river and a brook, ruined hamlets, the
-  forest and the Mirror. `src/lantern/town.ts` lays out the village by hand.
+  forest, the Mirror and the windmill. `src/lantern/town.ts` lays out the
+  village by hand.
+- `src/lantern/upper.ts` lays out the Upper World's 40×30 homestead: a house
+  with five rooms, a car in the drive, the garden, the road and the ruined
+  mill; `src/lantern/upper-art.ts` paints its ground and things.
 
 Light works like this: every frame a darkness texture is filled and the
 hero's lantern (a pool and a beam), the lamps, lit windows, the Wick and the

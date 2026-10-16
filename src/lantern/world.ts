@@ -1,5 +1,23 @@
+import { MILL_HALF, millDoor, millMirror, millRing, tileCentre } from './mill';
 import { buildTown, type TownLife } from './town';
-import { H, MIRROR, T, TL, TOWN, W, brookY, makeNoise, mulberry32, riverX, type Pt } from './util';
+import {
+  H,
+  LOWER_MILL,
+  MIRROR,
+  T,
+  TL,
+  TOWN,
+  UPPER_MILL,
+  W,
+  brookY,
+  makeNoise,
+  mulberry32,
+  riverX,
+  type Pt,
+} from './util';
+
+/** The two Mirrowicks. */
+export type Realm = 'lower' | 'upper';
 
 export interface WorldObject extends Pt {
   /** Texture key; defaults to the main atlas. */
@@ -22,7 +40,25 @@ export interface Light extends Pt {
   color: number;
 }
 
+/** A way through to the other world (world pixels). */
+export interface Portal extends Pt {
+  to: Realm;
+  /** Where you come out on the other side. */
+  exit: Pt;
+  label: string;
+}
+
+/** Windmill sails that turn above a building's roof. */
+export interface Sails extends Pt {
+  /** The building whose roof they sit on. */
+  room: number;
+}
+
 export interface World {
+  realm: Realm;
+  /** Map size in tiles. */
+  w: number;
+  h: number;
   ground: Uint8Array;
   /** 0 walkable, 1 solid, 2 water. */
   block: Uint8Array;
@@ -31,12 +67,14 @@ export interface World {
   decals: WorldObject[];
   lights: Light[];
   /** The Wick: the great candle in the middle of the village. */
-  wick: Pt;
+  wick?: Pt;
   spawn: Pt;
   life: TownLife;
+  portals: Portal[];
+  sails: Sails[];
 }
 
-const GLASS = 0x9fd8e6;
+export const GLASS = 0x9fd8e6;
 
 /**
  * The Lower World around Mirrowick, generated from a fixed seed: the village
@@ -143,6 +181,7 @@ export function generateWorld(): World {
   path(73, 41, 73, 49);
   path(51, 13, 52, 13);
   path(31, 40, 31, 53);
+  path(LOWER_MILL.x, 38, LOWER_MILL.x, LOWER_MILL.y + MILL_HALF + 1);
 
   // A river runs north–south, a brook joins it from the east.
   const water = (x: number, y: number) => {
@@ -314,6 +353,73 @@ export function generateWorld(): World {
   objects.push({ frame: 'wick', ...wick });
   lights.push({ ...wick, radius: 230, flicker: 0.1, color: 0xff9a40 });
 
+  // The windmill on the rise north-east of the village. Here it is whole and
+  // its sails still turn; a mirror set in its floor leads up to the other
+  // Mirrowick, where the same mill is a ruin.
+  const mc = LOWER_MILL;
+  millRing(mc.x, mc.y, (x, y, wall) => {
+    const i = I(x, y);
+    ground[i] = wall ? TL.WALL : (x + y) % 2 ? TL.PLANK : TL.PLANK2;
+    block[i] = wall ? 1 : 0;
+    clear[i] = 1;
+  });
+  const door = millDoor(mc);
+  ground[I(door.x, door.y)] = TL.PLANK;
+  block[I(door.x, door.y)] = 0;
+  const millRoom = life.buildings.length;
+  life.buildings.push({
+    name: 'Windmill',
+    x0: mc.x - MILL_HALF,
+    y0: mc.y - MILL_HALF,
+    w: MILL_HALF * 2 + 1,
+    h: MILL_HALF * 2 + 1,
+    roof: 'mill',
+    chimneys: [],
+  });
+  objects.push({ key: 'ln-up', frame: 'millstone', ...C(mc.x, mc.y) });
+  block[I(mc.x, mc.y)] = 1;
+  for (const [x, y, f] of [
+    [mc.x + 2, mc.y, 'sacks'],
+    [mc.x - 2, mc.y + 1, 'sacks'],
+    [mc.x - 2, mc.y - 1, 'barrel'],
+  ] as const) {
+    objects.push({
+      key: f === 'barrel' ? undefined : 'ln-up',
+      frame: f,
+      ...C(x, y),
+      angle: R() * 360,
+    });
+    block[I(x, y)] = 1;
+  }
+  const mirror = tileCentre(millMirror(mc));
+  decals.push({ key: 'ln-up', frame: 'mirror', ...mirror, depth: -44 });
+  const millCentre = C(mc.x, mc.y);
+  lights.push({
+    ...C(mc.x + 1, mc.y + 1),
+    radius: 120,
+    flicker: 0.07,
+    color: 0xffb860,
+    room: millRoom,
+  });
+  lights.push({ ...mirror, radius: 70, flicker: 0.15, slow: true, color: GLASS, room: millRoom });
+  // A lamp over the door, so the mill can be found at night.
+  lights.push({
+    x: door.x * T + T / 2,
+    y: (door.y + 1) * T + 4,
+    radius: 60,
+    flicker: 0.08,
+    color: 0xffb860,
+  });
+  const portals: Portal[] = [
+    {
+      ...mirror,
+      to: 'upper',
+      exit: tileCentre(millMirror(UPPER_MILL)),
+      label: 'Step into the mirror',
+    },
+  ];
+  const sails: Sails[] = [{ ...millCentre, room: millRoom }];
+
   // Keep vegetation off cleared ground.
   const near = new Uint8Array(N);
   for (let y = 0; y < H; y++) {
@@ -366,6 +472,9 @@ export function generateWorld(): World {
   }
 
   return {
+    realm: 'lower',
+    w: W,
+    h: H,
     ground,
     block,
     town,
@@ -375,5 +484,7 @@ export function generateWorld(): World {
     wick,
     spawn: { x: 50 * T, y: 43.5 * T },
     life,
+    portals,
+    sails,
   };
 }

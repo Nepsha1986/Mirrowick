@@ -1,7 +1,8 @@
 import type * as Phaser from 'phaser';
 import { INK, painter, type Painter } from './brush';
 import { paintTownAtlas, paintTownTiles } from './town-art';
-import { T, TL, mulberry32 } from './util';
+import { paintUpperAtlas, paintUpperTiles } from './upper-art';
+import { T, TILE_SLOTS, TL, mulberry32 } from './util';
 
 /**
  * Paints the whole look at start-up: a ground sheet, an atlas of
@@ -12,11 +13,12 @@ export function createLanternTextures(scene: Phaser.Scene): void {
   paintTiles(scene);
   paintAtlas(scene);
   paintTownAtlas(scene);
+  paintUpperAtlas(scene);
   paintLights(scene);
 }
 
 function paintTiles(scene: Phaser.Scene): void {
-  const tt = scene.textures.createCanvas('ln-tiles', T * 32, T);
+  const tt = scene.textures.createCanvas('ln-tiles', T * TILE_SLOTS, T);
   if (!tt) return;
   const c = tt.getContext();
   const r = mulberry32(42);
@@ -151,6 +153,7 @@ function paintTiles(scene: Phaser.Scene): void {
     }
   });
   paintTownTiles(at, r);
+  paintUpperTiles(at, r);
   tt.refresh();
 }
 

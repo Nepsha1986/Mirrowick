@@ -12,6 +12,12 @@ export const DAY_LEN = 360;
 export const TOWN = { x0: 38, y0: 31, x1: 61, y1: 48, cx: 50, cy: 40 };
 /** Where the worlds touch. */
 export const MIRROR = { x: 84, y: 14 };
+/** The windmill: whole in the Lower World, a ruin in the Upper. Centre tile. */
+export const LOWER_MILL = { x: 64, y: 23 };
+export const UPPER_MILL = { x: 31, y: 8 };
+/** The Upper World map, in tiles. */
+export const UW = 40;
+export const UH = 30;
 
 export const TL = {
   G1: 0,
@@ -43,7 +49,19 @@ export const TL = {
   SOIL: 25,
   ASHLAR: 26,
   CARPET: 27,
+  // The Upper World.
+  UG1: 28,
+  UG2: 29,
+  UG3: 30,
+  GRAVEL: 31,
+  ASPH1: 32,
+  ASPH2: 33,
+  TILEW: 34,
+  UPATH: 35,
 } as const;
+
+/** Slots in the ground sheet. */
+export const TILE_SLOTS = 40;
 
 export interface Pt {
   x: number;
