@@ -31,6 +31,7 @@ export class MenuScene extends Phaser.Scene {
     this.menu = new MainMenu({
       play: () => start('game'),
       playTopDown: () => start('topdown'),
+      playPainted: () => start('painted'),
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
