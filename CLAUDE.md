@@ -68,6 +68,9 @@ a merge commit or rebase.
   village by hand.
 - `src/lantern/upper.ts`: the Upper World homestead, laid out by hand.
 - `src/lantern/mill.ts`: the windmill footprint, shared by both worlds.
+- `src/lantern/ground-art.ts`: roads, paths and beds painted over the ground
+  with ragged edges (`World.patches`), and thin walls, posts and fences
+  (`World.walls`). Thin walls have their own collision in `Nav`.
 - `src/lantern/art.ts`, `town-art.ts`, `upper-art.ts`: every texture is painted
   by code into canvases at start-up. There are no image or sound files, so keep
   it that way.
@@ -78,6 +81,12 @@ a merge commit or rebase.
 - `src/audio/AmbientMusic.ts`: procedural Web Audio score, with
   `setMood('lower' | 'upper')`.
 - `src/ui/`: DOM overlay (menu, HUD with an action prompt).
+
+**Painting: nothing perfectly even.** Give everything small, logical
+imperfections so it looks lived-in rather than stamped out: a car parked a
+little askew, gravel worn through to the grass in places, a missing or
+leaning picket, faded and slipped roof tiles, ragged path edges, beds that
+aren't perfect rectangles. Keep them plausible and subtle, not random noise.
 
 Conventions: worlds are deterministic (seeded `mulberry32`, never
 `Math.random` in generation); tests in `src/lantern/world.test.ts` check

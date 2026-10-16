@@ -10,7 +10,7 @@ const WHITE = '#ece8dc';
 
 // --- Ground ------------------------------------------------------------------------------
 
-/** The Upper World's ground: fresh grass, gravel, a tarmac road, bathroom tiles. */
+/** The Upper World's ground: fresh grass and bathroom tiles; paths are painted over it. */
 export function paintUpperTiles(at: At, r: () => number): void {
   const pick = (cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
   const speck = (p: Painter, base: string, cols: string[], n: number, sz = 2) => {
@@ -31,17 +31,6 @@ export function paintUpperTiles(at: At, r: () => number): void {
   at(TL.UG1, grass('#5d7d36', ['#56752f', '#668740', '#517030', '#6b8c44'], '#7a9c4c'));
   at(TL.UG2, grass('#678a3c', ['#5f8235', '#729546', '#5a7b33', '#7a9d4c'], '#86a955'));
   at(TL.UG3, grass('#729640', ['#6a8d39', '#7da04a', '#668836', '#86a952'], '#93b45c'));
-  at(TL.GRAVEL, (p) => {
-    speck(p, '#9b9283', ['#8a8172', '#aaa192', '#7f7768', '#b4ab9b', '#6f685c'], 160, 2);
-  });
-  // Tarmac with a dashed centre line between the two rows.
-  const tarmac = (p: Painter, dashY: number, kerbY: number) => {
-    speck(p, '#3d3f42', ['#36383b', '#45474a', '#323437', '#4a4c4f'], 120, 1);
-    p.rect(0, kerbY, T, 2, '#8d8a84');
-    p.rect(6, dashY, 18, 2, '#e9e1c6');
-  };
-  at(TL.ASPH1, (p) => tarmac(p, T - 1, 0));
-  at(TL.ASPH2, (p) => tarmac(p, -1, T - 2));
   at(TL.TILEW, (p) => {
     p.rect(0, 0, T, T, '#a9b0b2');
     for (let y = 0; y < T; y += 8) {
@@ -50,10 +39,6 @@ export function paintUpperTiles(at: At, r: () => number): void {
         p.rect(x + 1, y + 1, 4, 1, 'rgba(255,255,255,.6)');
       }
     }
-  });
-  at(TL.UPATH, (p) => {
-    speck(p, '#8a7352', ['#7e6848', '#967e5c', '#735f42', '#a08865'], 100, 2);
-    for (let k = 0; k < 4; k++) p.line(r() * T, 0, r() * T, 3, '#6b8c44', 1);
   });
 }
 
@@ -222,13 +207,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
         1.8,
         ['#e04a60', '#f4d040', '#f4f0e4', '#9a70e0'][k % 4] as string,
       );
-    }
-  });
-  add('fence', 32, 12, (p) => {
-    p.rect(0, 4, 32, 2, '#d8d2c2');
-    p.rect(0, 7, 32, 2, '#d8d2c2');
-    for (const x of [3, 11, 19, 27]) {
-      p.rect(x - 2, 1, 4, 10, WHITE, 0.8);
     }
   });
   add('mailbox', 18, 18, (p) => {

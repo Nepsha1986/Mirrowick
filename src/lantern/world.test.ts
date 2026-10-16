@@ -68,3 +68,22 @@ describe('the two worlds', () => {
     }
   });
 });
+
+describe('thin walls', () => {
+  const upper = generateUpperWorld();
+  const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
+
+  it('block on the wall line but not beside it', () => {
+    // The wall between the kitchen and the living room runs down column 14.
+    const x = 14.5 * T;
+    const y = 11.5 * T;
+    expect(nav.solidAt(x, y)).toBe(true);
+    expect(nav.solidAt(x - 10, y)).toBe(false);
+    expect(nav.solidAt(x + 10, y)).toBe(false);
+  });
+
+  it('let the hero walk from the living room out to the road', () => {
+    const route = nav.route(upper.spawn, { x: 17 * T, y: 26.5 * T }, 10);
+    expect(route.length).toBeGreaterThan(0);
+  });
+});

@@ -1,5 +1,12 @@
 import { H, T, W, type Pt } from './util';
 
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 const DIRS: [number, number, number][] = [
   [1, 0, 1],
   [-1, 0, 1],
@@ -11,20 +18,42 @@ const DIRS: [number, number, number][] = [
   [-1, -1, Math.SQRT2],
 ];
 
-/** Free movement over a tile grid: circle collision, A* and path smoothing. */
+/**
+ * Free movement over a tile grid: circle collision, A* and path smoothing.
+ * Thin walls give their tiles finer collision: A* still routes round those
+ * tiles, but you can walk right up to the wall itself.
+ */
 export class Nav {
+  private readonly thin = new Map<number, Rect[]>();
+
   constructor(
     private readonly block: Uint8Array,
     private readonly w = W,
     private readonly h = H,
-  ) {}
+    walls: Rect[] = [],
+  ) {
+    for (const r of walls) {
+      for (let ty = Math.floor(r.y / T); ty <= Math.floor((r.y + r.h - 0.01) / T); ty++) {
+        for (let tx = Math.floor(r.x / T); tx <= Math.floor((r.x + r.w - 0.01) / T); tx++) {
+          const i = ty * w + tx;
+          let list = this.thin.get(i);
+          if (!list) this.thin.set(i, (list = []));
+          list.push(r);
+        }
+      }
+    }
+  }
 
   walkable(x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < this.w && y < this.h && this.block[y * this.w + x] === 0;
   }
 
   solidAt(px: number, py: number): boolean {
-    return !this.walkable(Math.floor(px / T), Math.floor(py / T));
+    const x = Math.floor(px / T);
+    const y = Math.floor(py / T);
+    const rects = x >= 0 && y >= 0 && x < this.w && y < this.h && this.thin.get(y * this.w + x);
+    if (rects) return rects.some((r) => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h);
+    return !this.walkable(x, y);
   }
 
   circleFree(x: number, y: number, r: number): boolean {

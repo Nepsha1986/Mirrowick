@@ -154,6 +154,11 @@ function paintTiles(scene: Phaser.Scene): void {
   });
   paintTownTiles(at, r);
   paintUpperTiles(at, r);
+  // Quarter tiles, to lay floor right up to a thin wall from either side.
+  for (let i = 0; i < TILE_SLOTS; i++) {
+    for (const qx of [0, 1])
+      for (const qy of [0, 1]) tt.add(`q${i}-${qx}${qy}`, 0, i * T + qx * 16, qy * 16, 16, 16);
+  }
   tt.refresh();
 }
 

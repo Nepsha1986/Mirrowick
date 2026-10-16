@@ -53,11 +53,7 @@ export const TL = {
   UG1: 28,
   UG2: 29,
   UG3: 30,
-  GRAVEL: 31,
-  ASPH1: 32,
-  ASPH2: 33,
-  TILEW: 34,
-  UPATH: 35,
+  TILEW: 31,
 } as const;
 
 /** Slots in the ground sheet. */

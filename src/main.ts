@@ -20,7 +20,14 @@ async function boot(): Promise<void> {
     parent: 'game',
     backgroundColor: '#1a120c',
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-    render: { antialias: true, roundPixels: false, powerPreference: 'high-performance' },
+    // One texture per batch: with several, some renderers drew one triangle of
+    // a rotated sprite from the wrong texture. The scene is small enough.
+    render: {
+      antialias: true,
+      roundPixels: false,
+      powerPreference: 'high-performance',
+      maxTextures: 1,
+    },
     disableContextMenu: true,
     scene: [BootScene, MenuScene, LanternScene],
   });
