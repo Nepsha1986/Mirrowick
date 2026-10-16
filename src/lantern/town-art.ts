@@ -701,9 +701,19 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: st
       texture(c, p, r, b.roof, hx, hy, hw, hh, horizontal);
       c.restore();
     }
-    // Ridge.
-    if (horizontal) p.rect(x0, mid - 2.5, rw, 5, INK);
-    else p.rect(mid - 2.5, y0, 5, rh, INK);
+    // Ridge, not quite straight.
+    c.strokeStyle = INK;
+    c.lineWidth = 5;
+    c.lineCap = 'butt';
+    c.beginPath();
+    const len = horizontal ? rw : rh;
+    for (let t = 0; t <= len; t += 8) {
+      const o = (r() - 0.5) * 1.4;
+      const [px, py] = horizontal ? [x0 + t, mid + o] : [mid + o, y0 + t];
+      if (t) c.lineTo(px, py);
+      else c.moveTo(px, py);
+    }
+    c.stroke();
     // Moss and wear.
     if (b.roof !== 'slate') {
       for (let k = 0; k < 6; k++) {
@@ -750,7 +760,12 @@ function texture(
       c.strokeStyle = 'rgba(20,6,4,.45)';
       c.lineWidth = 1;
       c.stroke();
-      if (r() < 0.15) p.rect(rx + 1, ry + 1, s - 2, s - 2, 'rgba(255,200,170,.08)');
+      // No two tiles alike: some faded, some newer, a few slipped or gone.
+      const v = r();
+      if (v < 0.15) p.rect(rx + 1, ry + 1, s - 2, s - 2, 'rgba(255,200,170,.1)');
+      else if (v < 0.27) p.rect(rx + 1, ry + 1, s - 2, s - 2, 'rgba(20,6,4,.14)');
+      else if (v < 0.278) p.rect(rx + 1, ry + 1, s - 2, s - 2, 'rgba(18,8,6,.45)');
+      else if (v < 0.29) p.rect(rx + 1.5, ry + 2.5, s - 2, s - 2, 'rgba(160,80,60,.4)');
     });
   } else if (kind === 'slate') {
     rows(8, (rx, ry, s) => {

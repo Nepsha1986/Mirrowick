@@ -27,6 +27,26 @@ export interface WorldObject extends Pt {
   depth?: number;
   angle?: number;
   scale?: number;
+  alpha?: number;
+}
+
+/**
+ * A thin wall, fence or post drawn over the ground, with collision of its
+ * own instead of a whole tile's (world pixels).
+ */
+export interface ThinWall {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  kind: 'outer' | 'inner' | 'window' | 'post' | 'fence';
+}
+
+/** A road, path or bed painted onto the ground along a line, with ragged edges. */
+export interface GroundPatch {
+  pts: Pt[];
+  width: number;
+  kind: 'road' | 'gravel' | 'dirt' | 'soil';
 }
 
 export interface Light extends Pt {
@@ -72,6 +92,8 @@ export interface World {
   life: TownLife;
   portals: Portal[];
   sails: Sails[];
+  walls: ThinWall[];
+  patches: GroundPatch[];
 }
 
 export const GLASS = 0x9fd8e6;
@@ -486,5 +508,7 @@ export function generateWorld(): World {
     life,
     portals,
     sails,
+    walls: [],
+    patches: [],
   };
 }

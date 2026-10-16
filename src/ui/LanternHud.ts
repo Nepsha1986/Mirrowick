@@ -1,6 +1,6 @@
 import { h, uiRoot } from './dom';
 
-/** Clock, a way back and the controls; nothing else. */
+/** Clock, a way back and what you can do right here; nothing else. */
 export class LanternHud {
   private readonly el: HTMLElement;
   private readonly clock: HTMLElement;
@@ -33,11 +33,6 @@ export class LanternHud {
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
       ),
       this.action,
-      h(
-        'div',
-        { class: 'hint-pill' },
-        'Click or hold to walk · WASD · E use · Hold T to speed up time · Esc menu',
-      ),
     );
     uiRoot().append(this.el);
   }

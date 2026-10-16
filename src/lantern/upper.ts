@@ -1,10 +1,20 @@
 import { MILL_HALF, millDoor, millMirror, millRing, tileCentre } from './mill';
 import type { Building } from './town';
 import { LOWER_MILL, T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
-import { GLASS, type Light, type World, type WorldObject } from './world';
+import {
+  GLASS,
+  type GroundPatch,
+  type Light,
+  type ThinWall,
+  type World,
+  type WorldObject,
+} from './world';
 
 const WARM = 0xffc070;
 const LAMP = 0xfff0c8;
+/** Wall thickness in pixels: the house's outer walls and its partitions. */
+const OUTER = 11;
+const INNER = 6;
 
 /**
  * The Upper World, for now one homestead on a country road: a village house
@@ -41,6 +51,13 @@ export function generateUpperWorld(): World {
     decals.push({ key: 'ln-up', frame, ...C(x, y), depth: -45, ...o });
   const light = (p: Pt, radius: number, color = WARM, o: Partial<Light> = {}) =>
     lights.push({ ...p, radius, color, flicker: 0.02, ...o });
+  const walls: ThinWall[] = [];
+  const patches: GroundPatch[] = [];
+  const P = (x: number, y: number): Pt => ({ x: x * T, y: y * T });
+  /** Keeps trees off a rectangle of tiles without changing the ground. */
+  const keep = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inb(x, y)) clear[I(x, y)] = 1;
+  };
 
   // A green meadow.
   for (let y = 0; y < UH; y++) {
@@ -50,17 +67,141 @@ export function generateUpperWorld(): World {
     }
   }
 
-  // The country road along the south edge, a gravel walk and a drive.
-  for (let x = 0; x < UW; x++) {
-    set(x, 26, TL.ASPH1);
-    set(x, 27, TL.ASPH2);
-  }
-  for (let y = 19; y <= 25; y++) for (const x of [16, 17]) set(x, y, TL.GRAVEL);
-  for (let y = 15; y <= 25; y++) for (let x = 24; x <= 26; x++) set(x, y, TL.GRAVEL);
-  // The lane up to the mill, and a footpath from the back door to the vegetable beds.
-  for (let x = 27; x <= UPPER_MILL.x; x++) set(x, 15, TL.UPATH);
-  for (let y = UPPER_MILL.y + MILL_HALF + 1; y <= 15; y++) set(UPPER_MILL.x, y, TL.UPATH);
-  for (let y = 6; y <= 7; y++) set(11, y, TL.UPATH);
+  // A country road of packed earth and gravel along the south edge, a gravel
+  // walk and drive, a dirt lane up to the mill and a footpath out the back.
+  // They are painted over the grass, so their edges wander.
+  keep(0, 26, UW - 1, 27);
+  patches.push({ kind: 'gravel', width: 2.7 * T, pts: [P(25, 26.3), P(25.1, 21), P(24.9, 15.5)] });
+  keep(24, 15, 26, 25);
+  patches.push({
+    kind: 'gravel',
+    width: 1.5 * T,
+    pts: [P(17, 19.3), P(16.95, 22.5), P(17.05, 26.3)],
+  });
+  keep(16, 19, 17, 25);
+  patches.push({
+    kind: 'dirt',
+    width: 0.95 * T,
+    pts: [P(26.3, 15.6), P(28.4, 15.4), P(30.5, 14.7), P(31.45, 13.4), P(31.5, 11.8)],
+  });
+  keep(27, 15, UPPER_MILL.x, 15);
+  keep(UPPER_MILL.x, UPPER_MILL.y + MILL_HALF + 1, UPPER_MILL.x, 15);
+
+  /**
+   * Turns a building's wall tiles into thin walls along their middles, with
+   * the floor on either side laid up to them, timber posts at the corners and
+   * windows. A wall stops at a doorway's edge.
+   */
+  const thinWalls = (b: Building, wallT: Uint8Array, doors: readonly (readonly number[])[]) => {
+    const bx1 = b.x0 + b.w - 1;
+    const by1 = b.y0 + b.h - 1;
+    const rimRow = (y: number) => y === b.y0 || y === by1;
+    const rimCol = (x: number) => x === b.x0 || x === bx1;
+    const isWall = (x: number, y: number) => inb(x, y) && wallT[I(x, y)] === 1;
+    const isDoor = (x: number, y: number) => doors.some(([dx, dy]) => dx === x && dy === y);
+    for (let y = b.y0; y <= by1; y++) {
+      for (let x = b.x0; x <= bx1; x++) {
+        if (!isWall(x, y)) continue;
+        const cx = (x + 0.5) * T;
+        const cy = (y + 0.5) * T;
+        // The floor runs up to the wall from each side: each quarter of the
+        // tile takes the floor next to it.
+        for (const qx of [0, 1]) {
+          for (const qy of [0, 1]) {
+            const dx = qx ? 1 : -1;
+            const dy = qy ? 1 : -1;
+            const from = [
+              [x + dx, y],
+              [x, y + dy],
+              [x + dx, y + dy],
+            ].find(([fx = 0, fy = 0]) => !isWall(fx, fy) && !isDoor(fx, fy)) ?? [x, y];
+            const tile = ground[I(from[0] as number, from[1] as number)] as number;
+            if (tile === ground[I(x, y)]) continue;
+            decals.push({
+              key: 'ln-tiles',
+              frame: `q${tile}-${qx}${qy}`,
+              x: x * T + qx * 16 + 8,
+              y: y * T + qy * 16 + 8,
+              depth: -99,
+              alpha: 1,
+            });
+          }
+        }
+        const around = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ].filter(([dx, dy]) => isWall(x + (dx as number), y + (dy as number)));
+        const t = rimRow(y) || rimCol(x) ? OUTER : INNER;
+        walls.push({
+          kind: t === OUTER ? 'outer' : 'inner',
+          x: cx - t / 2,
+          y: cy - t / 2,
+          w: t,
+          h: t,
+        });
+        // Timber posts where walls meet or turn.
+        // Two walls in a straight line cancel out; a corner doesn't.
+        let sx = 0;
+        let sy = 0;
+        for (const [dx = 0, dy = 0] of around) {
+          sx += dx;
+          sy += dy;
+        }
+        const straight = around.length === 2 && sx === 0 && sy === 0;
+        if (around.length > 2 || (around.length === 2 && !straight)) {
+          walls.push({ kind: 'post', x: cx - 7, y: cy - 7, w: 14, h: 14 });
+        }
+        for (const [dx, dy] of [
+          [1, 0],
+          [0, 1],
+          [-1, 0],
+          [0, -1],
+        ] as const) {
+          const nx = x + dx;
+          const ny = y + dy;
+          const horiz = dy === 0;
+          const st = horiz ? (rimRow(y) ? OUTER : INNER) : rimCol(x) ? OUTER : INNER;
+          const kind = st === OUTER ? 'outer' : 'inner';
+          // To the next wall's middle (east and south only, so once), or to a door's edge.
+          let len = 0;
+          if (isWall(nx, ny) && (dx > 0 || dy > 0)) len = T;
+          else if (isDoor(nx, ny)) len = T / 2;
+          if (!len) continue;
+          if (horiz) {
+            const x0 = dx > 0 ? cx : cx - len;
+            walls.push({ kind, x: x0, y: cy - st / 2, w: len, h: st });
+          } else {
+            const y0 = dy > 0 ? cy : cy - len;
+            walls.push({ kind, x: cx - st / 2, y: y0, w: st, h: len });
+          }
+        }
+      }
+    }
+  };
+
+  /** A doorway in a thin wall: each half takes the floor of the room on its side. */
+  const doorFloors = (doors: readonly (readonly number[])[], wallT: Uint8Array) => {
+    for (const [x = 0, y = 0] of doors) {
+      const vertical = wallT[I(x, y - 1)] === 1 || wallT[I(x, y + 1)] === 1;
+      for (const qx of [0, 1]) {
+        for (const qy of [0, 1]) {
+          const [fx, fy] = vertical ? [x + (qx ? 1 : -1), y] : [x, y + (qy ? 1 : -1)];
+          const tile = ground[I(fx, fy)] as number;
+          if (tile === ground[I(x, y)]) continue;
+          decals.push({
+            key: 'ln-tiles',
+            frame: `q${tile}-${qx}${qy}`,
+            x: x * T + qx * 16 + 8,
+            y: y * T + qy * 16 + 8,
+            depth: -99,
+            alpha: 1,
+          });
+        }
+      }
+    }
+  };
 
   // --- The house -----------------------------------------------------------------------
   const house: Building = {
@@ -79,6 +220,7 @@ export function generateUpperWorld(): World {
     if (x >= 20) return TL.TILEW; // bathroom
     return TL.PLANK; // hall
   };
+  const wallT = new Uint8Array(N);
   const x1 = house.x0 + house.w - 1;
   const y1 = house.y0 + house.h - 1;
   for (let y = house.y0; y <= y1; y++) {
@@ -87,11 +229,14 @@ export function generateUpperWorld(): World {
       const inner =
         x === 14 || (y === 13 && x <= 14) || (y === 14 && x >= 14) || (x === 19 && y >= 14);
       const wall = rim || inner;
-      set(x, y, wall ? TL.TIMBER : floor(x, y), wall ? 1 : 0);
+      if (wall) {
+        solid(x, y);
+        wallT[I(x, y)] = 1;
+      } else set(x, y, floor(x, y));
     }
   }
   // Doors: kitchen–living, bedroom–hall, living–hall, hall–bath, back and front.
-  for (const [x, y, f] of [
+  const doors = [
     [14, 10, TL.PARQUET],
     [14, 16, TL.PLANK],
     [17, 14, TL.PLANK],
@@ -99,9 +244,13 @@ export function generateUpperWorld(): World {
     [11, 8, TL.CHECKER],
     [16, 18, TL.PLANK],
     [17, 18, TL.PLANK],
-  ] as const) {
+  ] as const;
+  for (const [x, y, f] of doors) {
     set(x, y, f);
+    wallT[I(x, y)] = 0;
   }
+  thinWalls(house, wallT, doors);
+  doorFloors(doors, wallT);
   const room = 0;
   const lamp = (p: Pt, radius: number, color = WARM) => light(p, radius, color, { room });
 
@@ -176,19 +325,46 @@ export function generateUpperWorld(): World {
   ] as const) {
     light(C(x, y), 40, WARM);
   }
+  for (const [x, y] of [
+    [11, 18],
+    [20, 18],
+    [10, 8],
+    [18, 8],
+    [8, 10],
+    [8, 15],
+    [22, 11],
+  ] as const) {
+    const along = y === 8 || y === 18;
+    const cx = (x + 0.5) * T;
+    const cy = (y + 0.5) * T;
+    walls.push(
+      along
+        ? { kind: 'window', x: cx - 11, y: cy - OUTER / 2, w: 22, h: OUTER }
+        : { kind: 'window', x: cx - OUTER / 2, y: cy - 11, w: OUTER, h: 22 },
+    );
+  }
   decal('step', 16.5, 18.9);
   light({ x: 17 * T, y: 19.9 * T }, 60, LAMP);
 
   // --- The yard ------------------------------------------------------------------------
-  // A car in the drive.
-  objects.push({ key: 'ln-up', frame: 'car', x: 25 * T, y: 19 * T, depth: 20.8 * T });
+  // A car in the drive, parked a little askew.
+  objects.push({ key: 'ln-up', frame: 'car', x: 25.15 * T, y: 19 * T, angle: -6, depth: 20.8 * T });
   for (let y = 17; y <= 20; y++) for (const x of [24, 25]) solid(x, y);
 
-  // A picket fence along the road, gaps for the walk and the drive.
-  for (let x = 3; x <= 29; x++) {
-    if (x === 16 || x === 17 || (x >= 24 && x <= 26)) continue;
-    set(x, 24, ground[I(x, 24)] as number, 1);
-    obj('fence', x, 24);
+  // A picket fence along the road, with gaps for the walk and the drive.
+  for (const [a, b] of [
+    [3, 15],
+    [18, 23],
+    [27, 29],
+  ] as const) {
+    const y = 24.5 * T;
+    walls.push({ kind: 'fence', x: a * T + 4, y: y - 3, w: (b - a + 1) * T - 8, h: 6 });
+    for (let x = a; x <= b; x++) solid(x, 24);
+    for (let x = a; x <= b + 1; x += 3) {
+      const px = Math.min(x, b + 1) * T + (x === a ? 4 : x > b ? -4 : 0);
+      walls.push({ kind: 'post', x: px - 3.5, y: y - 3.5, w: 7, h: 7 });
+    }
+    walls.push({ kind: 'post', x: (b + 1) * T - 7.5, y: y - 3.5, w: 7, h: 7 });
   }
   obj('mailbox', 18, 25);
   solid(18, 25);
@@ -200,14 +376,30 @@ export function generateUpperWorld(): World {
 
   // Flowers under the front windows; vegetable beds and a bench out the back.
   for (const x of [9, 10, 11, 12, 13, 19, 20, 21]) {
-    obj('flowerbed', x, 19, { depth: 19 * T });
+    if (x === 12) continue;
+    obj('flowerbed', x + (R() - 0.5) * 0.15, 19 + (R() - 0.3) * 0.2, {
+      depth: 19 * T,
+      angle: (R() - 0.5) * 8,
+    });
     solid(x, 19);
   }
+  for (const x0 of [8, 12]) {
+    patches.push({ kind: 'soil', width: 3 * T, pts: [P(x0, 4.5), P(x0 + 3, 4.5)] });
+  }
+  patches.push({ kind: 'dirt', width: 0.85 * T, pts: [P(11.5, 7.9), P(11.45, 6.4), P(11.6, 2.6)] });
+  keep(8, 2, 14, 7);
   for (let x = 8; x <= 14; x++) {
     for (let y = 3; y <= 5; y++) {
-      if (x === 11) continue;
-      set(x, y, TL.SOIL);
-      decals.push({ key: 'ln-town', frame: 'cabbage', ...C(x, y), depth: -45 });
+      if (x === 11 || R() < 0.12) continue;
+      decals.push({
+        key: 'ln-town',
+        frame: 'cabbage',
+        x: (x + 0.5) * T + (R() - 0.5) * 7,
+        y: (y + 0.5) * T + (R() - 0.5) * 7,
+        scale: 0.8 + R() * 0.4,
+        angle: R() * 360,
+        depth: -45,
+      });
     }
   }
   objects.push({ key: 'ln-town', frame: 'bench', ...C(16, 4) });
@@ -223,6 +415,12 @@ export function generateUpperWorld(): World {
     obj('appletree', x, y, { depth: (y + 1) * T, angle: R() * 360 });
     solid(x, y);
   }
+
+  // The road goes on last, over the ends of the walk and the drive.
+  const road: Pt[] = [];
+  for (let x = -1; x <= UW + 1; x += 2) road.push(P(x, 27 + Math.sin(x * 0.21) * 0.18));
+  patches.push({ kind: 'road', width: 2.3 * T, pts: road });
+  keep(0, 26, UW - 1, 27);
 
   // --- The old mill --------------------------------------------------------------------
   // A ring of tumbled stone open to the sky; the sails lie broken in the grass.
@@ -306,6 +504,8 @@ export function generateUpperWorld(): World {
     lights,
     spawn: C(16, 11),
     life: { buildings: [house], festoons: [], spots: [] },
+    walls,
+    patches,
     portals: [
       {
         ...mirror,

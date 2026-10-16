@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
 import { createLanternTextures } from '../lantern/art';
+import { paintGround, paintWalls } from '../lantern/ground-art';
 import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
 import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
@@ -104,7 +105,7 @@ export class LanternScene extends Phaser.Scene {
 
   create(): void {
     this.world = this.realm === 'upper' ? generateUpperWorld() : generateWorld();
-    this.nav = new Nav(this.world.block, this.world.w, this.world.h);
+    this.nav = new Nav(this.world.block, this.world.w, this.world.h, this.world.walls);
     this.chunks.clear();
     this.visible.clear();
     this.cullKey = '';
@@ -174,6 +175,19 @@ export class LanternScene extends Phaser.Scene {
     const tiles = map.addTilesetImage('ln-tiles', 'ln-tiles', T, T, 0, 0);
     if (!tiles) throw new Error('lantern tiles missing');
     map.createLayer(0, tiles, 0, 0)?.setDepth(-100);
+    // Roads and paths painted over the ground; thin walls and fences on top.
+    const pw = w * T;
+    const ph = h * T;
+    if (this.world.patches.length) {
+      const key = `ln-ground-${this.realm}`;
+      paintGround(this, key, pw, ph, this.world.patches);
+      this.add.image(0, 0, key).setOrigin(0).setDepth(-97);
+    }
+    if (this.world.walls.length) {
+      const key = `ln-walls-${this.realm}`;
+      paintWalls(this, key, pw, ph, this.world.walls);
+      this.add.image(0, 0, key).setOrigin(0).setDepth(-30);
+    }
   }
 
   /** Registers an image in its chunk; only chunks near the camera are shown. */
@@ -194,7 +208,8 @@ export class LanternScene extends Phaser.Scene {
           .image(d.x, d.y, d.key ?? 'ln-atlas', d.frame)
           .setAngle(d.angle ?? 0)
           .setDepth(d.depth ?? -50)
-          .setAlpha(0.85),
+          .setScale(d.scale ?? 1)
+          .setAlpha(d.alpha ?? 0.85),
       );
     }
     for (const o of this.world.objects) {

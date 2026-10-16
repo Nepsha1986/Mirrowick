@@ -13,6 +13,8 @@ This is an early prototype for the game's look and feel: the main menu, the
 village and the land around it, the homestead in the Upper World, travel
 between the worlds, free movement, light and darkness, and a day–night cycle.
 
+Short design notes (in Russian) are in [`docs/`](docs/).
+
 ## Running it
 
 ```bash

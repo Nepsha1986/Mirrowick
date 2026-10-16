@@ -274,22 +274,6 @@ button:focus-visible {
   }
 }
 
-.hint-pill {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  padding: 9px 18px;
-  border-radius: 999px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--paper-dim);
-  white-space: nowrap;
-}
-
 .place.clock {
   text-align: right;
 }
@@ -297,7 +281,7 @@ button:focus-visible {
 .action-pill {
   position: absolute;
   left: 50%;
-  bottom: 64px;
+  bottom: 18px;
   transform: translateX(-50%);
   padding: 10px 20px;
   border-radius: 999px;
