@@ -4,29 +4,21 @@ A top-down web game about two parallel worlds that share one name: the dark,
 solitary **Lower World** and the ordinary, sunlit **Upper World**, joined by a
 mirror in the windmill's floor. Phaser 4 (WebGL), TypeScript, Vite.
 
-## Read first
+## Docs
 
-The design docs are in `docs/`, written in Russian: they are for the owner,
-who speaks Russian. Before working on a feature, read the docs it touches:
+`docs/` holds a few short notes in Russian, for the owner (who speaks Russian;
+talk to them in Russian):
 
-- `docs/vision.md`: what the game is, and the pillars every feature is checked against
-- `docs/worlds.md`: what is in each world **now** (layout, light, music, controls)
-- `docs/lore.md`: settled lore and **open questions**. Don't invent answers to them; ask.
-- `docs/decisions.md`: what was decided and why (newest first)
-- `docs/ideas.md`: ideas parked for later
-- `docs/roadmap.md`: done / next / later
+- `docs/vision.md`: what the game is
+- `docs/worlds.md`: what is in each world now
+- `docs/decisions.md`: what has been decided, newest first
 
-## Keep the docs current
+Keep them **minimal**. Record only what is built or what the owner has
+decided, never ideas that were only discussed. When a change alters what's in
+a world, update `docs/worlds.md` in the same PR. When the owner makes a
+decision, add one line to `docs/decisions.md`.
 
-In the same PR as the change:
-
-- a feature that changes what's in the game → update `docs/worlds.md` and `docs/roadmap.md`;
-- a design decision (chosen or rejected) → add an entry at the top of `docs/decisions.md`;
-- an idea discussed but not built → add it to `docs/ideas.md`;
-- new places, names or rules of the world → `docs/lore.md`.
-
-Write the docs in Russian. Talk to the owner in Russian. The in-game UI text,
-code, comments and commit messages are in English.
+Code, comments, commit messages and in-game UI text are in English.
 
 ## Commands
 
