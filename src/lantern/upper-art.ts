@@ -220,6 +220,17 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     fillInk('#c0392b', 1);
     p.rect(13, 2, 2, 5, '#f4d040');
   });
+  // A black flashlight lying a little askew, its lens catching the light.
+  add('flashlight', 22, 14, (p) => {
+    c.translate(11, 7);
+    c.rotate(-0.3);
+    p.ell(1, 2, 8, 3, 'rgba(20,30,10,.3)');
+    p.rect(-8, -2, 11, 4, '#2c2f33', 1);
+    p.rect(3, -3, 4, 6, '#3a3d42', 1);
+    p.rect(6.5, -2.6, 1.4, 5.2, '#fff0b8', 0.6);
+    p.rect(-3, -2, 2, 1.2, '#9a2a24');
+    p.line(-7, -1, 2, -1, 'rgba(255,255,255,.18)', 0.8);
+  });
   add('streetlamp', 20, 20, (p) => {
     shadow(p, 11, 11, 7, 6);
     p.circ(10, 10, 7, '#3a3e42', 1.2);

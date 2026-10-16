@@ -1,7 +1,10 @@
+import { Dialog } from './Dialog';
 import { h, uiRoot } from './dom';
 
 /** Clock, a way back and what you can do right here; nothing else. */
 export class LanternHud {
+  /** What a thing asks of you when you use it: the mailbox's choices. */
+  readonly dialog = new Dialog();
   private readonly el: HTMLElement;
   private readonly clock: HTMLElement;
   private readonly phase: HTMLElement;
@@ -32,6 +35,7 @@ export class LanternHud {
         ),
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
       ),
+      this.dialog.el,
       this.action,
     );
     uiRoot().append(this.el);
@@ -39,6 +43,7 @@ export class LanternHud {
 
   /** What you can do right here, or nothing. */
   prompt(text: string | null): void {
+    if (this.dialog.open) text = null;
     this.action.hidden = !text;
     if (text && this.action.textContent !== text) this.action.textContent = text;
   }

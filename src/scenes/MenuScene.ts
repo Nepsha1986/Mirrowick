@@ -33,8 +33,8 @@ export class MenuScene extends Phaser.Scene {
       resume: () => {
         const save = loadSave();
         if (!save) return begin({ demo: false });
-        const { realm, x, y, tod, day, things } = save;
-        begin({ demo: false, realm, at: { x, y }, tod, day, things });
+        const { realm, x, y, tod, day, things, items } = save;
+        begin({ demo: false, realm, at: { x, y }, tod, day, things, items });
       },
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.menu?.destroy());

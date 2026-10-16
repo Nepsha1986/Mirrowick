@@ -7,9 +7,10 @@ import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
 import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
 import { writeSave } from '../lantern/save';
-import { generateWorld, type Portal, type Realm, type Thing, type World } from '../lantern/world';
+import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { LanternHud } from '../ui/LanternHud';
+import { openMailbox } from '../ui/mailbox';
 
 const DEPTH_DARK = 100_000;
 const DEPTH_ABOVE_DARK = 100_001;
@@ -24,6 +25,8 @@ const CHUNK = 10 * T;
 const REACH = 1.4 * T;
 /** Seconds between autosaves. */
 const AUTOSAVE = 5;
+/** The halo around whatever you can use right here. */
+const HALO = 0xfff2c4;
 /** The Mirror's cold glint, for the flash between the worlds. */
 const GLINT: [number, number, number] = [159, 216, 230];
 const DUSK: [number, number, number] = [13, 10, 8];
@@ -43,12 +46,18 @@ export interface LanternData {
   day?: number;
   /** Things that are switched on. */
   things?: string[];
+  /** What you carry. */
+  items?: string[];
   /** How you arrived: through a mirror, or down or up the stairs. */
   via?: Portal['fade'];
 }
 
+const chunkOf = (p: Pt) => `${Math.floor(p.x / CHUNK)},${Math.floor(p.y / CHUNK)}`;
+
 /** Something you can use where you stand: a mirror, a switch. */
 interface Target extends Pt {
+  /** Its picture, outlined by the halo; without one the halo is a pool of light. */
+  img?: Phaser.GameObjects.Image;
   label: () => string;
   use: () => void;
 }
@@ -101,8 +110,19 @@ export class LanternScene extends Phaser.Scene {
   private targets: Target[] = [];
   /** Something you clicked: used as soon as you reach it. */
   private heading: Target | null = null;
+  /** What is in reach and haloed: only ever one, however many things there are. */
+  private halo: Target | null = null;
+  private haloGlow?: Phaser.Filters.Glow;
+  private haloPool!: Phaser.GameObjects.Image;
+  /** What you are using right now, while it shows a dialog. */
+  private using: Target | null = null;
+  /** What the things that don't just switch on and off do, by id. */
+  private readonly uses: Record<string, () => void> = {
+    mailbox: () => this.hud && openMailbox(this.hud.dialog, () => (this.using = null)),
+  };
   private thingsOn = new Set<string>();
-  private thingImgs = new Map<string, Phaser.GameObjects.Image>();
+  /** What you carry: the flashlight, once you've found it. */
+  private items = new Set<string>();
   private leaving = false;
   private sinceSave = 0;
   private walkers: Walker[] = [];
@@ -146,8 +166,12 @@ export class LanternScene extends Phaser.Scene {
     this.walkers = [];
     this.keys = {};
     this.heading = null;
+    this.halo = null;
+    this.haloGlow = undefined;
+    this.using = null;
     this.thingsOn = new Set(this.start.things ?? []);
-    this.thingImgs.clear();
+    // The menu's backdrop wanders with a light; a new game starts empty-handed.
+    this.items = new Set(this.start.items ?? (this.demo ? ['flashlight'] : []));
     this.leaving = false;
     this.sinceSave = 0;
     this.holding = false;
@@ -164,7 +188,7 @@ export class LanternScene extends Phaser.Scene {
     const want = this.start.at;
     const at = want && this.nav.circleFree(want.x, want.y, HERO_R) ? want : this.world.spawn;
     this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
-    this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', 'hero');
+    this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
     this.buildDarkness();
@@ -237,7 +261,7 @@ export class LanternScene extends Phaser.Scene {
 
   /** Registers an image in its chunk; only chunks near the camera are shown. */
   private chunked(img: Phaser.GameObjects.Image): Phaser.GameObjects.Image {
-    const k = `${Math.floor(img.x / CHUNK)},${Math.floor(img.y / CHUNK)}`;
+    const k = chunkOf(img);
     let list = this.chunks.get(k);
     if (!list) this.chunks.set(k, (list = []));
     list.push(img);
@@ -550,7 +574,7 @@ export class LanternScene extends Phaser.Scene {
 
   // --- Using things ------------------------------------------------------------------
 
-  /** The mirrors, and the things you can switch on and off. */
+  /** The mirrors, and the things you can use. */
   private buildTargets(): void {
     this.targets = this.world.portals.map((p) => ({
       ...p,
@@ -558,26 +582,79 @@ export class LanternScene extends Phaser.Scene {
       use: () => this.travel(p),
     }));
     for (const t of this.world.things) {
+      if (t.take && this.items.has(t.id)) continue;
+      // How it looks and what it says now: switched on, or as it is.
+      const now = () => (t.on && this.thingsOn.has(t.id) ? t.on : t);
       const img = this.chunked(
-        this.add
-          .image(t.x, t.y, t.key, this.thingsOn.has(t.id) ? t.frameOn : t.frame)
-          .setDepth(t.depth ?? t.y + 4),
+        this.add.image(t.x, t.y, t.key, now().frame).setDepth(t.depth ?? t.y + 4),
       );
-      this.thingImgs.set(t.id, img);
       this.targets.push({
         x: t.x,
         y: t.y,
-        label: () => t.labels[this.thingsOn.has(t.id) ? 1 : 0],
-        use: () => this.toggle(t),
+        img,
+        label: () => now().label,
+        use: () =>
+          t.on
+            ? this.toggle(t.id, () => img.setFrame(now().frame))
+            : t.take
+              ? this.take(t.id, img)
+              : this.useThing(t.id),
       });
     }
+    this.haloPool = this.add
+      .image(0, 0, 'glow')
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(HALO)
+      .setScale(90 / 256)
+      .setVisible(false);
   }
 
-  private toggle(t: Thing): void {
-    if (this.thingsOn.has(t.id)) this.thingsOn.delete(t.id);
-    else this.thingsOn.add(t.id);
-    this.thingImgs.get(t.id)?.setFrame(this.thingsOn.has(t.id) ? t.frameOn : t.frame);
+  private toggle(id: string, redraw: () => void): void {
+    if (this.thingsOn.has(id)) this.thingsOn.delete(id);
+    else this.thingsOn.add(id);
+    redraw();
     this.save();
+  }
+
+  /** Into your pockets: gone from the world, and the hero carries it. */
+  private take(id: string, img: Phaser.GameObjects.Image): void {
+    this.items.add(id);
+    this.setHalo(null);
+    this.targets = this.targets.filter((t) => t.img !== img);
+    const chunk = this.chunks.get(chunkOf(img));
+    chunk?.splice(chunk.indexOf(img), 1);
+    img.destroy();
+    this.heroImg.setFrame(this.heroFrame());
+    this.save();
+  }
+
+  private heroFrame(): string {
+    return this.items.has('flashlight') ? 'heroLit' : 'hero';
+  }
+
+  private useThing(id: string): void {
+    const use = this.uses[id];
+    if (!use) return;
+    this.using = this.halo;
+    this.hero.path = [];
+    this.input.keyboard?.resetKeys();
+    use();
+  }
+
+  /**
+   * Moves the halo to what is in reach: a glow around its outline (one
+   * filter, on one image at a time), or a pool of light where it has no
+   * picture of its own, like a hatch.
+   */
+  private setHalo(t: Target | null): void {
+    if (t === this.halo) return;
+    if (this.haloGlow) this.halo?.img?.filters?.internal.remove(this.haloGlow, true);
+    this.haloGlow = undefined;
+    this.halo = t;
+    if (t?.img)
+      this.haloGlow = t.img.enableFilters().filters?.internal.addGlow(HALO, 4, 0, 1, false, 10, 10);
+    this.haloPool.setVisible(!!t && !t.img);
+    if (t) this.haloPool.setPosition(t.x, t.y).setDepth(t.y + 5);
   }
 
   /** The nearest thing within reach, if any. */
@@ -598,6 +675,12 @@ export class LanternScene extends Phaser.Scene {
 
   private checkTargets(): void {
     const near = this.inReach();
+    // Walking away from the mailbox closes it.
+    if (this.using && near !== this.using) this.hud?.dialog.close();
+    this.setHalo(near);
+    const pulse = Math.sin(this.time.now / 260);
+    if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
+    this.haloPool.setAlpha(0.45 + pulse * 0.15);
     this.hud?.prompt(near ? `E · ${near.label()}` : null);
     if (near && this.heading === near) {
       this.heading = null;
@@ -616,6 +699,7 @@ export class LanternScene extends Phaser.Scene {
       tod: this.tod,
       day: this.day,
       things: [...this.thingsOn],
+      items: [...this.items],
     });
   }
 
@@ -627,6 +711,7 @@ export class LanternScene extends Phaser.Scene {
     this.leaving = true;
     this.heading = null;
     this.hero.path = [];
+    this.setHalo(null);
     this.hud?.prompt(null);
     const cam = this.cameras.main;
     cam.fadeOut(700, ...(p.fade === 'glint' ? GLINT : DUSK));
@@ -637,6 +722,7 @@ export class LanternScene extends Phaser.Scene {
         tod: this.tod,
         day: this.day,
         things: [...this.thingsOn],
+        items: [...this.items],
         via: p.fade,
       };
       this.scene.restart(next);
@@ -774,15 +860,19 @@ export class LanternScene extends Phaser.Scene {
           .setAlpha(a),
       );
     };
-    // The lantern: a pool around the hero and a beam ahead.
-    const lf = 1 + Math.sin(t * 9) * 0.02 + Math.sin(t * 23) * 0.015;
-    cut(h.x, h.y, LIGHT_R * 0.75 * lf, 1);
-    this.dark.erase(
-      this.eraserCone
-        .setPosition(toX(h.x), toY(h.y))
-        .setRotation(h.facing)
-        .setScale((LIGHT_R * 1.75 * z * lf) / 236),
-    );
+    // The flashlight: a pool around the hero and a steady beam ahead.
+    // Without it, only what your eyes make out close by.
+    if (this.items.has('flashlight')) {
+      cut(h.x, h.y, LIGHT_R * 0.7, 1);
+      this.dark.erase(
+        this.eraserCone
+          .setPosition(toX(h.x), toY(h.y))
+          .setRotation(h.facing)
+          .setScale((LIGHT_R * 1.85 * z) / 236),
+      );
+    } else {
+      cut(h.x, h.y, LIGHT_R * 0.45, 0.5);
+    }
     for (const l of this.world.lights) {
       if (l.x < wv.x - l.radius || l.x > wv.right + l.radius) continue;
       if (l.y < wv.y - l.radius || l.y > wv.bottom + l.radius) continue;

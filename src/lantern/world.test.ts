@@ -91,11 +91,11 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it('put the TV within reach of the living room floor', () => {
-    const tv = upper.things.find((t) => t.id === 'tv') as Pt;
-    expect(tv).toBeDefined();
-    const route = nav.route(upper.spawn, tv, 10);
+  it.each(['tv', 'mailbox', 'flashlight'])('put the %s within reach', (id) => {
+    const thing = upper.things.find((t) => t.id === id) as Pt;
+    expect(thing).toBeDefined();
+    const route = nav.route(upper.spawn, thing, 10);
     const end = route[route.length - 1] as Pt;
-    expect(Math.hypot(end.x - tv.x, end.y - tv.y)).toBeLessThan(1.4 * T);
+    expect(Math.hypot(end.x - thing.x, end.y - thing.y)).toBeLessThan(1.4 * T);
   });
 });

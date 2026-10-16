@@ -12,7 +12,15 @@ describe('saved game', () => {
   });
 
   it('comes back as it was written', () => {
-    const save = { realm: 'upper' as const, x: 512, y: 352, tod: 0.4, day: 3, things: ['tv'] };
+    const save = {
+      realm: 'upper' as const,
+      x: 512,
+      y: 352,
+      tod: 0.4,
+      day: 3,
+      things: ['tv'],
+      items: ['flashlight'],
+    };
     writeSave(save);
     expect(loadSave()).toEqual(save);
     clearSave();

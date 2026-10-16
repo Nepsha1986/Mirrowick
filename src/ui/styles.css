@@ -373,3 +373,60 @@ button:focus-visible {
 nav[hidden] {
   display: none !important;
 }
+
+/* --- Dialog ------------------------------------------------------------- */
+
+.dialog {
+  position: absolute;
+  left: 50%;
+  top: 96px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(380px, calc(100% - 32px));
+  box-sizing: border-box;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  user-select: text;
+  animation: fade-in 0.2s ease both;
+}
+
+.dialog[hidden] {
+  display: none;
+}
+
+.dialog h2 {
+  margin: 0;
+  font: 600 20px/1.1 var(--serif);
+}
+
+.dialog-body {
+  color: var(--paper-dim);
+  line-height: 1.5;
+}
+
+.dialog-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.letter {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(26, 18, 12, 0.6);
+  color: var(--paper);
+  font: 15px/1.5 var(--serif);
+  resize: vertical;
+}
+
+.letter:focus {
+  outline: 1px solid var(--ember-hot);
+}
