@@ -8,6 +8,7 @@
 - [Окрестности](locations/lower-outskirts.md)
 - [Зеркало](locations/mirror.md)
 - [Мельница](locations/windmill.md) — целая
+- [Лощина](locations/hollow.md) — поляна за рекой, где пробуем бой
 
 ## Верхний мир
 
@@ -22,6 +23,7 @@
 
 - [Герой](characters/hero.md)
 - [Жители деревни](characters/villagers.md)
+- [Враги](characters/foes.md) — пятеро в Лощине
 
 ## Механики
 
@@ -30,3 +32,4 @@
 - [Взаимодействие](mechanics/interaction.md)
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
+- [Бой](mechanics/combat.md)

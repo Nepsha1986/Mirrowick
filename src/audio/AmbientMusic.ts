@@ -65,6 +65,8 @@ export class AmbientMusic {
   private lowpass?: BiquadFilterNode;
   private droneBus?: GainNode;
   private timers: number[] = [];
+  /** A second of fading noise, for the sounds of a fight. */
+  private noise?: AudioBuffer;
   private chordTimer = 0;
   private chordIndex = 0;
   private mood: Mood = 'lower';
@@ -238,6 +240,42 @@ export class AmbientMusic {
       o.start(t);
       o.stop(t + bellDecay + 0.1);
     }
+  }
+
+  /**
+   * A short sound of the fight, through the same reverb: a pistol shot, the
+   * deeper boom of a flintlock, the click of a jam, the thud of a blow.
+   */
+  sfx(kind: 'shot' | 'boom' | 'click' | 'thud'): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    const t = ctx.currentTime + 0.01;
+    const g = ctx.createGain();
+    g.connect(this.master as GainNode);
+    g.connect(this.reverb as ConvolverNode);
+    if (kind === 'click') {
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.value = 1900;
+      g.gain.setValueAtTime(0.06, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+      o.connect(g);
+      o.start(t);
+      o.stop(t + 0.05);
+      return;
+    }
+    const len = { shot: 0.25, boom: 0.6, thud: 0.18 }[kind];
+    this.noise ??= this.impulse(1);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = { shot: 2600, boom: 900, thud: 420 }[kind];
+    g.gain.setValueAtTime({ shot: 0.5, boom: 0.6, thud: 0.4 }[kind], t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(lp).connect(g);
+    src.start(t, Math.random() * 0.3);
+    src.stop(t + len);
   }
 
   private impulse(seconds: number): AudioBuffer {

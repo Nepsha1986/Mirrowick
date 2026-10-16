@@ -10,6 +10,7 @@ import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { LanternHud } from '../ui/LanternHud';
+import { Combat } from './Combat';
 import { openMailbox } from '../ui/mailbox';
 
 const DEPTH_DARK = 100_000;
@@ -119,6 +120,10 @@ export class LanternScene extends Phaser.Scene {
   /** What the things that don't just switch on and off do, by id. */
   private readonly uses: Record<string, () => void> = {
     mailbox: () => this.hud && openMailbox(this.hud.dialog, () => (this.using = null)),
+    ammo: () => {
+      this.using = null;
+      this.combat?.refill();
+    },
   };
   private thingsOn = new Set<string>();
   /** What you carry: the flashlight, once you've found it. */
@@ -126,6 +131,10 @@ export class LanternScene extends Phaser.Scene {
   private leaving = false;
   private sinceSave = 0;
   private walkers: Walker[] = [];
+  /** The fight, where there are enemies about. */
+  private combat?: Combat;
+  /** How dark it is this frame, 0…1. */
+  private darkness = 0;
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
   private cullKey = '';
@@ -164,6 +173,7 @@ export class LanternScene extends Phaser.Scene {
     this.sails = [];
     this.glows = [];
     this.walkers = [];
+    this.combat = undefined;
     this.keys = {};
     this.heading = null;
     this.halo = null;
@@ -191,6 +201,7 @@ export class LanternScene extends Phaser.Scene {
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
+    this.buildFoes();
     this.buildDarkness();
     this.buildMotes();
 
@@ -225,6 +236,7 @@ export class LanternScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
       this.hud?.destroy();
       this.hud = undefined;
+      this.combat?.destroy();
       this.textures.remove('ln-dark');
     });
     this.cull(true);
@@ -458,6 +470,29 @@ export class LanternScene extends Phaser.Scene {
     }
   }
 
+  /** The enemies, if this world has any; none behind the menu. */
+  private buildFoes(): void {
+    const foes = this.world.foes;
+    if (this.demo || !foes?.length) return;
+    this.combat = new Combat(
+      {
+        scene: this,
+        nav: this.nav,
+        hero: this.hero,
+        heroR: HERO_R,
+        above: DEPTH_ABOVE_DARK,
+        armed: () => this.items.has('pistol'),
+        dark: (p) => this.darkAt(p),
+        inBeam: (p) => this.inBeam(p),
+        safe: (p) =>
+          this.world.town[Math.floor(p.y / T) * this.world.w + Math.floor(p.x / T)] === 1,
+        fall: () => this.fall(),
+      },
+      foes,
+      true,
+    );
+  }
+
   private buildDarkness(): void {
     const { width, height } = this.scale;
     this.dark = this.textures.addDynamicTexture(
@@ -541,11 +576,22 @@ export class LanternScene extends Phaser.Scene {
     >;
     kb.on('keydown-ESC', () => this.scene.start('menu'));
     kb.on('keydown-E', () => this.inReach()?.use());
+    kb.on('keydown-F', () => this.combat?.setStance('fight'));
+    kb.on('keydown-R', () => this.combat?.setStance('fallback'));
   }
 
   private goTo(pointer: Phaser.Input.Pointer): void {
     this.lastGo = this.time.now;
     const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    // Clicking an enemy goes for it; clicking anywhere else walks there.
+    const foe = this.combat?.foeAt(wp);
+    if (foe) {
+      this.combat?.attack(foe);
+      this.hero.path = [];
+      this.heading = null;
+      return;
+    }
+    this.combat?.release();
     this.heading = this.targets.find((p) => Math.hypot(p.x - wp.x, p.y - wp.y) < 36) ?? null;
     this.hero.path = this.nav.route(this.hero, wp, HERO_R);
     const end = this.hero.path[this.hero.path.length - 1] ?? wp;
@@ -562,6 +608,7 @@ export class LanternScene extends Phaser.Scene {
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
+    this.combat?.update(dt);
     this.checkTargets();
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE) this.save();
@@ -629,7 +676,8 @@ export class LanternScene extends Phaser.Scene {
   }
 
   private heroFrame(): string {
-    return this.items.has('flashlight') ? 'heroLit' : 'hero';
+    const gun = this.combat?.drawn() ? 'Gun' : '';
+    return this.items.has('flashlight') ? `heroLit${gun}` : `hero${gun}`;
   }
 
   private useThing(id: string): void {
@@ -729,6 +777,29 @@ export class LanternScene extends Phaser.Scene {
     });
   }
 
+  /** Down in a fight: the dark takes you, and you come to by the Wick. */
+  private fall(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.heading = null;
+    this.hero.path = [];
+    this.setHalo(null);
+    this.hud?.prompt(null);
+    const cam = this.cameras.main;
+    cam.fadeOut(1800, 40, 6, 4);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({
+        realm: this.realm,
+        at: this.world.spawn,
+        tod: this.tod,
+        day: this.day,
+        things: [...this.thingsOn],
+        items: [...this.items],
+        via: 'dark',
+      } satisfies LanternData);
+    });
+  }
+
   /** The menu backdrop: a slow loop over the square and the rooftops. */
   private drift(): void {
     const t = this.time.now / 1000;
@@ -742,16 +813,16 @@ export class LanternScene extends Phaser.Scene {
     const down = (...names: string[]) => names.some((n) => k[n]?.isDown);
     const kx = (down('D', 'RIGHT') ? 1 : 0) - (down('A', 'LEFT') ? 1 : 0);
     const ky = (down('S', 'DOWN') ? 1 : 0) - (down('W', 'UP') ? 1 : 0);
-    let mx = 0;
-    let my = 0;
+    // Where the player steers, and how far there is left to go.
+    let want: Pt | null = null;
+    let left = Infinity;
     if (this.leaving) {
       // Standing still while the light takes you.
     } else if (kx || ky) {
       h.path = [];
       this.heading = null;
       const l = Math.hypot(kx, ky);
-      mx = (kx / l) * SPEED * dt;
-      my = (ky / l) * SPEED * dt;
+      want = { x: kx / l, y: ky / l };
     } else if (h.path.length) {
       const t = h.path[0] as Pt;
       const dx = t.x - h.x;
@@ -759,19 +830,26 @@ export class LanternScene extends Phaser.Scene {
       const d = Math.hypot(dx, dy);
       if (d < 4) h.path.shift();
       else {
-        const s = Math.min(d, SPEED * dt);
-        mx = (dx / d) * s;
-        my = (dy / d) * s;
+        want = { x: dx / d, y: dy / d };
+        left = d;
       }
     }
+    // In a fight you face the enemy and back away slowly, or it moves you itself.
+    const steer = this.leaving ? null : this.combat?.steer(want);
+    const dir = steer ? steer.dir : want;
+    const s = Math.min(left, (steer ? steer.speed : SPEED) * dt);
+    const mx = dir ? dir.x * s : 0;
+    const my = dir ? dir.y * s : 0;
     if (mx || my) {
       this.nav.move(h, mx, my, HERO_R);
-      // Turn smoothly towards the walking direction.
-      const want = Math.atan2(my, mx);
-      h.facing += Phaser.Math.Angle.Wrap(want - h.facing) * Math.min(1, dt * 14);
       h.walk += dt * 10;
     }
+    // Turn smoothly towards the walking direction, or the enemy.
+    const face = steer?.face ?? (mx || my ? Math.atan2(my, mx) : null);
+    if (face !== null) h.facing += Phaser.Math.Angle.Wrap(face - h.facing) * Math.min(1, dt * 12);
     const bob = mx || my ? Math.sin(h.walk) * 0.04 : 0;
+    const frame = this.heroFrame();
+    if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
     this.heroImg
       .setPosition(h.x, h.y)
       .setRotation(h.facing)
@@ -803,6 +881,27 @@ export class LanternScene extends Phaser.Scene {
     if (h >= 17 && h < 21) return (h - 17) / 4;
     if (h >= 21 || h < 4) return 1;
     return 1 - (h - 4) / 3;
+  }
+
+  /** The flashlight's beam, or the pool around you, is on this point. */
+  private inBeam(p: Pt): boolean {
+    if (!this.items.has('flashlight')) return false;
+    const h = this.hero;
+    const d = Math.hypot(p.x - h.x, p.y - h.y);
+    if (d < LIGHT_R * 0.6) return true;
+    const off = Phaser.Math.Angle.Wrap(Math.atan2(p.y - h.y, p.x - h.x) - h.facing);
+    return d < LIGHT_R * 1.7 && Math.abs(off) < 0.42;
+  }
+
+  /** How much the dark spoils your aim at a point: none where it's lit, up to 30. */
+  private darkAt(p: Pt): number {
+    const h = this.hero;
+    if (this.inBeam(p) || Math.hypot(p.x - h.x, p.y - h.y) < LIGHT_R * 0.35) return 0;
+    for (const l of this.world.lights) {
+      if (l.room !== undefined || l.thing) continue;
+      if (Math.hypot(l.x - p.x, l.y - p.y) < l.radius * 0.7) return 0;
+    }
+    return Math.round(30 * clamp(this.darkness / 0.92, 0, 1));
   }
 
   private eraser(i: number): Phaser.GameObjects.Image {
@@ -844,6 +943,7 @@ export class LanternScene extends Phaser.Scene {
       g = Math.round(lerp(lerp(24, 6, n), 18, dusk * 0.5));
       b = Math.round(lerp(lerp(22, 12, n), 34, dusk * 0.5));
     }
+    this.darkness = alpha;
     this.dark.clear();
     this.dark.fill((r << 16) | (g << 8) | b, alpha);
     if (this.realm === 'upper') for (const glow of this.glows) glow.setAlpha(0.35 * n);
@@ -883,6 +983,7 @@ export class LanternScene extends Phaser.Scene {
       const room = l.room === undefined ? 1 : 1 - (this.roofs[l.room]?.img.alpha ?? 1);
       if (room > 0.02) cut(l.x, l.y, l.radius * f, 0.95 * room);
     }
+    for (const f of this.combat?.lights() ?? []) cut(f.x, f.y, f.radius, f.a);
     this.dark.render();
 
     // Motes drift around the view and glow brighter as night falls.
