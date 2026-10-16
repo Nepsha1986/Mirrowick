@@ -83,6 +83,18 @@ with JSON properties). The map can be opened and edited in Tiled directly.
 Navigation, interactions, HUD, music and the visual styles are shared with the
 isometric scene; the mood layers live in `src/render/Atmosphere.ts`.
 
+### The painted prototype
+
+The third look (`src/scenes/PaintedScene.ts`, menu → _Painted prototype_) loads
+no art at all. On start it paints the village into canvases: ground, roads and
+the square in one big painting, every house, tree and prop in its own texture,
+and the hooded hero (`src/painted/paint.ts`). The plan of the village is in
+`src/painted/layout.ts`: hand-placed landmarks plus seeded filler, so it's the
+same every run. Night is a real darkness texture: each frame it's refilled and
+the hero's lantern, street lamps, the fire and lit windows are erased out of
+it. Keys 1–4 switch between Day, Dusk, Night and Mist. There's no quest here:
+the scene is for judging the look.
+
 ### Rebuilding the art
 
 The atlases in `public/assets` are generated from Kenney's CC0 packs:
