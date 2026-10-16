@@ -1,8 +1,8 @@
 import type { Dialog } from './Dialog';
 import { h } from './dom';
 
-/** Letters to the developer arrive as issues in the game's repository. */
-const POST = 'https://github.com/Nepsha1986/Mirrowick/issues/new';
+/** Letters to the developer go by email, from the player's own mail app. */
+const POST = 'nepsha1986@gmail.com';
 
 /** The mailbox by the gate: look for letters, or write one to the developer. */
 export function openMailbox(d: Dialog, onClose: () => void): void {
@@ -28,11 +28,9 @@ export function openMailbox(d: Dialog, onClose: () => void): void {
     const send = () => {
       const letter = text.value.trim();
       if (!letter) return text.focus();
-      const url = new URL(POST);
-      url.searchParams.set('title', 'A letter from Mirrowick');
-      url.searchParams.set('body', letter);
-      window.open(url, '_blank', 'noopener');
-      d.show('Mailbox', 'Your letter is ready: finish sending it on GitHub, in the new tab.', [
+      const subject = encodeURIComponent('A letter from Mirrowick');
+      window.location.href = `mailto:${POST}?subject=${subject}&body=${encodeURIComponent(letter)}`;
+      d.show('Mailbox', 'Your letter is ready: send it from your mail app.', [
         ['Close', () => d.close()],
       ]);
     };
