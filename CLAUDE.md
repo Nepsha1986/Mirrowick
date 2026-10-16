@@ -53,6 +53,9 @@ npm run build
 Before pushing, run typecheck, lint, `format:check` and the tests; CI checks all
 four plus the build. `main` deploys to GitHub Pages.
 
+Merge pull requests into `main` with **squash** (`merge_method: squash`), never
+a merge commit or rebase.
+
 ## How the code is laid out
 
 - `src/scenes/LanternScene.ts`: the one game scene. `init({ realm })` picks
