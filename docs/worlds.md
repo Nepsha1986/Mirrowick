@@ -26,3 +26,6 @@
 
 - [Свет, тьма и время суток](mechanics/light.md)
 - [Переход между мирами](mechanics/mirror-travel.md)
+- [Взаимодействие](mechanics/interaction.md)
+- [Сохранение](mechanics/saving.md)
+- [Настройки](mechanics/settings.md)

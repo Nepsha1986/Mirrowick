@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
+import { loadSave } from '../lantern/save';
 import { MainMenu } from '../ui/MainMenu';
+import type { LanternData } from './LanternScene';
 
 /**
  * The title screen: the DOM menu over a live backdrop — the lantern scene in
@@ -15,17 +17,24 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.scene.launch('lantern', { demo: true });
+    const begin = (data: LanternData) => {
+      music.start();
+      this.menu?.destroy();
+      const cam = this.scene.get('lantern').cameras.main;
+      cam.fadeOut(600, 13, 10, 8);
+      cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        // Restart the backdrop as the real thing.
+        this.scene.stop('lantern');
+        this.scene.start('lantern', data);
+      });
+    };
     this.menu = new MainMenu({
-      play: () => {
-        music.start();
-        this.menu?.destroy();
-        const cam = this.scene.get('lantern').cameras.main;
-        cam.fadeOut(600, 13, 10, 8);
-        cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-          // Restart the backdrop as the real thing.
-          this.scene.stop('lantern');
-          this.scene.start('lantern', { demo: false });
-        });
+      play: () => begin({ demo: false }),
+      resume: () => {
+        const save = loadSave();
+        if (!save) return begin({ demo: false });
+        const { realm, x, y, tod, day, things } = save;
+        begin({ demo: false, realm, at: { x, y }, tod, day, things });
       },
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.menu?.destroy());

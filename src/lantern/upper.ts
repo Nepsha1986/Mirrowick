@@ -5,6 +5,7 @@ import {
   GLASS,
   type GroundPatch,
   type Light,
+  type Thing,
   type ThinWall,
   type World,
   type WorldObject,
@@ -52,6 +53,7 @@ export function generateUpperWorld(): World {
   const light = (p: Pt, radius: number, color = WARM, o: Partial<Light> = {}) =>
     lights.push({ ...p, radius, color, flicker: 0.02, ...o });
   const walls: ThinWall[] = [];
+  const things: Thing[] = [];
   const patches: GroundPatch[] = [];
   const P = (x: number, y: number): Pt => ({ x: x * T, y: y * T });
   /** Keeps trees off a rectangle of tiles without changing the ground. */
@@ -270,7 +272,14 @@ export function generateUpperWorld(): World {
   decal('rugBlue', 18, 10.6);
   obj('sofa', 18, 12);
   for (const x of [17, 18, 19]) solid(x, 12);
-  obj('tv', 18, 9);
+  things.push({
+    id: 'tv',
+    key: 'ln-up',
+    frame: 'tv',
+    frameOn: 'tvOn',
+    ...C(18, 9),
+    labels: ['Turn on the TV', 'Turn off the TV'],
+  });
   for (const x of [17, 18, 19]) solid(x, 9);
   obj('desk', 21, 10.5, { y: 11 * T });
   solid(21, 10);
@@ -281,7 +290,7 @@ export function generateUpperWorld(): World {
   obj('floorlamp', 21, 13);
   solid(21, 13);
   lamp(C(18, 11), 150);
-  lamp(C(18, 9.6), 46, 0x8ab8ff);
+  light(C(18, 9.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
   lamp(C(20.6, 10.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, a coat stand, a plant.
@@ -506,6 +515,7 @@ export function generateUpperWorld(): World {
     life: { buildings: [house], festoons: [], spots: [] },
     walls,
     patches,
+    things,
     portals: [
       {
         ...mirror,

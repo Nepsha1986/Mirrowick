@@ -57,7 +57,21 @@ export interface Light extends Pt {
   slow?: boolean;
   /** Lights a room: shines only while that building's roof is lifted. */
   room?: number;
+  /** Shines only while this thing is switched on. */
+  thing?: string;
   color: number;
+}
+
+/** Something in the world you can walk up to and use: for now, switch on and off. */
+export interface Thing extends Pt {
+  id: string;
+  key: string;
+  /** How it looks switched off, and on. */
+  frame: string;
+  frameOn: string;
+  depth?: number;
+  /** The prompt while it is off, and while it is on. */
+  labels: [string, string];
 }
 
 /** A way through to the other world (world pixels). */
@@ -94,6 +108,7 @@ export interface World {
   sails: Sails[];
   walls: ThinWall[];
   patches: GroundPatch[];
+  things: Thing[];
 }
 
 export const GLASS = 0x9fd8e6;
@@ -510,5 +525,6 @@ export function generateWorld(): World {
     sails,
     walls: [],
     patches: [],
+    things: [],
   };
 }

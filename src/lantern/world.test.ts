@@ -87,3 +87,16 @@ describe('thin walls', () => {
     expect(route.length).toBeGreaterThan(0);
   });
 });
+
+describe('things', () => {
+  const upper = generateUpperWorld();
+  const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
+
+  it('put the TV within reach of the living room floor', () => {
+    const tv = upper.things.find((t) => t.id === 'tv') as Pt;
+    expect(tv).toBeDefined();
+    const route = nav.route(upper.spawn, tv, 10);
+    const end = route[route.length - 1] as Pt;
+    expect(Math.hypot(end.x - tv.x, end.y - tv.y)).toBeLessThan(1.4 * T);
+  });
+});

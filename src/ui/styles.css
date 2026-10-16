@@ -298,3 +298,78 @@ button:focus-visible {
 .action-pill[hidden] {
   display: none;
 }
+
+/* --- Settings ----------------------------------------------------------- */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  width: min(420px, 100%);
+  animation: fade-in 0.3s ease both;
+}
+
+.settings h2 {
+  margin: 0 0 4px;
+  font: 600 26px/1 var(--serif);
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+
+.set-label {
+  flex: 1;
+  font: 700 13px/1 var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.set-row input[type='range'] {
+  width: 140px;
+  accent-color: var(--ember);
+}
+
+.set-value {
+  width: 3.5em;
+  text-align: right;
+  color: var(--paper-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.set-btn {
+  min-width: 96px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.set-btn:hover:not(:disabled) {
+  border-color: rgba(240, 138, 60, 0.6);
+}
+
+.set-btn.danger:not(:disabled) {
+  color: #f3a08a;
+}
+
+.set-btn:disabled {
+  cursor: default;
+  color: var(--paper-faint);
+}
+
+nav[hidden] {
+  display: none !important;
+}
