@@ -473,3 +473,7 @@ button:focus-visible {
   color: var(--paper-dim);
   white-space: nowrap;
 }
+
+.place.clock {
+  text-align: right;
+}
