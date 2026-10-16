@@ -648,12 +648,12 @@ export function paintTownAtlas(scene: Phaser.Scene): void {
 // --- Roofs ---------------------------------------------------------------------------------
 
 export const ROOF_PAD = 8;
-export const roofKey = (i: number) => `ln-roof-${i}`;
+export const roofKey = (realm: string, i: number) => `ln-roof-${realm}-${i}`;
 
 /** One texture per building: its roof plus the shadow it throws. */
-export function paintRoofs(scene: Phaser.Scene, buildings: Building[]): void {
+export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: string): void {
   buildings.forEach((b, i) => {
-    const key = roofKey(i);
+    const key = roofKey(realm, i);
     if (scene.textures.exists(key)) return;
     const w = b.w * T + ROOF_PAD * 2 + 10;
     const h = b.h * T + ROOF_PAD * 2 + 10;
@@ -666,6 +666,11 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[]): void {
     const y0 = 2;
     const rw = b.w * T + ROOF_PAD * 2 - 4;
     const rh = b.h * T + ROOF_PAD * 2 - 4;
+    if (b.roof === 'mill') {
+      millRoof(c, p, x0 + rw / 2, y0 + rh / 2, Math.min(rw, rh) / 2 - 6);
+      tex.refresh();
+      return;
+    }
     // Shadow to the south-east.
     p.rect(x0 + 10, y0 + 10, rw, rh, 'rgba(10,6,4,.35)');
     const horizontal = b.w >= b.h;
@@ -770,6 +775,42 @@ function texture(
       c.strokeRect(rx + 0.5, ry + 0.5, s * 0.7, s - 1);
     });
   }
+}
+
+/** The windmill's cap from above: a round cone of shingles, lit from the top-left. */
+function millRoof(
+  c: CanvasRenderingContext2D,
+  p: Painter,
+  cx: number,
+  cy: number,
+  r: number,
+): void {
+  p.circ(cx + 9, cy + 9, r, 'rgba(10,6,4,.35)');
+  const n = 16;
+  for (let k = 0; k < n; k++) {
+    const a0 = (k / n) * Math.PI * 2;
+    const a1 = ((k + 1) / n) * Math.PI * 2;
+    // Faces turned towards the top-left catch the light.
+    const lit = (Math.cos((a0 + a1) / 2 + Math.PI * 0.75) + 1) / 2;
+    const v = Math.round(48 + lit * 40);
+    p.poly(
+      [
+        [cx, cy],
+        [cx + Math.cos(a0) * r, cy + Math.sin(a0) * r],
+        [cx + Math.cos(a1) * r, cy + Math.sin(a1) * r],
+      ],
+      `rgb(${v + 14},${Math.round(v * 0.72)},${Math.round(v * 0.5)})`,
+    );
+  }
+  c.strokeStyle = 'rgba(20,10,6,.4)';
+  c.lineWidth = 1;
+  for (let rr = 10; rr < r; rr += 9) {
+    c.beginPath();
+    c.arc(cx, cy, rr, 0, Math.PI * 2);
+    c.stroke();
+  }
+  p.circ(cx, cy, r, 'rgba(0,0,0,0)', 2);
+  p.circ(cx, cy, 6, '#3e2c1f', 1.2);
 }
 
 /** A square bell tower on the chapel's roof: four-sided spire and a cross. */

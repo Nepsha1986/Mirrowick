@@ -2,14 +2,51 @@ import { storage } from '../ui/dom';
 
 const MUTE_KEY = 'mirrowick.muted';
 
-// D minor, slow and low: Dm – B♭ – Gm – A.
-const CHORDS: number[][] = [
-  [50, 53, 57],
-  [46, 50, 53],
-  [43, 46, 50],
-  [45, 49, 52],
-];
-const BELL_NOTES = [62, 65, 67, 69, 72, 74];
+/** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
+export type Mood = 'lower' | 'upper';
+
+interface MoodScore {
+  chords: number[][];
+  bells: number[];
+  /** Low drone level, 0…1. */
+  drone: number;
+  /** Lowpass cutoff over the pad, Hz. */
+  cutoff: number;
+  /** Milliseconds between bells: base + random spread. */
+  bellGap: [number, number];
+  bellDecay: number;
+}
+
+const SCORES: Record<Mood, MoodScore> = {
+  // D minor, slow and low: Dm – B♭ – Gm – A.
+  lower: {
+    chords: [
+      [50, 53, 57],
+      [46, 50, 53],
+      [43, 46, 50],
+      [45, 49, 52],
+    ],
+    bells: [62, 65, 67, 69, 72, 74],
+    drone: 1,
+    cutoff: 700,
+    bellGap: [3500, 6000],
+    bellDecay: 3.2,
+  },
+  // F major, warm and open: F – C – Dm – B♭, with a music box on top.
+  upper: {
+    chords: [
+      [53, 57, 60],
+      [52, 55, 60],
+      [50, 53, 57],
+      [50, 53, 58],
+    ],
+    bells: [72, 74, 76, 77, 79, 81, 84],
+    drone: 0.15,
+    cutoff: 1700,
+    bellGap: [900, 2400],
+    bellDecay: 1.4,
+  },
+};
 const CHORD_SECONDS = 9;
 
 const midiToHz = (m: number) => 440 * 2 ** ((m - 69) / 12);
@@ -23,8 +60,12 @@ export class AmbientMusic {
   private master?: GainNode;
   private pad?: GainNode;
   private reverb?: ConvolverNode;
+  private lowpass?: BiquadFilterNode;
+  private droneBus?: GainNode;
   private timers: number[] = [];
+  private chordTimer = 0;
   private chordIndex = 0;
+  private mood: Mood = 'lower';
   muted = storage.get(MUTE_KEY) === '1';
 
   /** Must be called from a user gesture the first time (autoplay policy). */
@@ -53,7 +94,8 @@ export class AmbientMusic {
 
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = 'lowpass';
-    lowpass.frequency.value = 700;
+    lowpass.frequency.value = SCORES[this.mood].cutoff;
+    this.lowpass = lowpass;
     lowpass.Q.value = 0.4;
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
@@ -68,12 +110,40 @@ export class AmbientMusic {
     lowpass.connect(this.master);
     lowpass.connect(this.reverb);
 
+    this.droneBus = ctx.createGain();
+    this.droneBus.gain.value = SCORES[this.mood].drone;
+    this.droneBus.connect(this.pad);
     this.drone(38, 0.16);
     this.drone(45, 0.07);
 
-    this.playChord();
-    this.timers.push(window.setInterval(() => this.playChord(), CHORD_SECONDS * 1000));
+    this.restartChords();
     this.scheduleBell();
+  }
+
+  /** Crossfades to the other world's score; safe to call before start(). */
+  setMood(mood: Mood): void {
+    if (mood === this.mood) return;
+    this.mood = mood;
+    const ctx = this.ctx;
+    if (!ctx || !this.lowpass || !this.droneBus) return;
+    const t = ctx.currentTime;
+    const score = SCORES[mood];
+    for (const [param, value] of [
+      [this.lowpass.frequency, score.cutoff],
+      [this.droneBus.gain, score.drone],
+    ] as const) {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+      param.linearRampToValueAtTime(value, t + 3);
+    }
+    this.chordIndex = 0;
+    this.restartChords();
+  }
+
+  private restartChords(): void {
+    window.clearInterval(this.chordTimer);
+    this.playChord();
+    this.chordTimer = window.setInterval(() => this.playChord(), CHORD_SECONDS * 1000);
   }
 
   setMuted(muted: boolean): void {
@@ -107,12 +177,13 @@ export class AmbientMusic {
       o.connect(g);
       o.start();
     }
-    g.connect(this.pad as GainNode);
+    g.connect(this.droneBus as GainNode);
   }
 
   private playChord(): void {
     const ctx = this.ctx as AudioContext;
-    const notes = CHORDS[this.chordIndex++ % CHORDS.length] as number[];
+    const { chords } = SCORES[this.mood];
+    const notes = chords[this.chordIndex++ % chords.length] as number[];
     const t = ctx.currentTime + 0.05;
     const len = CHORD_SECONDS + 3;
     for (const n of notes) {
@@ -135,7 +206,8 @@ export class AmbientMusic {
   }
 
   private scheduleBell(): void {
-    const delay = 3500 + Math.random() * 6000;
+    const [base, spread] = SCORES[this.mood].bellGap;
+    const delay = base + Math.random() * spread;
     this.timers.push(
       window.setTimeout(() => {
         this.bell();
@@ -147,12 +219,13 @@ export class AmbientMusic {
   private bell(): void {
     const ctx = this.ctx as AudioContext;
     if (ctx.state !== 'running') return;
-    const midi = BELL_NOTES[Math.floor(Math.random() * BELL_NOTES.length)] as number;
+    const { bells, bellDecay } = SCORES[this.mood];
+    const midi = bells[Math.floor(Math.random() * bells.length)] as number;
     const t = ctx.currentTime + 0.02;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(0.05, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + bellDecay);
     g.connect(this.reverb as ConvolverNode);
     g.connect(this.master as GainNode);
     for (const [ratio, level] of [
@@ -165,7 +238,7 @@ export class AmbientMusic {
       og.gain.value = level;
       o.connect(og).connect(g);
       o.start(t);
-      o.stop(t + 3.3);
+      o.stop(t + bellDecay + 0.1);
     }
   }
 

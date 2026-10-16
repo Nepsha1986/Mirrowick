@@ -1,7 +1,7 @@
 import { T, TL, TOWN, mulberry32, type Pt } from './util';
 import type { Light, WorldObject } from './world';
 
-export type RoofKind = 'tiles' | 'slate' | 'thatch' | 'shingle';
+export type RoofKind = 'tiles' | 'slate' | 'thatch' | 'shingle' | 'mill';
 
 /** A building you can walk into: its roof fades while you're inside. */
 export interface Building {
@@ -27,9 +27,9 @@ export interface TownLife {
   /** Where villagers like to stand about (world pixels). */
   spots: Pt[];
   /** The chicken run (tiles). */
-  coop: { x0: number; y0: number; x1: number; y1: number };
+  coop?: { x0: number; y0: number; x1: number; y1: number };
   /** Spark and smoke sources (world pixels). */
-  forge: Pt;
+  forge?: Pt;
 }
 
 interface Grid {

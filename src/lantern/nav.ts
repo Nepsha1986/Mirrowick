@@ -13,10 +13,14 @@ const DIRS: [number, number, number][] = [
 
 /** Free movement over a tile grid: circle collision, A* and path smoothing. */
 export class Nav {
-  constructor(private readonly block: Uint8Array) {}
+  constructor(
+    private readonly block: Uint8Array,
+    private readonly w = W,
+    private readonly h = H,
+  ) {}
 
   walkable(x: number, y: number): boolean {
-    return x >= 0 && y >= 0 && x < W && y < H && this.block[y * W + x] === 0;
+    return x >= 0 && y >= 0 && x < this.w && y < this.h && this.block[y * this.w + x] === 0;
   }
 
   solidAt(px: number, py: number): boolean {
@@ -73,7 +77,8 @@ export class Nav {
       if (!best) return null;
       [tx, ty] = best;
     }
-    const N = W * H;
+    const W = this.w;
+    const N = W * this.h;
     const g = new Float32Array(N).fill(1e9);
     const came = new Int32Array(N).fill(-1);
     const closed = new Uint8Array(N);

@@ -1,9 +1,11 @@
 import * as Phaser from 'phaser';
+import { music } from '../audio/AmbientMusic';
 import { createLanternTextures } from '../lantern/art';
 import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
 import { Nav } from '../lantern/nav';
-import { generateWorld, type World } from '../lantern/world';
-import { DAY_LEN, H, T, W, clamp, lerp, rnd, type Pt } from '../lantern/util';
+import { generateUpperWorld } from '../lantern/upper';
+import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
+import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { LanternHud } from '../ui/LanternHud';
 
 const DEPTH_DARK = 100_000;
@@ -15,6 +17,21 @@ const LIGHT_R = 150;
 const FAST = 24;
 /** Objects are shown and hidden in square chunks of this many pixels. */
 const CHUNK = 10 * T;
+/** How close you must stand to a mirror to step through it. */
+const REACH = 1.2 * T;
+/** The Mirror's cold glint, for the flash between the worlds. */
+const GLINT: [number, number, number] = [159, 216, 230];
+
+/** What the scene is started with: which world, and where and when you arrive. */
+export interface LanternData {
+  demo?: boolean;
+  realm?: Realm;
+  at?: Pt;
+  tod?: number;
+  day?: number;
+  /** Arriving through a mirror rather than from the menu. */
+  via?: boolean;
+}
 
 /** A villager or a chicken pottering about. */
 interface Walker extends Pt {
@@ -34,10 +51,13 @@ interface Hero extends Pt {
 /**
  * The lantern prototype: Заслон's way of playing — free top-down movement,
  * a world painted by code, real darkness with a lantern beam and a day–night
- * cycle — dressed as the Lower World around Mirrowick. Nothing else: no
- * combat, loot or levels. It exists to judge the look and the feel.
+ * cycle. It plays either Mirrowick: the Lower World of dusk around the
+ * village, or the Upper World — an ordinary sunny homestead — and the
+ * mirror in the windmill's floor leads from one to the other.
  */
 export class LanternScene extends Phaser.Scene {
+  private realm: Realm = 'lower';
+  private start: LanternData = {};
   private world!: World;
   private nav!: Nav;
   private hero!: Hero;
@@ -54,6 +74,12 @@ export class LanternScene extends Phaser.Scene {
   private motes: (Phaser.GameObjects.Image & { vx: number; vy: number; ph: number; ba: number })[] =
     [];
   private roofs: { img: Phaser.GameObjects.Image; area: Phaser.Geom.Rectangle }[] = [];
+  private sails: { img: Phaser.GameObjects.Image; room: number }[] = [];
+  /** Glows under the outdoor lights; in the Upper World they only show after dark. */
+  private glows: Phaser.GameObjects.Image[] = [];
+  /** A mirror you clicked: stepped through as soon as you reach it. */
+  private heading: Portal | null = null;
+  private leaving = false;
   private walkers: Walker[] = [];
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
@@ -69,28 +95,39 @@ export class LanternScene extends Phaser.Scene {
     super('lantern');
   }
 
-  init(data?: { demo?: boolean }): void {
+  init(data?: LanternData): void {
+    this.start = data ?? {};
     this.demo = !!data?.demo;
+    // The menu's backdrop is the Lower World; a new game starts at home, upstairs.
+    this.realm = data?.realm ?? (this.demo ? 'lower' : 'upper');
   }
 
   create(): void {
-    this.world = generateWorld();
-    this.nav = new Nav(this.world.block);
+    this.world = this.realm === 'upper' ? generateUpperWorld() : generateWorld();
+    this.nav = new Nav(this.world.block, this.world.w, this.world.h);
     this.chunks.clear();
     this.visible.clear();
     this.cullKey = '';
     this.erasers = [];
     this.motes = [];
     this.roofs = [];
+    this.sails = [];
+    this.glows = [];
     this.walkers = [];
     this.keys = {};
-    this.tod = 10.5 / 24;
-    this.day = 1;
+    this.heading = null;
+    this.leaving = false;
+    this.holding = false;
+    this.markerAt = null;
+    this.tod = this.start.tod ?? 10.5 / 24;
+    this.day = this.start.day ?? 1;
     createLanternTextures(this);
+    if (!this.demo) music.setMood(this.realm);
 
     this.buildGround();
     this.buildObjects();
-    this.hero = { ...this.world.spawn, facing: -Math.PI / 2, path: [], walk: 0 };
+    const at = this.start.at ?? this.world.spawn;
+    this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', 'hero');
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
@@ -98,8 +135,8 @@ export class LanternScene extends Phaser.Scene {
     this.buildMotes();
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, W * T, H * T);
-    cam.setBackgroundColor('#0d0a08');
+    cam.setBounds(0, 0, this.world.w * T, this.world.h * T);
+    cam.setBackgroundColor(this.realm === 'upper' ? '#2c3a1e' : '#0d0a08');
     if (this.demo) {
       this.tod = (19.4 - 6) / 24;
       this.hero.x = 43.5 * T;
@@ -114,7 +151,7 @@ export class LanternScene extends Phaser.Scene {
 
     if (!this.demo) {
       this.setupInput();
-      this.hud = new LanternHud(() => this.scene.start('menu'));
+      this.hud = new LanternHud(() => this.scene.start('menu'), this.realm);
     }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
@@ -123,16 +160,16 @@ export class LanternScene extends Phaser.Scene {
       this.textures.remove('ln-dark');
     });
     this.cull(true);
-    cam.fadeIn(800, 13, 10, 8);
+    if (this.start.via) cam.fadeIn(1100, ...GLINT);
+    else cam.fadeIn(800, 13, 10, 8);
   }
 
   // --- World -------------------------------------------------------------------------
 
   private buildGround(): void {
+    const { w, h, ground } = this.world;
     const data: number[][] = [];
-    for (let y = 0; y < H; y++) {
-      data.push(Array.from(this.world.ground.subarray(y * W, (y + 1) * W)));
-    }
+    for (let y = 0; y < h; y++) data.push(Array.from(ground.subarray(y * w, (y + 1) * w)));
     const map = this.make.tilemap({ data, tileWidth: T, tileHeight: T });
     const tiles = map.addTilesetImage('ln-tiles', 'ln-tiles', T, T, 0, 0);
     if (!tiles) throw new Error('lantern tiles missing');
@@ -171,7 +208,7 @@ export class LanternScene extends Phaser.Scene {
     // Warm or cold glow under each light: shows through where the dark is cut away.
     for (const l of this.world.lights) {
       if (l.room !== undefined) continue;
-      this.chunked(
+      const glow = this.chunked(
         this.add
           .image(l.x, l.y, 'glow')
           .setBlendMode(Phaser.BlendModes.ADD)
@@ -180,8 +217,10 @@ export class LanternScene extends Phaser.Scene {
           .setScale((l.radius * 1.6) / 256)
           .setDepth(-40),
       );
+      this.glows.push(glow);
     }
     // The Wick's flame.
+    if (!this.world.wick) return;
     const { x, y } = this.world.wick;
     this.add
       .particles(x, y, 'ln-atlas', {
@@ -232,10 +271,10 @@ export class LanternScene extends Phaser.Scene {
   /** Roofs that lift when you walk in, chimney smoke, forge sparks, villagers, hens. */
   private buildTownLife(): void {
     const { buildings, forge, spots, coop } = this.world.life;
-    paintRoofs(this, buildings);
+    paintRoofs(this, buildings, this.realm);
     buildings.forEach((b, i) => {
       const img = this.add
-        .image(b.x0 * T - ROOF_PAD, b.y0 * T - ROOF_PAD, roofKey(i))
+        .image(b.x0 * T - ROOF_PAD, b.y0 * T - ROOF_PAD, roofKey(this.realm, i))
         .setOrigin(0)
         .setDepth(50_000);
       this.roofs.push({
@@ -256,25 +295,30 @@ export class LanternScene extends Phaser.Scene {
           .setDepth(50_001);
       }
     });
-    this.add
-      .particles(forge.x, forge.y, 'ln-atlas', {
-        frame: 'dot',
-        lifespan: { min: 300, max: 700 },
-        speed: { min: 20, max: 70 },
-        angle: { min: 200, max: 340 },
-        gravityY: 60,
-        scale: { start: 0.45, end: 0 },
-        tint: [0xffe0a0, 0xff9a40],
-        blendMode: Phaser.BlendModes.ADD,
-        frequency: 140,
-      })
-      .setDepth(forge.y + 20);
+    for (const s of this.world.sails) {
+      const img = this.add.image(s.x, s.y, 'ln-up', 'sails').setDepth(50_002);
+      this.sails.push({ img, room: s.room });
+    }
+    if (forge)
+      this.add
+        .particles(forge.x, forge.y, 'ln-atlas', {
+          frame: 'dot',
+          lifespan: { min: 300, max: 700 },
+          speed: { min: 20, max: 70 },
+          angle: { min: 200, max: 340 },
+          gravityY: 60,
+          scale: { start: 0.45, end: 0 },
+          tint: [0xffe0a0, 0xff9a40],
+          blendMode: Phaser.BlendModes.ADD,
+          frequency: 140,
+        })
+        .setDepth(forge.y + 20);
 
     spots.slice(0, 4).forEach((p, i) => {
       const img = this.add.image(p.x, p.y, 'ln-town', `villager${i}`);
       this.walkers.push({ ...p, img, path: [], wait: rnd(0, 3), speed: 34, chicken: false });
     });
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; coop && i < 5; i++) {
       const x = rnd(coop.x0 + 0.5, coop.x1 + 0.5) * T;
       const y = rnd(coop.y0 + 0.5, coop.y1 + 0.5) * T;
       const img = this.add.image(x, y, 'ln-town', i % 2 ? 'chicken2' : 'chicken');
@@ -288,6 +332,11 @@ export class LanternScene extends Phaser.Scene {
       const target = area.contains(h.x, h.y) ? 0 : 1;
       img.setAlpha(img.alpha + (target - img.alpha) * Math.min(1, dt * 6));
     }
+    // The sails turn slowly and thin out while you're inside, like the roof.
+    for (const { img, room } of this.sails) {
+      img.rotation += dt * 0.35;
+      img.setAlpha(0.2 + 0.8 * (this.roofs[room]?.img.alpha ?? 1));
+    }
     const { spots, coop } = this.world.life;
     for (const w of this.walkers) {
       if (w.wait > 0) {
@@ -296,9 +345,10 @@ export class LanternScene extends Phaser.Scene {
         if (w.chicken)
           w.img.setScale(1, 1 + Math.max(0, Math.sin(this.time.now / 90 + w.x)) * 0.12);
       } else if (!w.path.length) {
-        const to = w.chicken
-          ? { x: rnd(coop.x0 + 0.3, coop.x1 + 0.7) * T, y: rnd(coop.y0 + 0.3, coop.y1 + 0.7) * T }
-          : (spots[Math.floor(Math.random() * spots.length)] as Pt);
+        const to =
+          w.chicken && coop
+            ? { x: rnd(coop.x0 + 0.3, coop.x1 + 0.7) * T, y: rnd(coop.y0 + 0.3, coop.y1 + 0.7) * T }
+            : (spots[Math.floor(Math.random() * spots.length)] as Pt);
         w.path = w.chicken ? [to] : this.nav.route(w, to, 8);
         if (!w.path.length) w.wait = 1;
       } else {
@@ -337,7 +387,8 @@ export class LanternScene extends Phaser.Scene {
 
   /** Spores and embers drifting in the air, brighter at night. */
   private buildMotes(): void {
-    for (let i = 0; i < 60; i++) {
+    const up = this.realm === 'upper';
+    for (let i = 0; i < (up ? 30 : 60); i++) {
       const m = this.add
         .image(
           this.world.spawn.x + rnd(-800, 800),
@@ -346,7 +397,7 @@ export class LanternScene extends Phaser.Scene {
           'dot',
         )
         .setBlendMode(Phaser.BlendModes.ADD)
-        .setTint(i % 3 ? 0x9fd8e6 : 0xffc27a)
+        .setTint(up ? (i % 2 ? 0xfff6c0 : 0xd8f080) : i % 3 ? 0x9fd8e6 : 0xffc27a)
         .setScale(rnd(0.25, 0.6))
         .setDepth(DEPTH_ABOVE_DARK) as LanternScene['motes'][number];
       m.vx = rnd(-6, 6);
@@ -399,16 +450,21 @@ export class LanternScene extends Phaser.Scene {
     this.input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, release);
     const kb = this.input.keyboard;
     if (!kb) throw new Error('keyboard input missing');
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,T,ESC') as Record<
+    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,T,E,ESC') as Record<
       string,
       Phaser.Input.Keyboard.Key
     >;
     kb.on('keydown-ESC', () => this.scene.start('menu'));
+    kb.on('keydown-E', () => {
+      const p = this.portalInReach();
+      if (p) this.travel(p);
+    });
   }
 
   private goTo(pointer: Phaser.Input.Pointer): void {
     this.lastGo = this.time.now;
     const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    this.heading = this.world.portals.find((p) => Math.hypot(p.x - wp.x, p.y - wp.y) < 30) ?? null;
     this.hero.path = this.nav.route(this.hero, wp, HERO_R);
     const end = this.hero.path[this.hero.path.length - 1] ?? wp;
     this.markerAt = { x: end.x, y: end.y, t: 0.6 };
@@ -424,6 +480,7 @@ export class LanternScene extends Phaser.Scene {
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
+    this.checkPortals();
     this.updateTownLife(dt);
     this.cull();
     this.drawMarker(dt);
@@ -431,10 +488,45 @@ export class LanternScene extends Phaser.Scene {
     this.hud?.update(this.day, this.hour(), this.night());
   }
 
+  // --- Between the worlds ------------------------------------------------------------
+
+  private portalInReach(): Portal | null {
+    if (this.demo || this.leaving) return null;
+    const h = this.hero;
+    return this.world.portals.find((p) => Math.hypot(p.x - h.x, p.y - h.y) < REACH) ?? null;
+  }
+
+  private checkPortals(): void {
+    const near = this.portalInReach();
+    this.hud?.prompt(near ? `E · ${near.label}` : null);
+    if (near && this.heading === near) this.travel(near);
+  }
+
+  /** A flash of the Mirror's light, and you come up through the other mirror. */
+  private travel(p: Portal): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.heading = null;
+    this.hero.path = [];
+    this.hud?.prompt(null);
+    const cam = this.cameras.main;
+    cam.fadeOut(700, ...GLINT);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      const next: LanternData = {
+        realm: p.to,
+        at: p.exit,
+        tod: this.tod,
+        day: this.day,
+        via: true,
+      };
+      this.scene.restart(next);
+    });
+  }
+
   /** The menu backdrop: a slow loop over the square and the rooftops. */
   private drift(): void {
     const t = this.time.now / 1000;
-    const { x, y } = this.world.wick;
+    const { x, y } = this.world.wick ?? this.world.spawn;
     this.cameras.main.centerOn(x + Math.cos(t * 0.06) * 220, y + Math.sin(t * 0.09) * 130);
   }
 
@@ -446,8 +538,11 @@ export class LanternScene extends Phaser.Scene {
     const ky = (down('S', 'DOWN') ? 1 : 0) - (down('W', 'UP') ? 1 : 0);
     let mx = 0;
     let my = 0;
-    if (kx || ky) {
+    if (this.leaving) {
+      // Standing still while the light takes you.
+    } else if (kx || ky) {
       h.path = [];
+      this.heading = null;
       const l = Math.hypot(kx, ky);
       mx = (kx / l) * SPEED * dt;
       my = (ky / l) * SPEED * dt;
@@ -519,14 +614,27 @@ export class LanternScene extends Phaser.Scene {
     const wv = cam.worldView;
     const h = this.hero;
     const n = this.night();
-    // The Lower World never gets truly bright; dusk and dawn go crimson-violet.
-    const alpha = lerp(0.16, 0.92, n);
     const dusk = n > 0 && n < 1 ? Math.sin(n * Math.PI) : 0;
-    const r = Math.round(lerp(lerp(30, 5, n), 52, dusk * 0.5));
-    const g = Math.round(lerp(lerp(24, 6, n), 18, dusk * 0.5));
-    const b = Math.round(lerp(lerp(22, 12, n), 34, dusk * 0.5));
+    let alpha: number;
+    let r: number;
+    let g: number;
+    let b: number;
+    if (this.realm === 'upper') {
+      // An ordinary sky: clear by day, a golden-pink dusk, a deep blue night.
+      alpha = lerp(0, 0.78, n) + dusk * 0.12;
+      r = Math.round(lerp(lerp(40, 6, n), 90, dusk * 0.6));
+      g = Math.round(lerp(lerp(40, 12, n), 44, dusk * 0.6));
+      b = Math.round(lerp(lerp(60, 34, n), 40, dusk * 0.6));
+    } else {
+      // The Lower World never gets truly bright; dusk and dawn go crimson-violet.
+      alpha = lerp(0.16, 0.92, n);
+      r = Math.round(lerp(lerp(30, 5, n), 52, dusk * 0.5));
+      g = Math.round(lerp(lerp(24, 6, n), 18, dusk * 0.5));
+      b = Math.round(lerp(lerp(22, 12, n), 34, dusk * 0.5));
+    }
     this.dark.clear();
     this.dark.fill((r << 16) | (g << 8) | b, alpha);
+    if (this.realm === 'upper') for (const glow of this.glows) glow.setAlpha(0.35 * n);
 
     const toX = (x: number) => (x - wv.x) * z;
     const toY = (y: number) => (y - wv.y) * z;

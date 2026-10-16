@@ -5,12 +5,14 @@ export class LanternHud {
   private readonly el: HTMLElement;
   private readonly clock: HTMLElement;
   private readonly phase: HTMLElement;
+  private readonly action: HTMLElement;
 
-  constructor(mainMenu: () => void) {
+  constructor(mainMenu: () => void, realm: 'lower' | 'upper') {
     const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
     back.addEventListener('click', mainMenu);
     this.clock = h('div', { class: 'title' });
     this.phase = h('div', { class: 'sub' });
+    this.action = h('div', { class: 'action-pill', hidden: true });
     this.el = h(
       'div',
       { class: 'hud' },
@@ -25,18 +27,25 @@ export class LanternHud {
             'div',
             {},
             h('div', { class: 'title' }, 'Mirrowick'),
-            h('div', { class: 'sub' }, 'The Lower World'),
+            h('div', { class: 'sub' }, realm === 'upper' ? 'The Upper World' : 'The Lower World'),
           ),
         ),
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
       ),
+      this.action,
       h(
         'div',
         { class: 'hint-pill' },
-        'Click or hold to walk · WASD · Hold T to speed up time · Esc menu',
+        'Click or hold to walk · WASD · E use · Hold T to speed up time · Esc menu',
       ),
     );
     uiRoot().append(this.el);
+  }
+
+  /** What you can do right here, or nothing. */
+  prompt(text: string | null): void {
+    this.action.hidden = !text;
+    if (text && this.action.textContent !== text) this.action.textContent = text;
   }
 
   update(day: number, hour: number, night: number): void {
