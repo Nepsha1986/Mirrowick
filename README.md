@@ -83,17 +83,17 @@ with JSON properties). The map can be opened and edited in Tiled directly.
 Navigation, interactions, HUD, music and the visual styles are shared with the
 isometric scene; the mood layers live in `src/render/Atmosphere.ts`.
 
-### The painted prototype
+### The lantern prototype
 
-The third look (`src/scenes/PaintedScene.ts`, menu → _Painted prototype_) loads
-no art at all. On start it paints the village into canvases: ground, roads and
-the square in one big painting, every house, tree and prop in its own texture,
-and the hooded hero (`src/painted/paint.ts`). The plan of the village is in
-`src/painted/layout.ts`: hand-placed landmarks plus seeded filler, so it's the
-same every run. Night is a real darkness texture: each frame it's refilled and
-the hero's lantern, street lamps, the fire and lit windows are erased out of
-it. Keys 1–4 switch between Day, Dusk, Night and Mist. There's no quest here:
-the scene is for judging the look.
+`src/scenes/LanternScene.ts` (menu → _Lantern prototype_) plays like the
+_Заслон_ artifact game, dressed as the Lower World around Mirrowick. It loads
+no art: tiles and objects are painted into canvases at start-up
+(`src/lantern/art.ts`), and the world is generated from a fixed seed
+(`src/lantern/world.ts`): the village behind its palisade with the Wick in the
+middle, roads, a river, ruined hamlets, the forest and the Mirror. Only the
+look and the feel are here: free movement (click, hold or WASD), a darkness
+texture with the lantern's pool and beam cut out of it, street lamps and
+glowing shards, and a day–night cycle (hold T to speed time up).
 
 ### Rebuilding the art
 

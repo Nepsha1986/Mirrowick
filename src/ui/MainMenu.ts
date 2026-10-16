@@ -3,7 +3,7 @@ import { h, uiRoot } from './dom';
 export interface MainMenuActions {
   play: () => void;
   playTopDown: () => void;
-  playPainted: () => void;
+  playLantern: () => void;
 }
 
 /** Title screen. Only the "Play" buttons work for now; the rest are placeholders. */
@@ -38,7 +38,7 @@ export class MainMenu {
         { class: 'interactive' },
         play,
         button('Top-down prototype', { onClick: actions.playTopDown }),
-        button('Painted prototype', { onClick: actions.playPainted }),
+        button('Lantern prototype', { onClick: actions.playLantern }),
         button('Continue'),
         button('Settings'),
         button('Credits'),

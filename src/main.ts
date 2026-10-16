@@ -6,7 +6,7 @@ import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { MenuScene } from './scenes/MenuScene';
-import { PaintedScene } from './scenes/PaintedScene';
+import { LanternScene } from './scenes/LanternScene';
 import { TopDownScene } from './scenes/TopDownScene';
 
 async function boot(): Promise<void> {
@@ -24,7 +24,7 @@ async function boot(): Promise<void> {
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
     render: { antialias: true, roundPixels: false, powerPreference: 'high-performance' },
     disableContextMenu: true,
-    scene: [BootScene, MenuScene, GameScene, TopDownScene, PaintedScene],
+    scene: [BootScene, MenuScene, GameScene, TopDownScene, LanternScene],
   });
   // Handy for poking at the game from the console and for browser smoke tests.
   if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
