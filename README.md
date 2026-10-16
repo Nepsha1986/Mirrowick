@@ -5,7 +5,9 @@ a lantern through the **Lower World** around the village of Mirrowick, where
 the dark is real and only the Wick, a great candle in the square, keeps it
 back. Above it lies the **Upper World**: an ordinary, sunlit countryside
 where the game begins, at home. The worlds meet in the old windmill — a ruin
-upstairs, whole and turning below — through a mirror set in its floor.
+upstairs, whole and turning below. Under the ruin a hatch leads down to a great
+cellar where a mirror lies in a chalk circle; it opens into the Lower World's
+mill.
 
 **Play in the browser: https://nepsha1986.github.io/Mirrowick/**
 

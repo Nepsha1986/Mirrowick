@@ -7,6 +7,91 @@ type Ctx = CanvasRenderingContext2D;
 
 const GRASS = ['#5d7d36', '#668740', '#517030', '#6b8c44'];
 
+const pick = (r: () => number, cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
+
+/**
+ * A round floor: boards that don't quite match, or flagstones; a ruin's
+ * flagstones are cracked and broken through to the grass.
+ */
+function paintFloor(
+  c: Ctx,
+  patch: GroundPatch,
+  r: () => number,
+  pickCol: (cols: string[]) => string,
+): void {
+  const centre = patch.pts[0] as Pt;
+  const rx = patch.width / 2;
+  const ry = (patch.height ?? patch.width) / 2;
+  // A slightly uneven ellipse.
+  c.beginPath();
+  for (let i = 0; i <= 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    const j = 1 + (r() - 0.5) * 0.02;
+    const x = centre.x + Math.cos(a) * rx * j;
+    const y = centre.y + Math.sin(a) * ry * j;
+    if (i) c.lineTo(x, y);
+    else c.moveTo(x, y);
+  }
+  c.closePath();
+  c.fillStyle = patch.kind === 'planks' ? '#2a1c12' : '#2c2620';
+  c.fill();
+  c.globalCompositeOperation = 'source-atop';
+  const x0 = centre.x - rx;
+  const y0 = centre.y - ry;
+  if (patch.kind === 'planks') {
+    for (let y = y0; y < centre.y + ry; y += 8) {
+      for (let x = x0 - r() * 40; x < centre.x + rx;) {
+        const len = 30 + r() * 50;
+        c.fillStyle = pickCol(['#6e4d30', '#765335', '#68472b', '#7d5a3a', '#5e4128']);
+        c.fillRect(x + 0.5, y + 0.5, len - 1, 7);
+        c.fillStyle = 'rgba(40,24,12,.3)';
+        c.fillRect(x + 2, y + 2 + r() * 4, len - 4, 0.6);
+        c.fillStyle = '#2a1c12';
+        c.fillRect(x + 2, y + 3.5, 1, 1);
+        x += len;
+      }
+    }
+  } else {
+    // Flagstones in rough rows, each its own shape and shade.
+    for (let y = y0; y < centre.y + ry; y += 20) {
+      for (let x = x0 - r() * 20; x < centre.x + rx;) {
+        const w = 18 + r() * 14;
+        const h = 18 + (r() - 0.5) * 4;
+        const j = () => (r() - 0.5) * 3;
+        const missing = patch.kind === 'ruin' && r() < 0.14;
+        c.fillStyle = missing
+          ? pickCol(GRASS)
+          : pickCol(
+              patch.kind === 'ruin'
+                ? ['#7a7468', '#857e71', '#6c665c', '#8f887a']
+                : ['#4e4a46', '#57524c', '#47433f', '#5d5852'],
+            );
+        c.beginPath();
+        c.moveTo(x + 1 + j(), y + 1 + j());
+        c.lineTo(x + w - 1 + j(), y + 1 + j());
+        c.lineTo(x + w - 1 + j(), y + h - 1 + j());
+        c.lineTo(x + 1 + j(), y + h - 1 + j());
+        c.closePath();
+        c.fill();
+        if (!missing && r() < 0.25) {
+          c.strokeStyle = 'rgba(20,15,10,.5)';
+          c.lineWidth = 0.7;
+          c.beginPath();
+          c.moveTo(x + r() * w, y + 2);
+          c.lineTo(x + r() * w, y + h - 2);
+          c.stroke();
+        }
+        if (patch.kind === 'ruin' && r() < 0.2) {
+          c.fillStyle = 'rgba(90,120,50,.5)';
+          c.fillRect(x + r() * w, y + r() * h, 3, 2);
+        }
+        x += w;
+      }
+    }
+  }
+  c.globalCompositeOperation = 'source-over';
+}
+
 /** Points every `step` pixels along a polyline, with the direction there. */
 function walk(
   pts: Pt[],
@@ -27,40 +112,93 @@ function walk(
   return out;
 }
 
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones', 'ruin']);
+
+/** The area a layer needs, so its texture covers that and not the whole map. */
+function bounds(boxes: Box[], margin: number): Box {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const b of boxes) {
+    x0 = Math.min(x0, b.x);
+    y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.w);
+    y1 = Math.max(y1, b.y + b.h);
+  }
+  const x = Math.floor(x0 - margin);
+  const y = Math.floor(y0 - margin);
+  return { x, y, w: Math.ceil(x1 + margin) - x, h: Math.ceil(y1 + margin) - y };
+}
+
+/** Where a texture painted by `paintGround` goes. */
+export function groundBox(patches: GroundPatch[]): Box {
+  return bounds(
+    patches.flatMap((p) => {
+      const rx = p.width / 2;
+      const ry = (p.height ?? p.width) / 2;
+      return p.pts.map((q) =>
+        ROUND.has(p.kind)
+          ? { x: q.x - rx, y: q.y - ry, w: rx * 2, h: ry * 2 }
+          : { x: q.x - p.width, y: q.y - p.width, w: p.width * 2, h: p.width * 2 },
+      );
+    }),
+    8,
+  );
+}
+
+/** Where a texture painted by `paintWalls` goes. */
+export function wallsBox(walls: ThinWall[]): Box {
+  return bounds(walls, 8);
+}
+
 /**
- * Roads, paths and beds painted onto one texture over the grass: ragged
- * edges, ruts and puddles, gravel worn through to the grass in places.
+ * Roads, paths, beds and round floors painted onto one texture over the
+ * ground: ragged edges, ruts and puddles, gravel worn through to the grass
+ * in places, boards and flagstones no two alike.
  */
-export function paintGround(
-  scene: Phaser.Scene,
-  key: string,
-  w: number,
-  h: number,
-  patches: GroundPatch[],
-): void {
+export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPatch[]): void {
   if (scene.textures.exists(key)) return;
-  const tex = scene.textures.createCanvas(key, w, h);
+  const box = groundBox(patches);
+  const tex = scene.textures.createCanvas(key, box.w, box.h);
   if (!tex) return;
   const main = tex.getContext();
+  main.translate(-box.x, -box.y);
   const r = mulberry32(808);
   const edge = makeNoise(17);
   const pick = (cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
 
   for (const [n, patch] of patches.entries()) {
     const tmp = document.createElement('canvas');
-    tmp.width = w;
-    tmp.height = h;
+    tmp.width = box.w;
+    tmp.height = box.h;
     const c = tmp.getContext('2d') as Ctx;
+    c.translate(-box.x, -box.y);
+    if (ROUND.has(patch.kind)) {
+      paintFloor(c, patch, r, pick);
+      main.drawImage(tmp, box.x, box.y);
+      continue;
+    }
     const line = walk(patch.pts, 2);
     const half = (s: number, side: number) =>
       (patch.width / 2) * (0.9 + 0.22 * edge(s * 0.03 + n * 7, side * 3.1 + n));
 
     // The shape: a band whose two edges wander independently; a bed is a
     // rough rectangle round its line.
-    const base = { road: '#8a7556', gravel: '#9d9486', dirt: '#8a7352', soil: '#4c3826' }[
-      patch.kind
-    ];
-    c.fillStyle = base;
+    const base: Record<string, string> = {
+      road: '#8a7556',
+      gravel: '#9d9486',
+      dirt: '#8a7352',
+      soil: '#4c3826',
+    };
+    c.fillStyle = base[patch.kind] ?? '#8a7352';
     if (patch.kind === 'soil') {
       const xs = patch.pts.map((p) => p.x);
       const ys = patch.pts.map((p) => p.y);
@@ -205,7 +343,7 @@ export function paintGround(
       speck(['#3a2a1c', '#5a4430', '#42301f'], 0.1);
     }
     c.globalCompositeOperation = 'source-over';
-    main.drawImage(tmp, 0, 0);
+    main.drawImage(tmp, box.x, box.y);
 
     // Grass creeping over the edges.
     if (patch.kind !== 'soil') {
@@ -233,17 +371,13 @@ export function paintGround(
  * cracks, timber posts, windowpanes, and a picket fence gone a little
  * crooked, with a picket missing here and there.
  */
-export function paintWalls(
-  scene: Phaser.Scene,
-  key: string,
-  w: number,
-  h: number,
-  walls: ThinWall[],
-): void {
+export function paintWalls(scene: Phaser.Scene, key: string, walls: ThinWall[]): void {
   if (scene.textures.exists(key)) return;
-  const tex = scene.textures.createCanvas(key, w, h);
+  const box = wallsBox(walls);
+  const tex = scene.textures.createCanvas(key, box.w, box.h);
   if (!tex) return;
   const c = tex.getContext();
+  c.translate(-box.x, -box.y);
   const r = mulberry32(919);
 
   /** A rectangle with slightly wobbly edges. */
@@ -266,6 +400,21 @@ export function paintWalls(
     c.closePath();
     c.fill();
   };
+
+  // Rough stone blocks, ink first, each a slightly different grey.
+  const stones = walls.filter((m) => m.kind === 'stone');
+  for (const m of stones) rough(m.x, m.y, m.w, m.h, 1.4, INK);
+  for (const m of stones) {
+    rough(m.x, m.y, m.w, m.h, 0, pick(r, ['#7d766b', '#6f685e', '#8a8276', '#766e62']));
+    if (r() < 0.3) {
+      c.fillStyle = 'rgba(255,250,235,.18)';
+      c.fillRect(m.x + 2, m.y + 2, m.w / 3, 2);
+    }
+    if (r() < 0.12) {
+      c.fillStyle = 'rgba(80,100,50,.45)';
+      c.fillRect(m.x + r() * m.w * 0.6, m.y + r() * m.h * 0.6, 4, 3);
+    }
+  }
 
   const masonry = walls.filter((m) => m.kind === 'outer' || m.kind === 'inner');
   // Ink first, then plaster over it, so joints between pieces don't show.

@@ -16,6 +16,7 @@
 
 - [Дом](locations/home.md)
 - [Мельница](locations/windmill.md) — разрушенная
+- [Подвал мельницы](locations/cellar.md) — с зеркалом в нижний мир
 
 ## Персонажи
 

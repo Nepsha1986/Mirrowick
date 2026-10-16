@@ -22,7 +22,7 @@ export function loadSave(): SaveData | null {
   try {
     const d = JSON.parse(raw) as Partial<SaveData>;
     const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-    if (d.realm !== 'lower' && d.realm !== 'upper') return null;
+    if (d.realm !== 'lower' && d.realm !== 'upper' && d.realm !== 'cellar') return null;
     if (!num(d.x) || !num(d.y) || !num(d.tod) || !num(d.day)) return null;
     const things = Array.isArray(d.things) ? d.things.filter((t) => typeof t === 'string') : [];
     return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things };

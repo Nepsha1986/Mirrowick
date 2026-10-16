@@ -1,6 +1,15 @@
-import { MILL_HALF, millDoor, millMirror, millRing, tileCentre } from './mill';
+import {
+  MILL_FLOOR,
+  MILL_HALF,
+  cellarStairs,
+  millCentre,
+  millTiles,
+  millWall,
+  upperHatch,
+  wallTiles,
+} from './mill';
 import type { Building } from './town';
-import { LOWER_MILL, T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
+import { T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
 import {
   GLASS,
   type GroundPatch,
@@ -432,22 +441,32 @@ export function generateUpperWorld(): World {
   keep(0, 26, UW - 1, 27);
 
   // --- The old mill --------------------------------------------------------------------
-  // A ring of tumbled stone open to the sky; the sails lie broken in the grass.
+  // A round tower of tumbled stone open to the sky, its flagstones broken
+  // through to the grass; the sails lie broken outside. A hatch in the floor
+  // leads down to the cellar.
   const mc = UPPER_MILL;
-  millRing(mc.x, mc.y, (x, y, wall) => {
-    if (wall && R() > 0.35) set(x, y, TL.WALL, 1);
-    else {
-      set(x, y, TL.FLAG);
-      if (wall) decals.push({ frame: 'debris', ...C(x, y), angle: R() * 360 });
-    }
-  });
-  const door = millDoor(mc);
-  set(door.x, door.y, TL.FLAG);
+  millTiles(mc, (x, y) => keep(x, y, x, y));
+  const ruin = millWall(mc, (stretch) => stretch % 5 === 2 || stretch % 7 === 4);
+  walls.push(...ruin);
+  wallTiles(ruin, solid);
+  patches.push({ kind: 'ruin', pts: [millCentre(mc)], width: MILL_FLOOR });
+  for (let k = 0; k < 8; k++) {
+    const a = R() * Math.PI * 2;
+    const d = (2.6 + R() * 0.8) * T;
+    const c = millCentre(mc);
+    decals.push({
+      frame: 'debris',
+      x: c.x + Math.cos(a) * d,
+      y: c.y + Math.sin(a) * d,
+      angle: R() * 360,
+    });
+  }
   obj('millstoneBroken', mc.x, mc.y);
   solid(mc.x, mc.y);
-  const mirror = tileCentre(millMirror(mc));
-  decals.push({ key: 'ln-up', frame: 'mirrorCracked', ...mirror, depth: -44 });
-  light(mirror, 70, GLASS, { flicker: 0.15, slow: true });
+  const hatch = upperHatch();
+  decals.push({ key: 'ln-cellar', frame: 'hatch', ...hatch, depth: -44 });
+  // The mirror's cold light seeps up from below.
+  light(hatch, 50, GLASS, { flicker: 0.15, slow: true });
   for (const [x, y, a] of [
     [mc.x + 4.6, mc.y + 3.8, 28],
     [mc.x - 4.4, mc.y - 4, -112],
@@ -518,10 +537,11 @@ export function generateUpperWorld(): World {
     things,
     portals: [
       {
-        ...mirror,
-        to: 'lower',
-        exit: tileCentre(millMirror(LOWER_MILL)),
-        label: 'Step into the mirror',
+        ...hatch,
+        to: 'cellar',
+        exit: cellarStairs(),
+        label: 'Go down to the cellar',
+        fade: 'dark',
       },
     ],
     sails: [],

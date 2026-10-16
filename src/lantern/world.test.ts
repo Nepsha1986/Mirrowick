@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Nav } from './nav';
 import { generateUpperWorld } from './upper';
 import { T, TOWN, type Pt } from './util';
-import { generateWorld, type Portal } from './world';
+import { generateCellar } from './cellar';
+import { generateWorld, type Portal, type World } from './world';
 
 describe('lantern world', () => {
   const world = generateWorld();
@@ -33,38 +34,36 @@ describe('lantern world', () => {
   });
 });
 
-describe('the two worlds', () => {
-  const lower = generateWorld();
-  const upper = generateUpperWorld();
-  const navs = {
-    lower: new Nav(lower.block, lower.w, lower.h),
-    upper: new Nav(upper.block, upper.w, upper.h),
-  };
+describe('the worlds and the ways between them', () => {
+  const worlds = { lower: generateWorld(), upper: generateUpperWorld(), cellar: generateCellar() };
+  const all = Object.values(worlds);
+  const nav = (w: World) => new Nav(w.block, w.w, w.h, w.walls);
 
   it('starts the hero on free ground in the Upper World house', () => {
-    const { x, y } = upper.spawn;
-    expect(navs.upper.circleFree(x, y, 10)).toBe(true);
+    const { x, y } = worlds.upper.spawn;
+    expect(nav(worlds.upper).circleFree(x, y, 10)).toBe(true);
   });
 
-  it('lets the hero walk to the mill mirror in both worlds', () => {
-    for (const w of [lower, upper]) {
-      const [portal] = w.portals;
-      expect(portal, w.realm).toBeDefined();
-      const p = portal as Portal;
-      const route = navs[w.realm].route(w.spawn, p, 10);
-      expect(route.length, w.realm).toBeGreaterThan(0);
-      const end = route[route.length - 1] as Pt;
-      expect(Math.hypot(end.x - p.x, end.y - p.y), w.realm).toBeLessThan(T);
+  it('lets the hero walk to every way out', () => {
+    for (const w of all) {
+      for (const p of w.portals) {
+        const route = nav(w).route(w.spawn, p, 10);
+        const end = route[route.length - 1] ?? w.spawn;
+        expect(Math.hypot(end.x - p.x, end.y - p.y), `${w.realm} → ${p.to}`).toBeLessThan(T);
+      }
     }
   });
 
-  it('brings you out on free ground beside the other mirror', () => {
-    for (const w of [lower, upper]) {
-      const p = w.portals[0] as Portal;
-      const other = p.to === 'upper' ? upper : lower;
-      expect(navs[other.realm].circleFree(p.exit.x, p.exit.y, 10)).toBe(true);
-      const back = other.portals.find((q) => q.to === w.realm) as Portal;
-      expect(Math.hypot(back.x - p.exit.x, back.y - p.exit.y)).toBeLessThan(T);
+  it('brings you out on free ground beside the way back', () => {
+    for (const w of all) {
+      for (const p of w.portals) {
+        const other = worlds[p.to];
+        const where = `${w.realm} → ${p.to}`;
+        expect(nav(other).circleFree(p.exit.x, p.exit.y, 10), where).toBe(true);
+        const back = other.portals.find((q) => q.to === w.realm) as Portal;
+        expect(back, where).toBeDefined();
+        expect(Math.hypot(back.x - p.exit.x, back.y - p.exit.y), where).toBeLessThan(T);
+      }
     }
   });
 });
