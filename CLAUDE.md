@@ -10,13 +10,19 @@ mirror in the windmill's floor. Phaser 4 (WebGL), TypeScript, Vite.
 talk to them in Russian):
 
 - `docs/vision.md`: what the game is
-- `docs/worlds.md`: what is in each world now
+- `docs/worlds.md`: an index of both worlds
+- `docs/locations/`: one file per place, as it is in the game now
+- `docs/characters/`: one file per character or group
+- `docs/mechanics/`: one file per game system (light, mirror travel…)
 - `docs/decisions.md`: what has been decided, newest first
 
 Keep them **minimal**. Record only what is built or what the owner has
-decided, never ideas that were only discussed. When a change alters what's in
-a world, update `docs/worlds.md` in the same PR. When the owner makes a
-decision, add one line to `docs/decisions.md`.
+decided, never ideas that were only discussed. Don't create files or folders
+for things the game doesn't have yet. When a change adds or alters a place, a
+character or a mechanic, update or add its file and link it from
+`docs/worlds.md` in the same PR. When the owner makes a decision, add one line
+to `docs/decisions.md`. Folder and file names are English; content is
+Russian.
 
 Code, comments, commit messages and in-game UI text are in English.
 
