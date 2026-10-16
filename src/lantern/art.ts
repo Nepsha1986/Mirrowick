@@ -470,6 +470,19 @@ function paintAtlas(scene: Phaser.Scene): void {
 }
 
 function paintLights(scene: Phaser.Scene): void {
+  // A soft round glow, tinted per light and added on top of the world.
+  const Gl = scene.textures.createCanvas('glow', 256, 256);
+  if (Gl) {
+    const gc = Gl.getContext();
+    const g = gc.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.25, 'rgba(255,255,255,.55)');
+    g.addColorStop(0.6, 'rgba(255,255,255,.15)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    gc.fillStyle = g;
+    gc.fillRect(0, 0, 256, 256);
+    Gl.refresh();
+  }
   const L = scene.textures.createCanvas('ln-light', 256, 256);
   if (L) {
     const lc = L.getContext();

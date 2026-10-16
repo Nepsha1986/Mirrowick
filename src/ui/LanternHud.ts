@@ -25,7 +25,7 @@ export class LanternHud {
             'div',
             {},
             h('div', { class: 'title' }, 'Mirrowick'),
-            h('div', { class: 'sub' }, 'The Lower World · lantern'),
+            h('div', { class: 'sub' }, 'The Lower World'),
           ),
         ),
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
