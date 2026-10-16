@@ -27,6 +27,7 @@ describe('lantern world', () => {
       [TOWN.x0 - 2, 39.5],
       [TOWN.x1 + 2, 39.5],
       [84, 24],
+      [9.5, 26.5],
     ] as const) {
       const route = nav.route(from, { x: x * T, y: y * T }, 10);
       expect(route.length, `to ${x},${y}`).toBeGreaterThan(0);
@@ -97,5 +98,29 @@ describe('things', () => {
     const route = nav.route(upper.spawn, thing, 10);
     const end = route[route.length - 1] as Pt;
     expect(Math.hypot(end.x - thing.x, end.y - thing.y)).toBeLessThan(1.4 * T);
+  });
+});
+
+describe('the Hollow', () => {
+  const world = generateWorld();
+  const nav = new Nav(world.block, world.w, world.h, world.walls);
+  const reach = (to: Pt, r: number) => {
+    const route = nav.route(world.spawn, to, r);
+    const end = route[route.length - 1] ?? world.spawn;
+    return Math.hypot(end.x - to.x, end.y - to.y);
+  };
+
+  it('has five enemies, each on free ground the hero can reach', () => {
+    expect(world.foes).toHaveLength(5);
+    for (const f of world.foes ?? []) {
+      expect(nav.circleFree(f.x, f.y, 14), f.kind).toBe(true);
+      expect(reach(f, 10), f.kind).toBeLessThan(T);
+    }
+  });
+
+  it.each(['pistol', 'ammo'])('puts the %s within reach', (id) => {
+    const thing = world.things.find((t) => t.id === id) as Pt;
+    expect(thing).toBeDefined();
+    expect(reach(thing, 10)).toBeLessThan(1.4 * T);
   });
 });

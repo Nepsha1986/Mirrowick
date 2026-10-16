@@ -9,6 +9,7 @@ import {
   millWall,
   wallTiles,
 } from './mill';
+import { buildHollow, type FoeSpawn } from './hollow';
 import { buildTown, type TownLife } from './town';
 import {
   H,
@@ -131,6 +132,8 @@ export interface World {
   walls: ThinWall[];
   patches: GroundPatch[];
   things: Thing[];
+  /** Enemies, where they live. */
+  foes?: FoeSpawn[];
 }
 
 export const GLASS = 0x9fd8e6;
@@ -138,7 +141,8 @@ export const GLASS = 0x9fd8e6;
 /**
  * The Lower World around Mirrowick, generated from a fixed seed: the village
  * behind its palisade, roads, a river and a brook, ruined hamlets, the
- * forest, and the Mirror — a lake of black glass where the worlds touch.
+ * forest, the Hollow where enemies live, and the Mirror — a lake of black
+ * glass where the worlds touch.
  */
 export function generateWorld(): World {
   const R = mulberry32(1337);
@@ -412,6 +416,9 @@ export function generateWorld(): World {
   objects.push({ frame: 'wick', ...wick });
   lights.push({ ...wick, radius: 230, flicker: 0.1, color: 0xff9a40 });
 
+  // Across the river to the west, the Hollow, where you learn to fight.
+  const hollow = buildHollow({ ground, block, clear, objects, decals, lights });
+
   // The windmill on the rise north-east of the village. Here it is whole and
   // its sails still turn; a mirror set in its floor leads to the cellar
   // under the other Mirrowick's mill, which up there is a ruin.
@@ -547,6 +554,7 @@ export function generateWorld(): World {
     sails,
     walls,
     patches,
-    things: [],
+    things: hollow.things,
+    foes: hollow.foes,
   };
 }

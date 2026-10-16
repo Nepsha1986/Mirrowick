@@ -2,6 +2,7 @@ import type * as Phaser from 'phaser';
 import { INK, painter, type Painter } from './brush';
 import { paintTownAtlas, paintTownTiles } from './town-art';
 import { paintCellarAtlas } from './cellar-art';
+import { paintFoeAtlas } from './foe-art';
 import { paintUpperAtlas, paintUpperTiles } from './upper-art';
 import { T, TILE_SLOTS, TL, mulberry32 } from './util';
 
@@ -16,6 +17,7 @@ export function createLanternTextures(scene: Phaser.Scene): void {
   paintTownAtlas(scene);
   paintUpperAtlas(scene);
   paintCellarAtlas(scene);
+  paintFoeAtlas(scene);
   paintLights(scene);
 }
 
@@ -465,13 +467,21 @@ function paintAtlas(scene: Phaser.Scene): void {
     );
   });
   // The hero from above, facing right: an ordinary person in an open
-  // jacket over a grey hoodie. 'heroLit' holds the flashlight out ahead.
-  const hero = (p: Painter, lit: boolean) => {
+  // jacket over a grey hoodie. 'heroLit' holds the flashlight out ahead;
+  // with 'Gun' the pistol is drawn in the other hand.
+  const hero = (p: Painter, lit: boolean, gun = false) => {
     const skin = '#d9a77f';
     const sleeve = '#33475b';
     shadow(p, 18, 20, 12, 13);
-    p.ell(16.5, 7.6, 5, 2.9, sleeve, 1.2);
-    p.circ(21.2, 7.4, 2.1, skin, 1);
+    if (gun) {
+      p.line(17, 8.6, 27, 11, INK, 6.2);
+      p.line(17, 8.6, 27, 11, sleeve, 4);
+      p.rect(27, 10, 8.4, 2.6, '#2c2f33', 0.8);
+      p.circ(27.4, 11.2, 2.1, skin, 1);
+    } else {
+      p.ell(16.5, 7.6, 5, 2.9, sleeve, 1.2);
+      p.circ(21.2, 7.4, 2.1, skin, 1);
+    }
     if (lit) {
       p.line(17, 27.4, 27, 25.6, INK, 6.2);
       p.line(17, 27.4, 27, 25.6, sleeve, 4);
@@ -491,6 +501,8 @@ function paintAtlas(scene: Phaser.Scene): void {
   };
   add('hero', 36, 36, (p) => hero(p, false));
   add('heroLit', 36, 36, (p) => hero(p, true));
+  add('heroGun', 36, 36, (p) => hero(p, false, true));
+  add('heroLitGun', 36, 36, (p) => hero(p, true, true));
   add('dot', 8, 8, (p) => p.circ(4, 4, 3.5, '#ffffff'));
   A.refresh();
 }
