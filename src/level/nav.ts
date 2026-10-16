@@ -46,7 +46,7 @@ export function buildNav(level: LevelDef): NavGrid {
  * Cells from which a prop can be used: walkable 8-neighbours not separated
  * from the prop by a wall, plus the prop's own cell when it is walkable.
  */
-export function useSpots(grid: NavGrid, p: Prop): Cell[] {
+export function useSpots(grid: NavGrid, p: Cell): Cell[] {
   const spots: Cell[] = [];
   if (grid.isWalkable(p.c, p.r)) spots.push({ c: p.c, r: p.r });
   for (let dr = -1; dr <= 1; dr++) {

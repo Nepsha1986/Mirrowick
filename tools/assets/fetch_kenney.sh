@@ -13,6 +13,7 @@ git sparse-checkout set --no-cone \
   "/kenneyDungeonPack_2.3/License.txt" \
   "/kenney_natureKit_2.1/Isometric/" \
   "/kenney_graveyardkit_3/Isometric/" \
-  "/fantasy-town-kit-1.0/Isometric/"
+  "/fantasy-town-kit-1.0/Isometric/" \
+  "/roguelike-pack/"
 git checkout
 echo "Kenney packs ready in $DEST"

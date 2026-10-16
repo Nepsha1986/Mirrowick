@@ -7,8 +7,9 @@ export interface InteractionResult {
   item?: ItemDef;
   /** The prop vanishes into the inventory. */
   removeProp?: boolean;
-  /** Frame to swap the prop's sprite to. */
+  /** Frame (isometric) or tile (top-down) to swap the prop to. */
   frame?: string;
+  tile?: number;
   /** Whether to play the pickup animation first. */
   grab?: boolean;
 }
@@ -34,9 +35,18 @@ export function resolveInteraction(
     return { line, item: it.pickup, removeProp: true, grab: true, unlocked: true };
   }
   if (first && it.gives) {
-    return { line, item: it.gives, frame: it.usedFrame, grab: true, unlocked: true };
+    return {
+      line,
+      item: it.gives,
+      frame: it.usedFrame,
+      tile: it.usedTile,
+      grab: true,
+      unlocked: true,
+    };
   }
-  return { line, frame: first ? it.usedFrame : undefined, unlocked: true };
+  return first
+    ? { line, frame: it.usedFrame, tile: it.usedTile, unlocked: true }
+    : { line, unlocked: true };
 }
 
 function pick(lines: string[], n: number): string {

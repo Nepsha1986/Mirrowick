@@ -8,6 +8,8 @@ at them, pick things up and use them.
 
 This is an early prototype. It has the main menu and one small level, an
 abandoned village in the **Lower World**, used to try out the game's look.
+The same village also exists as a **top-down (3/4 view) prototype**, so the
+two camera styles can be compared; pick it from the main menu.
 
 ## Running it
 
@@ -70,6 +72,17 @@ can give or pick up items and can require an item to work. The tests in
 `src/level/village.test.ts` check that every frame exists in the atlas and
 that every interactive object can be reached from the spawn point.
 
+### The top-down prototype
+
+The top-down village (`src/scenes/TopDownScene.ts`) is a [Tiled](https://www.mapeditor.org)
+map, `public/assets/topdown/village.tmj`, built from Kenney's Roguelike RPG
+pack. `tools/assets/build_topdown.py` generates it from an ASCII-style layout
+plus house stamps copied from the pack's sample map. It writes a hidden
+`Collision` layer and a `Things` object layer (spawn, lights, interactables
+with JSON properties). The map can be opened and edited in Tiled directly.
+Navigation, interactions, HUD, music and the visual styles are shared with the
+isometric scene; the mood layers live in `src/render/Atmosphere.ts`.
+
 ### Rebuilding the art
 
 The atlases in `public/assets` are generated from Kenney's CC0 packs:
@@ -79,6 +92,7 @@ pip install -r tools/assets/requirements.txt
 tools/assets/fetch_kenney.sh            # sparse clone into .cache/kenney
 python3 tools/assets/build_assets.py    # world + hero atlases (WebP)
 python3 tools/assets/build_backdrops.py # sky, fog, menu background
+python3 tools/assets/build_topdown.py   # top-down tileset, hero, village map
 ```
 
 See [CREDITS.md](CREDITS.md).

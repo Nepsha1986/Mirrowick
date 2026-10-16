@@ -2,9 +2,10 @@ import { h, uiRoot } from './dom';
 
 export interface MainMenuActions {
   play: () => void;
+  playTopDown: () => void;
 }
 
-/** Title screen. Only "Play" works for now; the rest are placeholders. */
+/** Title screen. Only the two "Play" buttons work for now; the rest are placeholders. */
 export class MainMenu {
   private readonly el: HTMLElement;
 
@@ -35,6 +36,7 @@ export class MainMenu {
         'nav',
         { class: 'interactive' },
         play,
+        button('Top-down prototype', { onClick: actions.playTopDown }),
         button('Continue'),
         button('Settings'),
         button('Credits'),
