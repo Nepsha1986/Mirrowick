@@ -85,11 +85,19 @@ a merge commit or rebase.
   `setMood('lower' | 'upper')`.
 - `src/ui/`: DOM overlay (menu, HUD with an action prompt).
 
-**Painting: nothing perfectly even.** Give everything small, logical
-imperfections so it looks lived-in rather than stamped out: a car parked a
-little askew, gravel worn through to the grass in places, a missing or
-leaning picket, faded and slipped roof tiles, ragged path edges, beds that
-aren't perfect rectangles. Keep them plausible and subtle, not random noise.
+**Painting: nothing perfectly even.** Whenever you make an object, give it
+small, logical imperfections so it looks real and lived-in rather than
+stamped out: no perfectly straight edges, a few defects, buildings and things
+standing at a slight angle, a car parked a little askew, gravel worn through
+to the grass in places, a missing or leaning picket, faded and slipped roof
+tiles, ragged path edges, beds that aren't perfect rectangles. Keep them
+plausible and subtle, not random noise.
+
+**But mind the map's size.** On a large map, or for things repeated many
+times, keep it much simpler: cheap variation (rotation, scale, a few shared
+variants) instead of per-object painting, so start-up time and memory stay
+low. The detail goes where the player looks closely: small places, interiors,
+landmarks.
 
 Conventions: worlds are deterministic (seeded `mulberry32`, never
 `Math.random` in generation); tests in `src/lantern/world.test.ts` check
