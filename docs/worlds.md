@@ -16,6 +16,7 @@
 
 - [Дом](locations/home.md)
 - [Мельница](locations/windmill.md) — разрушенная
+- [Подвал мельницы](locations/cellar.md) — с зеркалом в нижний мир
 
 ## Персонажи
 
@@ -26,3 +27,6 @@
 
 - [Свет, тьма и время суток](mechanics/light.md)
 - [Переход между мирами](mechanics/mirror-travel.md)
+- [Взаимодействие](mechanics/interaction.md)
+- [Сохранение](mechanics/saving.md)
+- [Настройки](mechanics/settings.md)

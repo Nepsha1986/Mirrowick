@@ -31,6 +31,11 @@ export function paintUpperTiles(at: At, r: () => number): void {
   at(TL.UG1, grass('#5d7d36', ['#56752f', '#668740', '#517030', '#6b8c44'], '#7a9c4c'));
   at(TL.UG2, grass('#678a3c', ['#5f8235', '#729546', '#5a7b33', '#7a9d4c'], '#86a955'));
   at(TL.UG3, grass('#729640', ['#6a8d39', '#7da04a', '#668836', '#86a952'], '#93b45c'));
+  // Cellar rock: dark, damp, a few glints.
+  at(TL.ROCK, (p) => {
+    speck(p, '#1c1918', ['#24201e', '#161312', '#2a2522', '#1f1b19'], 90, 3);
+    for (let k = 0; k < 3; k++) p.rect(r() * T, r() * T, 1, 1, 'rgba(160,180,190,.25)');
+  });
   at(TL.TILEW, (p) => {
     p.rect(0, 0, T, T, '#a9b0b2');
     for (let y = 0; y < T; y += 8) {
@@ -239,12 +244,19 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(2, 4, 8, 32, '#55667e', 1);
     p.rect(90, 4, 8, 32, '#55667e', 1);
   });
-  add('tv', 96, 24, (p) => {
+  const tv = (on: boolean) => (p: Painter) => {
     p.rect(8, 10, 80, 12, WOOD, 1.2);
     p.rect(14, 2, 68, 9, '#141619', 1.2);
-    p.rect(16, 3, 64, 3, '#3a5a7a');
-    p.circ(82, 16, 2, '#8a8a8a');
-  });
+    if (on) {
+      // The screen's glow spills onto the stand.
+      p.rect(16, 3, 64, 7, '#bfe4ff');
+      p.rect(16, 3, 64, 2, '#ffffff');
+      p.rect(16, 11, 64, 4, 'rgba(160,210,255,.35)');
+    } else p.rect(16, 3, 64, 3, '#3a5a7a');
+    p.circ(82, 16, 2, on ? '#e04a3a' : '#8a8a8a');
+  };
+  add('tv', 96, 24, tv(false));
+  add('tvOn', 96, 24, tv(true));
   add('desk', 34, 64, (p) => {
     shadow(p, 18, 34, 15, 30);
     p.rect(4, 2, 28, 60, WOOD, 1.3);

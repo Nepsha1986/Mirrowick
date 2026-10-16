@@ -7,7 +7,7 @@ export class LanternHud {
   private readonly phase: HTMLElement;
   private readonly action: HTMLElement;
 
-  constructor(mainMenu: () => void, realm: 'lower' | 'upper') {
+  constructor(mainMenu: () => void, place: string) {
     const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
     back.addEventListener('click', mainMenu);
     this.clock = h('div', { class: 'title' });
@@ -27,7 +27,7 @@ export class LanternHud {
             'div',
             {},
             h('div', { class: 'title' }, 'Mirrowick'),
-            h('div', { class: 'sub' }, realm === 'upper' ? 'The Upper World' : 'The Lower World'),
+            h('div', { class: 'sub' }, place),
           ),
         ),
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),

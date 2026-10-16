@@ -18,6 +18,11 @@ export const UPPER_MILL = { x: 31, y: 8 };
 /** The Upper World map, in tiles. */
 export const UW = 40;
 export const UH = 30;
+/** The cellar under the Upper World's mill: map size, the foot of its stairs, its mirror (tiles). */
+export const CW = 36;
+export const CH = 26;
+export const CELLAR_STAIRS = { x: 6.4, y: 13 };
+export const CELLAR_MIRROR = { x: 18.5, y: 13 };
 
 export const TL = {
   G1: 0,
@@ -54,6 +59,7 @@ export const TL = {
   UG2: 29,
   UG3: 30,
   TILEW: 31,
+  ROCK: 32,
 } as const;
 
 /** Slots in the ground sheet. */

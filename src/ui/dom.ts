@@ -42,4 +42,11 @@ export const storage = {
       // Preferences are a convenience; ignore storage failures.
     }
   },
+  remove(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // As above.
+    }
+  },
 };

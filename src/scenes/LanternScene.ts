@@ -1,11 +1,13 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
 import { createLanternTextures } from '../lantern/art';
-import { paintGround, paintWalls } from '../lantern/ground-art';
+import { groundBox, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
+import { generateCellar } from '../lantern/cellar';
 import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
 import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
-import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
+import { writeSave } from '../lantern/save';
+import { generateWorld, type Portal, type Realm, type Thing, type World } from '../lantern/world';
 import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { LanternHud } from '../ui/LanternHud';
 
@@ -18,10 +20,19 @@ const LIGHT_R = 150;
 const FAST = 24;
 /** Objects are shown and hidden in square chunks of this many pixels. */
 const CHUNK = 10 * T;
-/** How close you must stand to a mirror to step through it. */
-const REACH = 1.2 * T;
+/** How close you must stand to something to use it. */
+const REACH = 1.4 * T;
+/** Seconds between autosaves. */
+const AUTOSAVE = 5;
 /** The Mirror's cold glint, for the flash between the worlds. */
 const GLINT: [number, number, number] = [159, 216, 230];
+const DUSK: [number, number, number] = [13, 10, 8];
+/** What each world is called in the HUD, and its backdrop colour. */
+const PLACES: Record<Realm, { name: string; bg: string }> = {
+  lower: { name: 'The Lower World', bg: '#0d0a08' },
+  upper: { name: 'The Upper World', bg: '#2c3a1e' },
+  cellar: { name: 'The Mill Cellar', bg: '#060507' },
+};
 
 /** What the scene is started with: which world, and where and when you arrive. */
 export interface LanternData {
@@ -30,8 +41,16 @@ export interface LanternData {
   at?: Pt;
   tod?: number;
   day?: number;
-  /** Arriving through a mirror rather than from the menu. */
-  via?: boolean;
+  /** Things that are switched on. */
+  things?: string[];
+  /** How you arrived: through a mirror, or down or up the stairs. */
+  via?: Portal['fade'];
+}
+
+/** Something you can use where you stand: a mirror, a switch. */
+interface Target extends Pt {
+  label: () => string;
+  use: () => void;
 }
 
 /** A villager or a chicken pottering about. */
@@ -78,9 +97,14 @@ export class LanternScene extends Phaser.Scene {
   private sails: { img: Phaser.GameObjects.Image; room: number }[] = [];
   /** Glows under the outdoor lights; in the Upper World they only show after dark. */
   private glows: Phaser.GameObjects.Image[] = [];
-  /** A mirror you clicked: stepped through as soon as you reach it. */
-  private heading: Portal | null = null;
+  /** Mirrors and things you can use. */
+  private targets: Target[] = [];
+  /** Something you clicked: used as soon as you reach it. */
+  private heading: Target | null = null;
+  private thingsOn = new Set<string>();
+  private thingImgs = new Map<string, Phaser.GameObjects.Image>();
   private leaving = false;
+  private sinceSave = 0;
   private walkers: Walker[] = [];
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
@@ -104,7 +128,12 @@ export class LanternScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.world = this.realm === 'upper' ? generateUpperWorld() : generateWorld();
+    this.world =
+      this.realm === 'upper'
+        ? generateUpperWorld()
+        : this.realm === 'cellar'
+          ? generateCellar()
+          : generateWorld();
     this.nav = new Nav(this.world.block, this.world.w, this.world.h, this.world.walls);
     this.chunks.clear();
     this.visible.clear();
@@ -117,17 +146,23 @@ export class LanternScene extends Phaser.Scene {
     this.walkers = [];
     this.keys = {};
     this.heading = null;
+    this.thingsOn = new Set(this.start.things ?? []);
+    this.thingImgs.clear();
     this.leaving = false;
+    this.sinceSave = 0;
     this.holding = false;
     this.markerAt = null;
     this.tod = this.start.tod ?? 10.5 / 24;
     this.day = this.start.day ?? 1;
     createLanternTextures(this);
-    if (!this.demo) music.setMood(this.realm);
+    if (!this.demo) music.setMood(this.realm === 'upper' ? 'upper' : 'lower');
 
     this.buildGround();
     this.buildObjects();
-    const at = this.start.at ?? this.world.spawn;
+    this.buildTargets();
+    // A saved spot that is no longer free (the world changed) falls back to the start.
+    const want = this.start.at;
+    const at = want && this.nav.circleFree(want.x, want.y, HERO_R) ? want : this.world.spawn;
     this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', 'hero');
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
@@ -137,7 +172,7 @@ export class LanternScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.world.w * T, this.world.h * T);
-    cam.setBackgroundColor(this.realm === 'upper' ? '#2c3a1e' : '#0d0a08');
+    cam.setBackgroundColor(PLACES[this.realm].bg);
     if (this.demo) {
       this.tod = (19.4 - 6) / 24;
       this.hero.x = 43.5 * T;
@@ -150,19 +185,27 @@ export class LanternScene extends Phaser.Scene {
     this.layout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.layout, this);
 
+    const saveOnHide = () => {
+      if (document.visibilityState === 'hidden') this.save();
+    };
     if (!this.demo) {
       this.setupInput();
-      this.hud = new LanternHud(() => this.scene.start('menu'), this.realm);
+      this.hud = new LanternHud(() => this.scene.start('menu'), PLACES[this.realm].name);
+      document.addEventListener('visibilitychange', saveOnHide);
+      this.save();
     }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      // Leaving for the menu saves; leaving through a mirror saved on arrival.
+      this.save();
+      document.removeEventListener('visibilitychange', saveOnHide);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
       this.hud?.destroy();
       this.hud = undefined;
       this.textures.remove('ln-dark');
     });
     this.cull(true);
-    if (this.start.via) cam.fadeIn(1100, ...GLINT);
-    else cam.fadeIn(800, 13, 10, 8);
+    if (this.start.via === 'glint') cam.fadeIn(1100, ...GLINT);
+    else cam.fadeIn(800, ...DUSK);
   }
 
   // --- World -------------------------------------------------------------------------
@@ -175,18 +218,20 @@ export class LanternScene extends Phaser.Scene {
     const tiles = map.addTilesetImage('ln-tiles', 'ln-tiles', T, T, 0, 0);
     if (!tiles) throw new Error('lantern tiles missing');
     map.createLayer(0, tiles, 0, 0)?.setDepth(-100);
-    // Roads and paths painted over the ground; thin walls and fences on top.
-    const pw = w * T;
-    const ph = h * T;
-    if (this.world.patches.length) {
+    // Roads, paths and floors painted over the ground; thin walls and
+    // fences on top. Each texture covers only the area it needs.
+    const { patches, walls } = this.world;
+    if (patches.length) {
       const key = `ln-ground-${this.realm}`;
-      paintGround(this, key, pw, ph, this.world.patches);
-      this.add.image(0, 0, key).setOrigin(0).setDepth(-97);
+      const box = groundBox(patches);
+      paintGround(this, key, patches);
+      this.add.image(box.x, box.y, key).setOrigin(0).setDepth(-97);
     }
-    if (this.world.walls.length) {
+    if (walls.length) {
       const key = `ln-walls-${this.realm}`;
-      paintWalls(this, key, pw, ph, this.world.walls);
-      this.add.image(0, 0, key).setOrigin(0).setDepth(-30);
+      const box = wallsBox(walls);
+      paintWalls(this, key, walls);
+      this.add.image(box.x, box.y, key).setOrigin(0).setDepth(-30);
     }
   }
 
@@ -403,6 +448,7 @@ export class LanternScene extends Phaser.Scene {
   /** Spores and embers drifting in the air, brighter at night. */
   private buildMotes(): void {
     const up = this.realm === 'upper';
+    if (this.realm === 'cellar') return;
     for (let i = 0; i < (up ? 30 : 60); i++) {
       const m = this.add
         .image(
@@ -470,16 +516,13 @@ export class LanternScene extends Phaser.Scene {
       Phaser.Input.Keyboard.Key
     >;
     kb.on('keydown-ESC', () => this.scene.start('menu'));
-    kb.on('keydown-E', () => {
-      const p = this.portalInReach();
-      if (p) this.travel(p);
-    });
+    kb.on('keydown-E', () => this.inReach()?.use());
   }
 
   private goTo(pointer: Phaser.Input.Pointer): void {
     this.lastGo = this.time.now;
     const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    this.heading = this.world.portals.find((p) => Math.hypot(p.x - wp.x, p.y - wp.y) < 30) ?? null;
+    this.heading = this.targets.find((p) => Math.hypot(p.x - wp.x, p.y - wp.y) < 36) ?? null;
     this.hero.path = this.nav.route(this.hero, wp, HERO_R);
     const end = this.hero.path[this.hero.path.length - 1] ?? wp;
     this.markerAt = { x: end.x, y: end.y, t: 0.6 };
@@ -495,7 +538,9 @@ export class LanternScene extends Phaser.Scene {
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
-    this.checkPortals();
+    this.checkTargets();
+    this.sinceSave += dt;
+    if (this.sinceSave > AUTOSAVE) this.save();
     this.updateTownLife(dt);
     this.cull();
     this.drawMarker(dt);
@@ -503,21 +548,80 @@ export class LanternScene extends Phaser.Scene {
     this.hud?.update(this.day, this.hour(), this.night());
   }
 
-  // --- Between the worlds ------------------------------------------------------------
+  // --- Using things ------------------------------------------------------------------
 
-  private portalInReach(): Portal | null {
+  /** The mirrors, and the things you can switch on and off. */
+  private buildTargets(): void {
+    this.targets = this.world.portals.map((p) => ({
+      ...p,
+      label: () => p.label,
+      use: () => this.travel(p),
+    }));
+    for (const t of this.world.things) {
+      const img = this.chunked(
+        this.add
+          .image(t.x, t.y, t.key, this.thingsOn.has(t.id) ? t.frameOn : t.frame)
+          .setDepth(t.depth ?? t.y + 4),
+      );
+      this.thingImgs.set(t.id, img);
+      this.targets.push({
+        x: t.x,
+        y: t.y,
+        label: () => t.labels[this.thingsOn.has(t.id) ? 1 : 0],
+        use: () => this.toggle(t),
+      });
+    }
+  }
+
+  private toggle(t: Thing): void {
+    if (this.thingsOn.has(t.id)) this.thingsOn.delete(t.id);
+    else this.thingsOn.add(t.id);
+    this.thingImgs.get(t.id)?.setFrame(this.thingsOn.has(t.id) ? t.frameOn : t.frame);
+    this.save();
+  }
+
+  /** The nearest thing within reach, if any. */
+  private inReach(): Target | null {
     if (this.demo || this.leaving) return null;
     const h = this.hero;
-    return this.world.portals.find((p) => Math.hypot(p.x - h.x, p.y - h.y) < REACH) ?? null;
+    let best: Target | null = null;
+    let bd = REACH;
+    for (const t of this.targets) {
+      const d = Math.hypot(t.x - h.x, t.y - h.y);
+      if (d < bd) {
+        bd = d;
+        best = t;
+      }
+    }
+    return best;
   }
 
-  private checkPortals(): void {
-    const near = this.portalInReach();
-    this.hud?.prompt(near ? `E · ${near.label}` : null);
-    if (near && this.heading === near) this.travel(near);
+  private checkTargets(): void {
+    const near = this.inReach();
+    this.hud?.prompt(near ? `E · ${near.label()}` : null);
+    if (near && this.heading === near) {
+      this.heading = null;
+      near.use();
+    }
   }
 
-  /** A flash of the Mirror's light, and you come up through the other mirror. */
+  /** Remembers where you are; the menu's Continue picks up from here. */
+  private save(): void {
+    this.sinceSave = 0;
+    if (this.demo || this.leaving) return;
+    writeSave({
+      realm: this.realm,
+      x: Math.round(this.hero.x),
+      y: Math.round(this.hero.y),
+      tod: this.tod,
+      day: this.day,
+      things: [...this.thingsOn],
+    });
+  }
+
+  // --- Between the worlds ------------------------------------------------------------
+
+  /** A flash of the Mirror's light, or a fade on the stairs, and you're through. */
   private travel(p: Portal): void {
     if (this.leaving) return;
     this.leaving = true;
@@ -525,14 +629,15 @@ export class LanternScene extends Phaser.Scene {
     this.hero.path = [];
     this.hud?.prompt(null);
     const cam = this.cameras.main;
-    cam.fadeOut(700, ...GLINT);
+    cam.fadeOut(700, ...(p.fade === 'glint' ? GLINT : DUSK));
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       const next: LanternData = {
         realm: p.to,
         at: p.exit,
         tod: this.tod,
         day: this.day,
-        via: true,
+        things: [...this.thingsOn],
+        via: p.fade,
       };
       this.scene.restart(next);
     });
@@ -634,7 +739,13 @@ export class LanternScene extends Phaser.Scene {
     let r: number;
     let g: number;
     let b: number;
-    if (this.realm === 'upper') {
+    if (this.realm === 'cellar') {
+      // Underground it is always night; candles and the lantern are all there is.
+      alpha = 0.9;
+      r = 10;
+      g = 6;
+      b = 14;
+    } else if (this.realm === 'upper') {
       // An ordinary sky: clear by day, a golden-pink dusk, a deep blue night.
       alpha = lerp(0, 0.78, n) + dusk * 0.12;
       r = Math.round(lerp(lerp(40, 6, n), 90, dusk * 0.6));
@@ -678,6 +789,7 @@ export class LanternScene extends Phaser.Scene {
       const f = l.slow
         ? 1 + Math.sin(t * 1.6 + l.x) * l.flicker
         : 1 + (Math.sin(t * 11 + l.x) * 0.5 + Math.sin(t * 23 + l.y) * 0.5) * l.flicker;
+      if (l.thing && !this.thingsOn.has(l.thing)) continue;
       const room = l.room === undefined ? 1 : 1 - (this.roofs[l.room]?.img.alpha ?? 1);
       if (room > 0.02) cut(l.x, l.y, l.radius * f, 0.95 * room);
     }

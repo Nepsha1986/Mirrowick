@@ -1,6 +1,8 @@
 import { storage } from '../ui/dom';
 
-const MUTE_KEY = 'mirrowick.muted';
+const VOLUME_KEY = 'mirrowick.volume';
+/** Master gain at full volume. */
+const FULL = 0.5;
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -66,7 +68,8 @@ export class AmbientMusic {
   private chordTimer = 0;
   private chordIndex = 0;
   private mood: Mood = 'lower';
-  muted = storage.get(MUTE_KEY) === '1';
+  /** Music volume, 0…1, as set in Settings. */
+  volume = readVolume();
 
   /** Must be called from a user gesture the first time (autoplay policy). */
   start(): void {
@@ -146,15 +149,10 @@ export class AmbientMusic {
     this.chordTimer = window.setInterval(() => this.playChord(), CHORD_SECONDS * 1000);
   }
 
-  setMuted(muted: boolean): void {
-    this.muted = muted;
-    storage.set(MUTE_KEY, muted ? '1' : '0');
-    this.applyVolume(0.6);
-  }
-
-  toggle(): boolean {
-    this.setMuted(!this.muted);
-    return this.muted;
+  setVolume(volume: number): void {
+    this.volume = Math.min(1, Math.max(0, volume));
+    storage.set(VOLUME_KEY, String(this.volume));
+    this.applyVolume(0.3);
   }
 
   private applyVolume(seconds: number): void {
@@ -162,7 +160,7 @@ export class AmbientMusic {
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
     this.master.gain.setValueAtTime(this.master.gain.value, t);
-    this.master.gain.linearRampToValueAtTime(this.muted ? 0 : 0.42, t + seconds);
+    this.master.gain.linearRampToValueAtTime(this.volume * FULL, t + seconds);
   }
 
   private drone(midi: number, level: number): void {
@@ -252,6 +250,11 @@ export class AmbientMusic {
     }
     return buf;
   }
+}
+
+function readVolume(): number {
+  const v = Number(storage.get(VOLUME_KEY));
+  return storage.get(VOLUME_KEY) !== null && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8;
 }
 
 /** One score for the whole game, shared across scenes. */

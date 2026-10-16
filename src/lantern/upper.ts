@@ -1,10 +1,20 @@
-import { MILL_HALF, millDoor, millMirror, millRing, tileCentre } from './mill';
+import {
+  MILL_FLOOR,
+  MILL_HALF,
+  cellarStairs,
+  millCentre,
+  millTiles,
+  millWall,
+  upperHatch,
+  wallTiles,
+} from './mill';
 import type { Building } from './town';
-import { LOWER_MILL, T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
+import { T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
 import {
   GLASS,
   type GroundPatch,
   type Light,
+  type Thing,
   type ThinWall,
   type World,
   type WorldObject,
@@ -52,6 +62,7 @@ export function generateUpperWorld(): World {
   const light = (p: Pt, radius: number, color = WARM, o: Partial<Light> = {}) =>
     lights.push({ ...p, radius, color, flicker: 0.02, ...o });
   const walls: ThinWall[] = [];
+  const things: Thing[] = [];
   const patches: GroundPatch[] = [];
   const P = (x: number, y: number): Pt => ({ x: x * T, y: y * T });
   /** Keeps trees off a rectangle of tiles without changing the ground. */
@@ -270,7 +281,14 @@ export function generateUpperWorld(): World {
   decal('rugBlue', 18, 10.6);
   obj('sofa', 18, 12);
   for (const x of [17, 18, 19]) solid(x, 12);
-  obj('tv', 18, 9);
+  things.push({
+    id: 'tv',
+    key: 'ln-up',
+    frame: 'tv',
+    frameOn: 'tvOn',
+    ...C(18, 9),
+    labels: ['Turn on the TV', 'Turn off the TV'],
+  });
   for (const x of [17, 18, 19]) solid(x, 9);
   obj('desk', 21, 10.5, { y: 11 * T });
   solid(21, 10);
@@ -281,7 +299,7 @@ export function generateUpperWorld(): World {
   obj('floorlamp', 21, 13);
   solid(21, 13);
   lamp(C(18, 11), 150);
-  lamp(C(18, 9.6), 46, 0x8ab8ff);
+  light(C(18, 9.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
   lamp(C(20.6, 10.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, a coat stand, a plant.
@@ -423,22 +441,32 @@ export function generateUpperWorld(): World {
   keep(0, 26, UW - 1, 27);
 
   // --- The old mill --------------------------------------------------------------------
-  // A ring of tumbled stone open to the sky; the sails lie broken in the grass.
+  // A round tower of tumbled stone open to the sky, its flagstones broken
+  // through to the grass; the sails lie broken outside. A hatch in the floor
+  // leads down to the cellar.
   const mc = UPPER_MILL;
-  millRing(mc.x, mc.y, (x, y, wall) => {
-    if (wall && R() > 0.35) set(x, y, TL.WALL, 1);
-    else {
-      set(x, y, TL.FLAG);
-      if (wall) decals.push({ frame: 'debris', ...C(x, y), angle: R() * 360 });
-    }
-  });
-  const door = millDoor(mc);
-  set(door.x, door.y, TL.FLAG);
+  millTiles(mc, (x, y) => keep(x, y, x, y));
+  const ruin = millWall(mc, (stretch) => stretch % 5 === 2 || stretch % 7 === 4);
+  walls.push(...ruin);
+  wallTiles(ruin, solid);
+  patches.push({ kind: 'ruin', pts: [millCentre(mc)], width: MILL_FLOOR });
+  for (let k = 0; k < 8; k++) {
+    const a = R() * Math.PI * 2;
+    const d = (2.6 + R() * 0.8) * T;
+    const c = millCentre(mc);
+    decals.push({
+      frame: 'debris',
+      x: c.x + Math.cos(a) * d,
+      y: c.y + Math.sin(a) * d,
+      angle: R() * 360,
+    });
+  }
   obj('millstoneBroken', mc.x, mc.y);
   solid(mc.x, mc.y);
-  const mirror = tileCentre(millMirror(mc));
-  decals.push({ key: 'ln-up', frame: 'mirrorCracked', ...mirror, depth: -44 });
-  light(mirror, 70, GLASS, { flicker: 0.15, slow: true });
+  const hatch = upperHatch();
+  decals.push({ key: 'ln-cellar', frame: 'hatch', ...hatch, depth: -44 });
+  // The mirror's cold light seeps up from below.
+  light(hatch, 50, GLASS, { flicker: 0.15, slow: true });
   for (const [x, y, a] of [
     [mc.x + 4.6, mc.y + 3.8, 28],
     [mc.x - 4.4, mc.y - 4, -112],
@@ -506,12 +534,14 @@ export function generateUpperWorld(): World {
     life: { buildings: [house], festoons: [], spots: [] },
     walls,
     patches,
+    things,
     portals: [
       {
-        ...mirror,
-        to: 'lower',
-        exit: tileCentre(millMirror(LOWER_MILL)),
-        label: 'Step into the mirror',
+        ...hatch,
+        to: 'cellar',
+        exit: cellarStairs(),
+        label: 'Go down to the cellar',
+        fade: 'dark',
       },
     ],
     sails: [],

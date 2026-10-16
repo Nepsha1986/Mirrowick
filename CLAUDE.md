@@ -2,7 +2,7 @@
 
 A top-down web game about two parallel worlds that share one name: the dark,
 solitary **Lower World** and the ordinary, sunlit **Upper World**, joined by a
-mirror in the windmill's floor. Phaser 4 (WebGL), TypeScript, Vite.
+mirror in a cellar under the windmill. Phaser 4 (WebGL), TypeScript, Vite.
 
 ## Docs
 
@@ -59,15 +59,18 @@ a merge commit or rebase.
 ## How the code is laid out
 
 - `src/scenes/LanternScene.ts`: the one game scene. `init({ realm })` picks
-  `'lower'` or `'upper'`. Stepping through a mirror restarts the scene with
-  the other realm (`scene.restart`). The camera follows the hero, and a
+  `'lower'`, `'upper'` or `'cellar'`. Stairs or a mirror restart the scene with
+  another realm (`scene.restart`). The camera follows the hero, and a
   darkness texture is refilled every frame with lights erased out of it.
   Objects are culled in chunks.
 - `src/lantern/world.ts`: the Lower World, generated from a fixed seed.
   Also defines `World`, `Portal`, `Light` and `Realm`. `town.ts` lays out the
   village by hand.
 - `src/lantern/upper.ts`: the Upper World homestead, laid out by hand.
-- `src/lantern/mill.ts`: the windmill footprint, shared by both worlds.
+- `src/lantern/cellar.ts`: the cellar under the Upper World's mill (realm
+  `'cellar'`): stairs up to the mill's hatch, a mirror down to the Lower World.
+- `src/lantern/mill.ts`: the round windmill, shared by both worlds, and where
+  each way between the places comes out.
 - `src/lantern/ground-art.ts`: roads, paths and beds painted over the ground
   with ragged edges (`World.patches`), and thin walls, posts and fences
   (`World.walls`). Thin walls have their own collision in `Nav`.
@@ -82,11 +85,19 @@ a merge commit or rebase.
   `setMood('lower' | 'upper')`.
 - `src/ui/`: DOM overlay (menu, HUD with an action prompt).
 
-**Painting: nothing perfectly even.** Give everything small, logical
-imperfections so it looks lived-in rather than stamped out: a car parked a
-little askew, gravel worn through to the grass in places, a missing or
-leaning picket, faded and slipped roof tiles, ragged path edges, beds that
-aren't perfect rectangles. Keep them plausible and subtle, not random noise.
+**Painting: nothing perfectly even.** Whenever you make an object, give it
+small, logical imperfections so it looks real and lived-in rather than
+stamped out: no perfectly straight edges, a few defects, buildings and things
+standing at a slight angle, a car parked a little askew, gravel worn through
+to the grass in places, a missing or leaning picket, faded and slipped roof
+tiles, ragged path edges, beds that aren't perfect rectangles. Keep them
+plausible and subtle, not random noise.
+
+**But mind the map's size.** On a large map, or for things repeated many
+times, keep it much simpler: cheap variation (rotation, scale, a few shared
+variants) instead of per-object painting, so start-up time and memory stay
+low. The detail goes where the player looks closely: small places, interiors,
+landmarks.
 
 Conventions: worlds are deterministic (seeded `mulberry32`, never
 `Math.random` in generation); tests in `src/lantern/world.test.ts` check

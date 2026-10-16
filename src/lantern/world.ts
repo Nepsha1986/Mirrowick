@@ -1,4 +1,14 @@
-import { MILL_HALF, millDoor, millMirror, millRing, tileCentre } from './mill';
+import {
+  MILL_FLOOR,
+  MILL_HALF,
+  cellarMirror,
+  lowerMirror,
+  millCentre,
+  millDoor,
+  millTiles,
+  millWall,
+  wallTiles,
+} from './mill';
 import { buildTown, type TownLife } from './town';
 import {
   H,
@@ -7,7 +17,6 @@ import {
   T,
   TL,
   TOWN,
-  UPPER_MILL,
   W,
   brookY,
   makeNoise,
@@ -17,7 +26,7 @@ import {
 } from './util';
 
 /** The two Mirrowicks. */
-export type Realm = 'lower' | 'upper';
+export type Realm = 'lower' | 'upper' | 'cellar';
 
 export interface WorldObject extends Pt {
   /** Texture key; defaults to the main atlas. */
@@ -39,14 +48,19 @@ export interface ThinWall {
   y: number;
   w: number;
   h: number;
-  kind: 'outer' | 'inner' | 'window' | 'post' | 'fence';
+  kind: 'outer' | 'inner' | 'window' | 'post' | 'fence' | 'stone';
 }
 
-/** A road, path or bed painted onto the ground along a line, with ragged edges. */
+/**
+ * A road, path or bed painted onto the ground along a line, with ragged
+ * edges; or a round floor (planks, flagstones) centred on its first point,
+ * `width` across and `height` tall.
+ */
 export interface GroundPatch {
   pts: Pt[];
   width: number;
-  kind: 'road' | 'gravel' | 'dirt' | 'soil';
+  height?: number;
+  kind: 'road' | 'gravel' | 'dirt' | 'soil' | 'planks' | 'flagstones' | 'ruin';
 }
 
 export interface Light extends Pt {
@@ -57,7 +71,21 @@ export interface Light extends Pt {
   slow?: boolean;
   /** Lights a room: shines only while that building's roof is lifted. */
   room?: number;
+  /** Shines only while this thing is switched on. */
+  thing?: string;
   color: number;
+}
+
+/** Something in the world you can walk up to and use: for now, switch on and off. */
+export interface Thing extends Pt {
+  id: string;
+  key: string;
+  /** How it looks switched off, and on. */
+  frame: string;
+  frameOn: string;
+  depth?: number;
+  /** The prompt while it is off, and while it is on. */
+  labels: [string, string];
 }
 
 /** A way through to the other world (world pixels). */
@@ -66,6 +94,8 @@ export interface Portal extends Pt {
   /** Where you come out on the other side. */
   exit: Pt;
   label: string;
+  /** A flash of the Mirror's light, or a plain fade (stairs). */
+  fade: 'glint' | 'dark';
 }
 
 /** Windmill sails that turn above a building's roof. */
@@ -94,6 +124,7 @@ export interface World {
   sails: Sails[];
   walls: ThinWall[];
   patches: GroundPatch[];
+  things: Thing[];
 }
 
 export const GLASS = 0x9fd8e6;
@@ -376,18 +407,17 @@ export function generateWorld(): World {
   lights.push({ ...wick, radius: 230, flicker: 0.1, color: 0xff9a40 });
 
   // The windmill on the rise north-east of the village. Here it is whole and
-  // its sails still turn; a mirror set in its floor leads up to the other
-  // Mirrowick, where the same mill is a ruin.
+  // its sails still turn; a mirror set in its floor leads to the cellar
+  // under the other Mirrowick's mill, which up there is a ruin.
   const mc = LOWER_MILL;
-  millRing(mc.x, mc.y, (x, y, wall) => {
-    const i = I(x, y);
-    ground[i] = wall ? TL.WALL : (x + y) % 2 ? TL.PLANK : TL.PLANK2;
-    block[i] = wall ? 1 : 0;
-    clear[i] = 1;
+  const walls = millWall(mc);
+  const patches: GroundPatch[] = [{ kind: 'planks', pts: [millCentre(mc)], width: MILL_FLOOR }];
+  millTiles(mc, (x, y) => {
+    block[I(x, y)] = 0;
+    clear[I(x, y)] = 1;
   });
+  wallTiles(walls, (x, y) => (block[I(x, y)] = 1));
   const door = millDoor(mc);
-  ground[I(door.x, door.y)] = TL.PLANK;
-  block[I(door.x, door.y)] = 0;
   const millRoom = life.buildings.length;
   life.buildings.push({
     name: 'Windmill',
@@ -401,9 +431,9 @@ export function generateWorld(): World {
   objects.push({ key: 'ln-up', frame: 'millstone', ...C(mc.x, mc.y) });
   block[I(mc.x, mc.y)] = 1;
   for (const [x, y, f] of [
-    [mc.x + 2, mc.y, 'sacks'],
-    [mc.x - 2, mc.y + 1, 'sacks'],
-    [mc.x - 2, mc.y - 1, 'barrel'],
+    [mc.x + 1.9, mc.y + 0.2, 'sacks'],
+    [mc.x - 1.7, mc.y + 0.9, 'sacks'],
+    [mc.x - 1.8, mc.y - 0.9, 'barrel'],
   ] as const) {
     objects.push({
       key: f === 'barrel' ? undefined : 'ln-up',
@@ -411,11 +441,11 @@ export function generateWorld(): World {
       ...C(x, y),
       angle: R() * 360,
     });
-    block[I(x, y)] = 1;
+    block[I(Math.round(x), Math.round(y))] = 1;
   }
-  const mirror = tileCentre(millMirror(mc));
+  const mirror = lowerMirror();
   decals.push({ key: 'ln-up', frame: 'mirror', ...mirror, depth: -44 });
-  const millCentre = C(mc.x, mc.y);
+
   lights.push({
     ...C(mc.x + 1, mc.y + 1),
     radius: 120,
@@ -435,12 +465,13 @@ export function generateWorld(): World {
   const portals: Portal[] = [
     {
       ...mirror,
-      to: 'upper',
-      exit: tileCentre(millMirror(UPPER_MILL)),
+      to: 'cellar',
+      exit: cellarMirror(),
       label: 'Step into the mirror',
+      fade: 'glint',
     },
   ];
-  const sails: Sails[] = [{ ...millCentre, room: millRoom }];
+  const sails: Sails[] = [{ ...millCentre(mc), room: millRoom }];
 
   // Keep vegetation off cleared ground.
   const near = new Uint8Array(N);
@@ -508,7 +539,8 @@ export function generateWorld(): World {
     life,
     portals,
     sails,
-    walls: [],
-    patches: [],
+    walls,
+    patches,
+    things: [],
   };
 }
