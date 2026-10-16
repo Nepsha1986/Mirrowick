@@ -20,15 +20,17 @@ export class MenuScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, fit);
     this.cameras.main.fadeIn(900, 26, 18, 12);
 
+    const start = (key: string) => {
+      music.start();
+      this.menu?.destroy();
+      this.cameras.main.fadeOut(600, 26, 18, 12);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
+        this.scene.start(key),
+      );
+    };
     this.menu = new MainMenu({
-      play: () => {
-        music.start();
-        this.menu?.destroy();
-        this.cameras.main.fadeOut(600, 26, 18, 12);
-        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
-          this.scene.start('game'),
-        );
-      },
+      play: () => start('game'),
+      playTopDown: () => start('topdown'),
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

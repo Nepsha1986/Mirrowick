@@ -31,8 +31,10 @@ export interface Interaction {
   pickup?: ItemDef;
   /** Given on first use without removing the prop (e.g. found in a chest). */
   gives?: ItemDef;
-  /** Swapped in after first use, e.g. an opened chest. */
+  /** Swapped in after first use, e.g. an opened chest (isometric atlas frame). */
   usedFrame?: string;
+  /** The same for the top-down view: a tileset gid. */
+  usedTile?: number;
   /** Needs an item first; `missing` is printed until the player has it. */
   requires?: { item: string; missing: string[] };
 }
