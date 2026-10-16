@@ -4,6 +4,8 @@ An isometric web game about two parallel worlds that share one name. In the
 spirit of Fallout 2, minus the turns: you click to walk, click things to look
 at them, pick things up and use them.
 
+**Play in the browser: https://nepsha1986.github.io/Mirrowick/**
+
 This is an early prototype. It has the main menu and one small level, an
 abandoned village in the **Lower World**, used to try out the game's look.
 
