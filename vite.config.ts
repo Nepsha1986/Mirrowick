@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 // `base` is relative so the build works both at a domain root and under
 // a GitHub Pages sub-path (https://<user>.github.io/<repo>/).

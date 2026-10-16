@@ -1,0 +1,459 @@
+:root {
+  --ink: #1a120c;
+  --umber: #2e2118;
+  --panel: rgba(46, 33, 24, 0.82);
+  --panel-solid: #34261b;
+  --line: rgba(232, 214, 186, 0.14);
+  --paper: #f1e6d3;
+  --paper-dim: rgba(241, 230, 211, 0.62);
+  --paper-faint: rgba(241, 230, 211, 0.34);
+  --ember: #e8673a;
+  --ember-hot: #f08a3c;
+  --ember-deep: #c8434a;
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Lato', system-ui, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ink);
+  overflow: hidden;
+  font-family: var(--sans);
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+#game,
+#ui {
+  position: fixed;
+  inset: 0;
+}
+
+#game canvas {
+  display: block;
+}
+
+#ui {
+  pointer-events: none;
+  user-select: none;
+}
+
+#ui .interactive,
+#ui button {
+  pointer-events: auto;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--ember-hot);
+  outline-offset: 3px;
+}
+
+/* --- Loading ------------------------------------------------------------ */
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 18px;
+  text-align: center;
+  background: var(--ink);
+  transition: opacity 0.6s ease;
+}
+
+.loading h1 {
+  margin: 0;
+  font: 600 34px/1 var(--serif);
+  letter-spacing: 0.02em;
+}
+
+.loading .bar {
+  width: 220px;
+  height: 3px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.loading .bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--ember-hot), var(--ember-deep));
+}
+
+/* --- Main menu ---------------------------------------------------------- */
+
+.menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 clamp(24px, 7vw, 120px);
+  animation: fade-in 1.2s ease both;
+}
+
+.menu .eyebrow {
+  font: 400 15px/1 var(--sans);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.menu h1 {
+  margin: 14px 0 6px;
+  font: 600 clamp(52px, 8vw, 104px) / 0.95 var(--serif);
+  letter-spacing: -0.01em;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.45);
+}
+
+.menu .tagline {
+  margin: 0 0 42px;
+  font: 400 19px/1.4 var(--sans);
+  color: var(--paper-dim);
+  max-width: 34ch;
+}
+
+.menu nav {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 248px;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font: 700 15px/1 var(--sans);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.menu-btn .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ember);
+  box-shadow: 0 0 0 4px rgba(232, 103, 58, 0.22);
+}
+
+.menu-btn.primary {
+  background: linear-gradient(100deg, var(--ember-hot), var(--ember) 45%, var(--ember-deep));
+  border-color: transparent;
+  box-shadow: 0 10px 30px rgba(200, 67, 74, 0.35);
+}
+
+.menu-btn.primary .dot {
+  background: var(--paper);
+  box-shadow: 0 0 0 4px rgba(241, 230, 211, 0.25);
+}
+
+.menu-btn.primary:hover {
+  transform: translateX(6px);
+  box-shadow: 0 12px 36px rgba(200, 67, 74, 0.5);
+}
+
+.menu-btn:disabled {
+  cursor: default;
+  color: var(--paper-faint);
+}
+
+.menu-btn:disabled .dot {
+  background: var(--paper-faint);
+  box-shadow: none;
+}
+
+.menu-btn .soon {
+  margin-left: auto;
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+}
+
+.menu footer {
+  position: absolute;
+  left: clamp(24px, 7vw, 120px);
+  right: clamp(24px, 7vw, 120px);
+  bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--paper-faint);
+}
+
+/* --- In-game HUD -------------------------------------------------------- */
+
+.hud {
+  position: absolute;
+  inset: 0;
+  animation: fade-in 0.8s ease both;
+}
+
+.hud-top {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.round-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  font-size: 18px;
+}
+
+.round-btn:hover {
+  border-color: rgba(240, 138, 60, 0.6);
+}
+
+.place .title {
+  font: 600 22px/1 var(--serif);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.place .sub {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+.pill {
+  display: flex;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+
+.pill button {
+  padding: 9px 16px;
+  border-radius: 999px;
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.pill button:hover {
+  color: var(--paper);
+}
+
+.pill button.active {
+  color: var(--paper);
+  background: linear-gradient(100deg, var(--ember-hot), var(--ember) 50%, var(--ember-deep));
+}
+
+.panel {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(920px, calc(100% - 32px));
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  padding: 16px 20px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.log {
+  min-height: 84px;
+  max-height: 84px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  font: 400 15px/1.35 var(--sans);
+}
+
+.log p {
+  margin: 0;
+  color: var(--paper-faint);
+  transition: color 0.4s ease;
+}
+
+.log p:last-child {
+  color: var(--paper);
+}
+
+.log p.hint {
+  font-style: italic;
+}
+
+.log b {
+  color: var(--ember-hot);
+  font-weight: 700;
+}
+
+.inventory {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 8px;
+  align-content: center;
+}
+
+.slot {
+  position: relative;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  display: grid;
+  place-items: center;
+  font: 600 12px/1.1 var(--serif);
+  text-align: center;
+  padding: 0 4px;
+  color: var(--paper);
+}
+
+.slot.filled {
+  border-style: solid;
+  border-color: rgba(240, 138, 60, 0.45);
+  background: rgba(240, 138, 60, 0.1);
+}
+
+.slot.fresh {
+  animation: pulse 1.2s ease 2;
+}
+
+.tooltip {
+  position: absolute;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(26, 18, 12, 0.85);
+  border: 1px solid var(--line);
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tooltip.show {
+  opacity: 1;
+}
+
+.tooltip.item {
+  max-width: 280px;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  font: 400 13px/1.4 var(--sans);
+  border-radius: 12px;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.pause {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 13, 9, 0.55);
+  backdrop-filter: blur(3px);
+  animation: fade-in 0.25s ease both;
+}
+
+.pause .card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 30px 34px;
+  border-radius: 26px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+}
+
+.pause h2 {
+  margin: 0 0 12px;
+  font: 600 32px/1 var(--serif);
+}
+
+.pause .keys {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--paper-dim);
+  text-align: center;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 6px rgba(240, 138, 60, 0.25);
+  }
+}
+
+@media (max-width: 720px) {
+  .hud-top {
+    flex-direction: column;
+  }
+  .pill button {
+    padding: 8px 10px;
+    letter-spacing: 0.1em;
+  }
+  .panel {
+    grid-template-columns: 1fr;
+  }
+  .inventory {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
