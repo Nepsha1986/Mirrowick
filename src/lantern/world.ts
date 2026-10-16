@@ -1,6 +1,9 @@
+import { buildTown, type TownLife } from './town';
 import { H, MIRROR, T, TL, TOWN, W, brookY, makeNoise, mulberry32, riverX, type Pt } from './util';
 
 export interface WorldObject extends Pt {
+  /** Texture key; defaults to the main atlas. */
+  key?: string;
   frame: string;
   /** Sort depth; defaults to y. */
   depth?: number;
@@ -14,6 +17,8 @@ export interface Light extends Pt {
   flicker: number;
   /** Slow breathing instead of a flame's flicker. */
   slow?: boolean;
+  /** Lights a room: shines only while that building's roof is lifted. */
+  room?: number;
   color: number;
 }
 
@@ -28,9 +33,9 @@ export interface World {
   /** The Wick: the great candle in the middle of the village. */
   wick: Pt;
   spawn: Pt;
+  life: TownLife;
 }
 
-const WARM = 0xffb860;
 const GLASS = 0x9fd8e6;
 
 /**
@@ -303,51 +308,11 @@ export function generateWorld(): World {
   }
   solid('wheel', 26, 54);
 
-  // Inside the palisade: houses with crimson roofs, lamps, the Wick.
-  const blockRect = (x0: number, y0: number, w: number, h: number) => {
-    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) block[I(x, y)] = 1;
-  };
-  const roofs: [number, number, string][] = [
-    [41, 33, 'roofA'],
-    [55, 33, 'roofB'],
-    [41, 42, 'roofB'],
-    [55, 42, 'roofA'],
-  ];
-  for (const [x, y, frame] of roofs) {
-    blockRect(x, y, 4, 4);
-    objects.push({ frame, x: (x + 2) * T, y: (y + 2) * T, depth: (y + 4) * T });
-    // A lit window on the side facing the square.
-    const wx = x < 50 ? (x + 4) * T + 3 : x * T - 3;
-    lights.push({ x: wx, y: (y + 2) * T, radius: 60, flicker: 0.05, color: WARM });
-  }
-  blockRect(49, 39, 2, 2);
+  // Inside the palisade: the village and the Wick in its square.
+  const life = buildTown({ ground, block, objects, decals, lights });
   const wick = { x: 50 * T, y: 40 * T };
   objects.push({ frame: 'wick', ...wick });
   lights.push({ ...wick, radius: 230, flicker: 0.1, color: 0xff9a40 });
-  for (const [x, y] of [
-    [39, 32],
-    [60, 32],
-    [39, 47],
-    [60, 47],
-    [46, 35],
-    [53, 35],
-    [46, 45],
-    [53, 45],
-  ] as const) {
-    block[I(x, y)] = 1;
-    const p = C(x, y);
-    objects.push({ frame: 'lamp', ...p });
-    lights.push({ ...p, radius: 120, flicker: 0.05, color: WARM });
-  }
-  for (const [x, y] of [
-    [40, 37],
-    [59, 37],
-    [45, 47],
-    [56, 32],
-  ] as const) {
-    block[I(x, y)] = 1;
-    objects.push({ frame: 'barrel', ...C(x, y) });
-  }
 
   // Keep vegetation off cleared ground.
   const near = new Uint8Array(N);
@@ -400,5 +365,15 @@ export function generateWorld(): World {
     }
   }
 
-  return { ground, block, town, objects, decals, lights, wick, spawn: { x: 50 * T, y: 43.5 * T } };
+  return {
+    ground,
+    block,
+    town,
+    objects,
+    decals,
+    lights,
+    wick,
+    spawn: { x: 50 * T, y: 43.5 * T },
+    life,
+  };
 }

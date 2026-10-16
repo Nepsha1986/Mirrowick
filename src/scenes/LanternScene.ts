@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { createLanternTextures } from '../lantern/art';
+import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
 import { Nav } from '../lantern/nav';
 import { generateWorld, type World } from '../lantern/world';
 import { DAY_LEN, H, T, W, clamp, lerp, rnd, type Pt } from '../lantern/util';
@@ -14,6 +15,15 @@ const LIGHT_R = 150;
 const FAST = 24;
 /** Objects are shown and hidden in square chunks of this many pixels. */
 const CHUNK = 10 * T;
+
+/** A villager or a chicken pottering about. */
+interface Walker extends Pt {
+  img: Phaser.GameObjects.Image;
+  path: Pt[];
+  wait: number;
+  speed: number;
+  chicken: boolean;
+}
 
 interface Hero extends Pt {
   facing: number;
@@ -41,6 +51,8 @@ export class LanternScene extends Phaser.Scene {
   private markerAt: (Pt & { t: number }) | null = null;
   private motes: (Phaser.GameObjects.Image & { vx: number; vy: number; ph: number; ba: number })[] =
     [];
+  private roofs: { img: Phaser.GameObjects.Image; area: Phaser.Geom.Rectangle }[] = [];
+  private walkers: Walker[] = [];
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
   private cullKey = '';
@@ -63,6 +75,8 @@ export class LanternScene extends Phaser.Scene {
     this.cullKey = '';
     this.erasers = [];
     this.motes = [];
+    this.roofs = [];
+    this.walkers = [];
     createLanternTextures(this);
 
     this.buildGround();
@@ -70,6 +84,7 @@ export class LanternScene extends Phaser.Scene {
     this.hero = { ...this.world.spawn, facing: -Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', 'hero');
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
+    this.buildTownLife();
     this.buildDarkness();
     this.buildMotes();
 
@@ -115,18 +130,19 @@ export class LanternScene extends Phaser.Scene {
   }
 
   private buildObjects(): void {
+    this.hangFestoons();
     for (const d of this.world.decals) {
       this.chunked(
         this.add
-          .image(d.x, d.y, 'ln-atlas', d.frame)
+          .image(d.x, d.y, d.key ?? 'ln-atlas', d.frame)
           .setAngle(d.angle ?? 0)
-          .setDepth(-50)
+          .setDepth(d.depth ?? -50)
           .setAlpha(0.85),
       );
     }
     for (const o of this.world.objects) {
       const img = this.add
-        .image(o.x, o.y, 'ln-atlas', o.frame)
+        .image(o.x, o.y, o.key ?? 'ln-atlas', o.frame)
         .setDepth(o.depth ?? o.y + 4)
         .setAngle(o.angle ?? 0)
         .setScale(o.scale ?? 1);
@@ -134,6 +150,7 @@ export class LanternScene extends Phaser.Scene {
     }
     // Warm or cold glow under each light: shows through where the dark is cut away.
     for (const l of this.world.lights) {
+      if (l.room !== undefined) continue;
       this.chunked(
         this.add
           .image(l.x, l.y, 'glow')
@@ -159,6 +176,132 @@ export class LanternScene extends Phaser.Scene {
         frequency: 30,
       })
       .setDepth(y + 10);
+  }
+
+  /** Strings of little lights: a sagging wire, bulbs that cut the dark. */
+  private hangFestoons(): void {
+    const g = this.add.graphics().setDepth(49_000);
+    for (const { a, b } of this.world.life.festoons) {
+      const sag = 14;
+      const point = (t: number) => ({
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * sag,
+      });
+      g.lineStyle(1.2, 0x1c130d, 0.9);
+      g.beginPath();
+      for (let t = 0; t <= 1.001; t += 0.05) {
+        const p = point(t);
+        if (t === 0) g.moveTo(p.x, p.y);
+        else g.lineTo(p.x, p.y);
+      }
+      g.strokePath();
+      const n = Math.round(Math.hypot(b.x - a.x, b.y - a.y) / 22);
+      for (let k = 1; k < n; k++) {
+        const p = point(k / n);
+        const color = [0xffc86a, 0xff8a5a, 0xfff0b0][k % 3] as number;
+        this.add
+          .image(p.x, p.y + 2, 'ln-atlas', 'dot')
+          .setTint(color)
+          .setScale(0.55)
+          .setDepth(49_001);
+        this.world.lights.push({ x: p.x, y: p.y + 2, radius: 30, flicker: 0.08, color });
+      }
+    }
+  }
+
+  /** Roofs that lift when you walk in, chimney smoke, forge sparks, villagers, hens. */
+  private buildTownLife(): void {
+    const { buildings, forge, spots, coop } = this.world.life;
+    paintRoofs(this, buildings);
+    buildings.forEach((b, i) => {
+      const img = this.add
+        .image(b.x0 * T - ROOF_PAD, b.y0 * T - ROOF_PAD, roofKey(i))
+        .setOrigin(0)
+        .setDepth(50_000);
+      this.roofs.push({
+        img,
+        area: new Phaser.Geom.Rectangle(b.x0 * T, b.y0 * T, b.w * T, b.h * T),
+      });
+      for (const ch of b.chimneys) {
+        this.add
+          .particles(b.x0 * T + ch.x * T, b.y0 * T + ch.y * T, 'glow', {
+            lifespan: 4200,
+            speedY: { min: -14, max: -7 },
+            speedX: { min: 4, max: 12 },
+            scale: { start: 0.05, end: 0.24 },
+            alpha: { start: 0.3, end: 0 },
+            tint: 0x8a8076,
+            frequency: 220,
+          })
+          .setDepth(50_001);
+      }
+    });
+    this.add
+      .particles(forge.x, forge.y, 'ln-atlas', {
+        frame: 'dot',
+        lifespan: { min: 300, max: 700 },
+        speed: { min: 20, max: 70 },
+        angle: { min: 200, max: 340 },
+        gravityY: 60,
+        scale: { start: 0.45, end: 0 },
+        tint: [0xffe0a0, 0xff9a40],
+        blendMode: Phaser.BlendModes.ADD,
+        frequency: 140,
+      })
+      .setDepth(forge.y + 20);
+
+    spots.slice(0, 4).forEach((p, i) => {
+      const img = this.add.image(p.x, p.y, 'ln-town', `villager${i}`);
+      this.walkers.push({ ...p, img, path: [], wait: rnd(0, 3), speed: 34, chicken: false });
+    });
+    for (let i = 0; i < 5; i++) {
+      const x = rnd(coop.x0 + 0.5, coop.x1 + 0.5) * T;
+      const y = rnd(coop.y0 + 0.5, coop.y1 + 0.5) * T;
+      const img = this.add.image(x, y, 'ln-town', i % 2 ? 'chicken2' : 'chicken');
+      this.walkers.push({ x, y, img, path: [], wait: rnd(0, 2), speed: 26, chicken: true });
+    }
+  }
+
+  private updateTownLife(dt: number): void {
+    const h = this.hero;
+    for (const { img, area } of this.roofs) {
+      const target = area.contains(h.x, h.y) ? 0 : 1;
+      img.setAlpha(img.alpha + (target - img.alpha) * Math.min(1, dt * 6));
+    }
+    const { spots, coop } = this.world.life;
+    for (const w of this.walkers) {
+      if (w.wait > 0) {
+        w.wait -= dt;
+        // Hens peck while they wait.
+        if (w.chicken)
+          w.img.setScale(1, 1 + Math.max(0, Math.sin(this.time.now / 90 + w.x)) * 0.12);
+      } else if (!w.path.length) {
+        const to = w.chicken
+          ? { x: rnd(coop.x0 + 0.3, coop.x1 + 0.7) * T, y: rnd(coop.y0 + 0.3, coop.y1 + 0.7) * T }
+          : (spots[Math.floor(Math.random() * spots.length)] as Pt);
+        w.path = w.chicken ? [to] : this.nav.route(w, to, 8);
+        if (!w.path.length) w.wait = 1;
+      } else {
+        const t = w.path[0] as Pt;
+        const dx = t.x - w.x;
+        const dy = t.y - w.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 3) {
+          w.path.shift();
+          if (!w.path.length) w.wait = w.chicken ? rnd(0.6, 2.5) : rnd(2, 7);
+        } else {
+          const s = Math.min(d, w.speed * dt);
+          const bx = w.x;
+          const by = w.y;
+          this.nav.move(w, (dx / d) * s, (dy / d) * s, w.chicken ? 4 : 8);
+          if (w.x === bx && w.y === by) w.path = [];
+          w.img.setRotation(Math.atan2(dy, dx));
+          const bob = Math.sin(this.time.now / (w.chicken ? 50 : 110)) * 0.05;
+          w.img.setScale(1 + bob, 1 - bob);
+        }
+      }
+      w.img.setPosition(w.x, w.y).setDepth(w.y + 4);
+    }
   }
 
   private buildDarkness(): void {
@@ -261,6 +404,7 @@ export class LanternScene extends Phaser.Scene {
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
+    this.updateTownLife(dt);
     this.cull();
     this.drawMarker(dt);
     this.updateLighting(dt);
@@ -349,7 +493,7 @@ export class LanternScene extends Phaser.Scene {
     const h = this.hero;
     const n = this.night();
     // The Lower World never gets truly bright; dusk and dawn go crimson-violet.
-    const alpha = lerp(0.22, 0.92, n);
+    const alpha = lerp(0.16, 0.92, n);
     const dusk = n > 0 && n < 1 ? Math.sin(n * Math.PI) : 0;
     const r = Math.round(lerp(lerp(30, 5, n), 52, dusk * 0.5));
     const g = Math.round(lerp(lerp(24, 6, n), 18, dusk * 0.5));
@@ -384,7 +528,8 @@ export class LanternScene extends Phaser.Scene {
       const f = l.slow
         ? 1 + Math.sin(t * 1.6 + l.x) * l.flicker
         : 1 + (Math.sin(t * 11 + l.x) * 0.5 + Math.sin(t * 23 + l.y) * 0.5) * l.flicker;
-      cut(l.x, l.y, l.radius * f, 0.95);
+      const room = l.room === undefined ? 1 : 1 - (this.roofs[l.room]?.img.alpha ?? 1);
+      if (room > 0.02) cut(l.x, l.y, l.radius * f, 0.95 * room);
     }
     this.dark.render();
 

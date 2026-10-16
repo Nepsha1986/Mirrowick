@@ -1,71 +1,22 @@
 import type * as Phaser from 'phaser';
+import { INK, painter, type Painter } from './brush';
+import { paintTownAtlas, paintTownTiles } from './town-art';
 import { T, TL, mulberry32 } from './util';
 
-type Ctx = CanvasRenderingContext2D;
-type P = [number, number];
-
-const INK = '#1c130d';
-
-/** Tiny canvas brush set; every shape can carry an ink outline. */
-function painter(c: Ctx) {
-  const finish = (fill: string, ink: number) => {
-    c.fillStyle = fill;
-    c.fill();
-    if (ink > 0) {
-      c.strokeStyle = INK;
-      c.lineWidth = ink;
-      c.lineJoin = 'round';
-      c.stroke();
-    }
-  };
-  return {
-    circ(x: number, y: number, r: number, f: string, ink = 0) {
-      c.beginPath();
-      c.arc(x, y, r, 0, Math.PI * 2);
-      finish(f, ink);
-    },
-    ell(x: number, y: number, rx: number, ry: number, f: string, ink = 0) {
-      c.beginPath();
-      c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-      finish(f, ink);
-    },
-    rect(x: number, y: number, w: number, h: number, f: string, ink = 0) {
-      c.beginPath();
-      c.rect(x, y, w, h);
-      finish(f, ink);
-    },
-    line(x0: number, y0: number, x1: number, y1: number, s: string, w: number) {
-      c.beginPath();
-      c.moveTo(x0, y0);
-      c.lineTo(x1, y1);
-      c.strokeStyle = s;
-      c.lineWidth = w;
-      c.lineCap = 'round';
-      c.stroke();
-    },
-    poly(p: P[], f: string, ink = 0) {
-      c.beginPath();
-      p.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
-      c.closePath();
-      finish(f, ink);
-    },
-  };
-}
-type Painter = ReturnType<typeof painter>;
-
 /**
- * Paints the whole look at start-up: a 16-tile ground sheet, an atlas of
+ * Paints the whole look at start-up: a ground sheet, an atlas of
  * objects and the light masks. Nothing is loaded from disk.
  */
 export function createLanternTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('ln-tiles')) return;
   paintTiles(scene);
   paintAtlas(scene);
+  paintTownAtlas(scene);
   paintLights(scene);
 }
 
 function paintTiles(scene: Phaser.Scene): void {
-  const tt = scene.textures.createCanvas('ln-tiles', T * 16, T);
+  const tt = scene.textures.createCanvas('ln-tiles', T * 32, T);
   if (!tt) return;
   const c = tt.getContext();
   const r = mulberry32(42);
@@ -199,6 +150,7 @@ function paintTiles(scene: Phaser.Scene): void {
       );
     }
   });
+  paintTownTiles(at, r);
   tt.refresh();
 }
 
