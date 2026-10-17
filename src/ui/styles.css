@@ -10,8 +10,9 @@
   --ember: #e8673a;
   --ember-hot: #f08a3c;
   --ember-deep: #c8434a;
-  --serif: 'Fraunces', Georgia, serif;
-  --sans: 'Lato', system-ui, sans-serif;
+  /* Fallbacks for scripts the game's fonts lack; each language file loads its own. */
+  --serif: 'Fraunces', 'Lora', Georgia, serif;
+  --sans: 'Lato', 'PT Sans', system-ui, sans-serif;
 }
 
 html,
@@ -488,6 +489,26 @@ button:focus-visible {
 
 .set-btn:hover:not(:disabled) {
   border-color: rgba(240, 138, 60, 0.6);
+}
+
+.set-select {
+  min-width: 140px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(26, 18, 12, 0.5);
+  color: var(--paper);
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.set-select:hover {
+  border-color: rgba(240, 138, 60, 0.6);
+}
+
+.set-select option {
+  background: var(--panel-solid);
 }
 
 .set-btn.danger:not(:disabled) {

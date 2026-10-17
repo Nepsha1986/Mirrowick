@@ -1,3 +1,4 @@
+import { fill, t } from '../i18n';
 import { h, uiRoot } from './dom';
 
 /** One thing in your pockets. */
@@ -32,14 +33,14 @@ export class Inventory {
   constructor() {
     this.list = h('ul', { class: 'bag-items' });
     this.stats = h('div', { class: 'bag-stats' });
-    const close = h('button', { class: 'bag-close', title: 'Close (I)' }, '×');
+    const close = h('button', { class: 'bag-close', title: t().bag.close }, '×');
     close.addEventListener('click', () => this.toggle(false));
     this.el = h(
       'div',
       { class: 'bag interactive', hidden: true },
-      h('div', { class: 'bag-head' }, h('h2', {}, 'Inventory'), close),
+      h('div', { class: 'bag-head' }, h('h2', {}, t().bag.title), close),
       this.list,
-      h('h3', {}, 'You'),
+      h('h3', {}, t().bag.you),
       this.stats,
     );
     uiRoot().append(this.el);
@@ -73,15 +74,15 @@ export class Inventory {
               ),
             ),
           )
-        : [h('li', { class: 'bag-empty' }, 'Your pockets are empty.')]),
+        : [h('li', { class: 'bag-empty' }, t().bag.empty)]),
     );
     const hp = Math.max(0, Math.ceil(v.hp));
     const { guns, melee, dodge } = v.skills;
     const bar = h('span', {});
     bar.style.width = `${(hp / v.maxHp) * 100}%`;
     this.stats.replaceChildren(
-      h('div', { class: 'fight-hp' }, bar, h('b', {}, `Health ${hp} / ${v.maxHp}`)),
-      h('div', { class: 'bag-skills' }, `Guns ${guns} · Melee ${melee} · Dodge ${dodge}`),
+      h('div', { class: 'fight-hp' }, bar, h('b', {}, fill(t().bag.health, { hp, max: v.maxHp }))),
+      h('div', { class: 'bag-skills' }, fill(t().bag.skills, { guns, melee, dodge })),
     );
   }
 

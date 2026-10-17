@@ -1,8 +1,9 @@
-import { FACTS, ITEMS, type Fact } from './items';
+import { fill, list, t } from '../i18n';
+import { ITEMS, itemWords, type Fact } from './items';
 
 /** What lies in a drawer or a box: things worth having, maybe, and plain junk. */
 export interface Hoard {
-  /** Where you look, for the words: "In the drawer". */
+  /** Where you look, for the words: "In the drawer", in the current language. */
   place: string;
   /** Ids of things you could carry. */
   items: string[];
@@ -18,7 +19,6 @@ export interface Search {
 
 const seen = (item: string) => `seen:${item}`;
 const read = (paper: string) => `read:${paper}`;
-const the = (plain: string) => plain.replace(/^an? /, 'the ');
 
 /**
  * What the hero knows and has seen. He leaves what he has no use for, but
@@ -62,8 +62,9 @@ export class Memory {
     this.known.add(fact);
     const wanted = Object.entries(ITEMS).filter(([, it]) => it.needs === fact);
     if (wanted.some(([id]) => carried.has(id))) return null;
-    const recall = wanted.find(([id]) => this.known.has(seen(id)))?.[1].recall;
-    return recall ?? FACTS[fact];
+    const saw = wanted.find(([id]) => this.known.has(seen(id)));
+    const recall = saw && itemWords(saw[0])?.recall;
+    return recall ?? t().thoughts.facts[fact];
   }
 
   /** Whether something the fact calls for is still out of his pockets. */
@@ -96,20 +97,16 @@ export class Memory {
         this.known.add(seen(id));
       }
     }
-    const plain = (id: string) => ITEMS[id]?.plain ?? id;
+    const words = t().hoard;
+    const said = (form: 'plain' | 'taken') => (id: string) => itemWords(id)?.[form] ?? id;
     if (take.length) {
-      const what = take.map((id) => the(plain(id)));
-      return { take, says: `${hoard.place}: you take ${list(what)}. The rest is junk.` };
+      const what = list(take.map(said('taken')));
+      return { take, says: fill(words.took, { place: hoard.place, what }) };
     }
     // What he leaves goes in among the junk, not at the front.
     const [first, ...rest] = hoard.junk;
-    const all = [first, ...left.map(plain), ...rest].filter((s): s is string => !!s);
-    return { take, says: `${hoard.place}: ${list(all)}. Nothing you need.` };
+    const all = [first, ...left.map(said('plain')), ...rest].filter((s): s is string => !!s);
+    const what = all.length ? list(all) : words.nothing;
+    return { take, says: fill(words.nothingNeeded, { place: hoard.place, what }) };
   }
-}
-
-/** "a, b and c". */
-function list(words: string[]): string {
-  if (words.length < 2) return words[0] ?? 'nothing';
-  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 }

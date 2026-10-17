@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { loadSave } from '../lantern/save';
 import { h, uiRoot } from './dom';
 import { SettingsPanel } from './Settings';
@@ -17,25 +18,21 @@ export class MainMenu {
 
   constructor(private readonly actions: MainMenuActions) {
     this.nav = h('nav', { class: 'interactive' });
-    this.el = h(
-      'div',
-      { class: 'menu' },
-      h('div', { class: 'eyebrow' }, 'Chapter I · The Lower World'),
-      h('h1', {}, 'Mirrowick'),
-      h(
-        'p',
-        { class: 'tagline' },
-        'Two villages, one name. Only one of them is still on the maps.',
-      ),
-      this.nav,
-      h(
-        'footer',
-        {},
-        h('span', {}, 'v0.1 · prototype'),
-        h('span', {}, 'Art painted in code · Music: procedural'),
-      ),
-    );
+    this.el = h('div', { class: 'menu' });
     uiRoot().append(this.el);
+    this.render();
+  }
+
+  /** Everything in the current language; again when it changes. */
+  private render(): void {
+    const w = t().menu;
+    this.el.replaceChildren(
+      h('div', { class: 'eyebrow' }, w.eyebrow),
+      h('h1', {}, 'Mirrowick'),
+      h('p', { class: 'tagline' }, w.tagline),
+      this.nav,
+      h('footer', {}, h('span', {}, w.version), h('span', {}, w.credits)),
+    );
     this.renderNav();
   }
 
@@ -47,18 +44,19 @@ export class MainMenu {
         { class: `menu-btn${opts.primary ? ' primary' : ''}`, disabled: !opts.onClick },
         h('span', { class: 'dot' }),
         label,
-        !opts.onClick && h('span', { class: 'soon' }, 'soon'),
+        !opts.onClick && h('span', { class: 'soon' }, t().menu.soon),
       );
       if (opts.onClick) b.addEventListener('click', opts.onClick);
       return b;
     };
+    const w = t().menu;
     const saved = !!loadSave();
     const first = saved
-      ? button('Continue', { primary: true, onClick: this.actions.resume })
-      : button('Play', { primary: true, onClick: this.actions.play });
+      ? button(w.continue, { primary: true, onClick: this.actions.resume })
+      : button(w.play, { primary: true, onClick: this.actions.play });
     const items = [first];
-    if (saved) items.push(button('New game', { onClick: this.actions.play }));
-    items.push(button('Settings', { onClick: () => this.openSettings() }), button('Credits'));
+    if (saved) items.push(button(w.newGame, { onClick: this.actions.play }));
+    items.push(button(w.settings, { onClick: () => this.openSettings() }), button(w.authors));
     this.nav.replaceChildren(...items);
     first.focus();
   }
@@ -68,6 +66,12 @@ export class MainMenu {
     this.settings = new SettingsPanel(
       () => this.closeSettings(),
       () => this.renderNav(),
+      () => {
+        // Redraw the menu in the new language, with the settings still open.
+        this.closeSettings();
+        this.render();
+        this.openSettings();
+      },
     );
     this.nav.after(this.settings.el);
   }

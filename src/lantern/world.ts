@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import {
   MILL_FLOOR,
   MILL_HALF,
@@ -508,7 +509,7 @@ export function generateWorld(): World {
       ...mirror,
       to: 'cellar',
       exit: cellarMirror(),
-      label: 'Step into the mirror',
+      label: t().use.mirror,
       fade: 'glint',
     },
   ];

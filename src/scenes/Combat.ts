@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { music, type Sfx } from '../audio/AmbientMusic';
+import { fill, t } from '../i18n';
 import {
   FISTS,
   FOES,
@@ -111,27 +112,9 @@ export interface CombatHost {
   tracks?: Tracks;
 }
 
-const VERB: Record<FoeId, string> = {
-  wolf: 'bites',
-  brigand: 'shoots',
-  boar: 'gores',
-  crawler: 'slashes',
-  shade: 'chills',
-};
-const NOTICE: Record<FoeId, string> = {
-  wolf: 'A wolf growls and comes for you.',
-  brigand: 'The brigand draws his flintlock.',
-  boar: 'The boar snorts and lowers its head.',
-  crawler: 'Glass grinds on glass: the crawler stirs.',
-  shade: 'Something in the dark moves towards you.',
-};
-const DEATH: Record<FoeId, string> = {
-  wolf: 'The wolf is dead.',
-  brigand: 'The brigand is dead.',
-  boar: 'The boar is dead.',
-  crawler: 'The crawler shatters.',
-  shade: 'The shade comes apart like smoke.',
-};
+/** The fight's words in the current language, and one foe's own lines. */
+const words = () => t().combat;
+const foe = (f: Foe) => t().combat.foes[f.kind.id];
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 const angle = (a: Pt, b: Pt) => Math.atan2(b.y - a.y, b.x - a.x);
@@ -139,7 +122,6 @@ const unit = (dx: number, dy: number): Pt | null => {
   const d = Math.hypot(dx, dy);
   return d > 0.001 ? { x: dx / d, y: dy / d } : null;
 };
-const lower = (f: Foe) => f.kind.name.toLowerCase();
 /** What each enemy sounds like when it notices you, and when it strikes. */
 const CRY: Record<FoeId, Sfx | null> = {
   wolf: 'growl',
@@ -326,22 +308,22 @@ export class Combat {
     if (s === 'fallback' && !this.hunters().some((f) => dist(f, this.host.hero) < CALM)) return;
     this.stance = s;
     if (s === 'fallback') {
-      this.say(this.threat ? 'You start backing away, facing them.' : 'You fall back.');
+      this.say(this.threat ? words().backingAway : words().fallingBack);
     } else if (this.threat || this.target) {
-      this.say('You stand and fight.');
+      this.say(words().standing);
     }
   }
 
   /** A crate of rounds: fill your pockets. */
   refill(): void {
     if (!this.host.armed()) {
-      this.say('Rounds, but nothing to fire them from.');
+      this.say(words().noGun);
       return;
     }
     this.ammo.spare = SPARE_ROUNDS;
     music.sfx('reload');
-    this.float('+ rounds', this.host.hero, '#e8d8a0');
-    this.say(`You take rounds: ${this.ammo.spare} spare.`, 'good');
+    this.float(words().plusRounds, this.host.hero, '#e8d8a0');
+    this.say(fill(words().tookRounds, { spare: this.ammo.spare }), 'good');
   }
 
   /**
@@ -370,7 +352,7 @@ export class Combat {
         return { dir: this.away(), speed: RUN, face: null };
       }
       this.stance = 'fight';
-      this.say('You got away.', 'good');
+      this.say(words().gotAway, 'good');
       return null;
     }
     if (t && !want) {
@@ -406,7 +388,7 @@ export class Combat {
       }
     }
     if (wasEngaged && !this.threat && this.stance === 'fallback' && !this.down) {
-      this.say('Clear of them — you turn and run.', 'good');
+      this.say(words().run, 'good');
     }
     const gone = (f: Foe) => f.state === 'dead' || f.state === 'home' || dist(f, h) > 1.5 * CALM;
     if (this.target && gone(this.target)) {
@@ -489,7 +471,7 @@ export class Combat {
     if (w === PISTOL) {
       if (this.jam > 0) {
         this.jam -= dt;
-        if (this.jam <= 0) this.say('You clear the jam.');
+        if (this.jam <= 0) this.say(words().unjammed);
         return;
       }
       if (this.reload > 0) {
@@ -504,7 +486,7 @@ export class Combat {
       if (this.ammo.mag === 0) {
         this.reload = reloadTime(HERO_SKILLS.guns, PISTOL);
         music.sfx('reload');
-        this.say('Reloading…');
+        this.say(words().reloading);
         return;
       }
     }
@@ -528,8 +510,8 @@ export class Combat {
         this.jam = clearTime(skill);
         this.aim = 0;
         music.sfx('click');
-        this.float('jammed!', h, '#f0b060');
-        this.say('Click — your pistol jams. Clearing it…', 'bad');
+        this.float(words().jammedFloat, h, '#f0b060');
+        this.say(words().jammed, 'bad');
         return;
       }
       music.sfx('shot');
@@ -540,15 +522,14 @@ export class Combat {
     }
     const chance = this.chance(t, w);
     const roll = rollAttack(chance, skill, Math.random);
-    const name = lower(t);
     if (roll === 'miss' || roll === 'fumble') {
       if (w === PISTOL) this.tracer(h, t, true);
-      this.float('miss', t, PALE);
+      this.float(words().missFloat, t, PALE);
       if (roll === 'fumble') {
         this.aim = -1.4;
-        this.say(w === PISTOL ? 'You snatch at the trigger and fumble the shot.' : 'You stumble.');
+        this.say(w === PISTOL ? words().fumbleShot : words().stumble);
       } else {
-        this.say(`You miss the ${name}.`);
+        this.say(foe(t).miss);
       }
       this.wake(t);
       return;
@@ -558,8 +539,8 @@ export class Combat {
     if (dmg === 0) {
       music.sfx('glass');
       this.bits.glass.explode(5, t.x, t.y);
-      this.float('glances off', t, PALE);
-      this.say(`The bullet glances off the ${name}.`);
+      this.float(words().glanceFloat, t, PALE);
+      this.say(foe(t).glance);
       this.wake(t);
       return;
     }
@@ -568,12 +549,7 @@ export class Combat {
     // The blow pushes it back a little.
     const push = unit(t.x - h.x, t.y - h.y);
     if (push) this.host.nav.move(t, push.x * 6, push.y * 6, t.kind.r);
-    this.say(
-      roll === 'crit'
-        ? `A critical hit! The ${name} takes ${dmg}.`
-        : `You hit the ${name} for ${dmg}.`,
-      'good',
-    );
+    this.say(roll === 'crit' ? fill(foe(t).crit, { dmg }) : fill(foe(t).hit, { dmg }), 'good');
     this.hurtFoe(t, dmg, roll === 'crit');
   }
 
@@ -613,7 +589,7 @@ export class Combat {
     music.sfx('hurt');
     if (this.hp > 0) return;
     this.down = true;
-    this.say('You fall.', 'bad');
+    this.say(words().fall, 'bad');
     this.host.fall();
   }
 
@@ -642,13 +618,13 @@ export class Combat {
     f.cd = Math.max(f.cd, 0.4);
     const cry = CRY[f.kind.id];
     if (cry) music.sfx(cry);
-    this.say(NOTICE[f.kind.id], 'bad');
+    this.say(foe(f).notice, 'bad');
   }
 
   private hurtFoe(f: Foe, dmg: number, crit: boolean): void {
     f.hp -= dmg;
     f.hurt = 0.18;
-    this.float(crit ? `crit -${dmg}` : `-${dmg}`, f, crit ? '#ffd27a' : RED);
+    this.float(crit ? fill(words().critFloat, { dmg }) : `-${dmg}`, f, crit ? '#ffd27a' : RED);
     if (f.hp <= 0) {
       this.kill(f);
       return;
@@ -658,7 +634,7 @@ export class Combat {
       f.state = 'flee';
       f.t = 0;
       if (f.kind.id === 'wolf') music.sfx('yelp');
-      this.say(f.kind.id === 'wolf' ? 'The wolf yelps and bolts.' : `The ${lower(f)} runs for it.`);
+      this.say(foe(f).flee);
     }
   }
 
@@ -677,7 +653,7 @@ export class Combat {
       });
     }
     if (f.kind.id === 'crawler') f.img.setFrame('crawler');
-    this.say(DEATH[f.kind.id], 'good');
+    this.say(foe(f).death, 'good');
     if (this.target === f) this.target = null;
     const { scene } = this.host;
     this.splash(f, 16);
@@ -735,17 +711,16 @@ export class Combat {
       95,
     );
     const roll = rollAttack(chance, f.kind.skill, Math.random);
-    const name = lower(f);
     f.lunge = 0.16;
     if (f.kind.id !== 'brigand') music.sfx(STRIKE[f.kind.id]);
     if (roll === 'miss' || roll === 'fumble') {
-      this.float('miss', h, PALE);
-      this.say(f.kind.id === 'brigand' ? 'The brigand fires and misses.' : `The ${name} misses.`);
+      this.float(words().missFloat, h, PALE);
+      this.say(foe(f).missesYou);
       return false;
     }
     const dmg = Math.round(damage(w, { dt: 0, dr: 0 }, roll === 'crit', Math.random) * mult);
-    const crit = roll === 'crit' ? 'A critical hit! ' : '';
-    this.hurtHero(dmg, `${crit}The ${name} ${VERB[f.kind.id]} you for ${dmg}.`);
+    const line = fill(foe(f).hurtsYou, { dmg });
+    this.hurtHero(dmg, roll === 'crit' ? `${words().crit} ${line}` : line);
     return true;
   }
 
@@ -780,12 +755,7 @@ export class Combat {
     // Hunting. Too far from home, or you're down: back it goes.
     if (this.down) return this.goHome(f, '');
     if (dist(f, f.home) > f.kind.leash * T) {
-      return this.goHome(
-        f,
-        f.kind.id === 'shade'
-          ? 'The shade melts back into the trees.'
-          : `The ${lower(f)} gives up the chase.`,
-      );
+      return this.goHome(f, foe(f).givesUp);
     }
     if (f.kind.id === 'brigand') this.brigand(f, d, dt);
     else if (f.kind.id === 'boar' && f.charge !== 'ready') this.boar(f, d, dt);
@@ -840,7 +810,7 @@ export class Combat {
       if (f.t <= 0 && d > 2.5 * T && d < 7 * T && this.host.nav.lineFree(f.x, f.y, h.x, h.y, 6)) {
         f.charge = 'windup';
         f.t = 0;
-        this.say('The boar paws the ground…', 'bad');
+        this.say(words().boarPaws, 'bad');
         return;
       }
     }
@@ -870,7 +840,7 @@ export class Combat {
       f.ran = 0;
       f.t = 0;
       music.sfx('snort');
-      this.say('The boar charges!', 'bad');
+      this.say(words().boarCharges, 'bad');
       return;
     }
     if (f.charge === 'run') {
@@ -884,7 +854,7 @@ export class Combat {
         if (this.foeAttacks(f, 15, 1.25)) {
           this.host.nav.move(h, Math.cos(f.dir) * 26, Math.sin(f.dir) * 26, this.host.heroR);
         } else {
-          this.say('You sidestep the boar.', 'good');
+          this.say(words().sidestep, 'good');
         }
         f.charge = 'blown';
         f.t = 0;
@@ -929,7 +899,7 @@ export class Combat {
     f.cd = reloadTime(f.kind.skill, w);
     if (Math.random() < w.jam) {
       music.sfx('click');
-      this.say("The brigand's flintlock misfires.", 'good');
+      this.say(words().misfire, 'good');
       return;
     }
     music.sfx('boom');
@@ -1031,7 +1001,8 @@ export class Combat {
     const { scene } = this.host;
     const label = scene.add
       .text(at.x + rnd(-6, 6), at.y - 20, text, {
-        fontFamily: 'Lato, sans-serif',
+        // The UI's own font stack, with fallbacks for every language.
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--sans'),
         fontSize: '13px',
         fontStyle: 'bold',
         color,
@@ -1112,18 +1083,20 @@ export class Combat {
     const armed = this.host.armed();
     const state =
       this.jam > 0
-        ? ' · jammed!'
+        ? words().jammedState
         : this.reload > 0
-          ? ' · reloading…'
+          ? words().reloadingState
           : this.ammo.mag
             ? ''
-            : ' · empty';
+            : words().empty;
+    const { mag, spare } = this.ammo;
     const weapon = armed
-      ? `Pistol · ${this.ammo.mag}/${PISTOL.mag} · ${this.ammo.spare} spare${state}`
-      : 'Bare hands · no gun';
+      ? fill(words().pistol, { mag, size: PISTOL.mag, spare }) + state
+      : words().bareHands;
     const t = this.target;
     const target = t
-      ? `${t.kind.name} · ${this.chance(t)}% to hit${t.state === 'flee' ? ' · fleeing' : ''}`
+      ? fill(words().target, { foe: foe(t).name, chance: this.chance(t) }) +
+        (t.state === 'flee' ? words().fleeing : '')
       : null;
     p.update({
       hp: this.hp,

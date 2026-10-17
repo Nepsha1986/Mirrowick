@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
+import { fill, t } from '../i18n';
 import { createLanternTextures } from '../lantern/art';
 import { groundBox, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
 import { generateCellar } from '../lantern/cellar';
@@ -10,9 +11,9 @@ import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
-import { ITEMS, NUDGES, type Fact } from '../lantern/items';
+import { ITEMS, itemWords, type Fact } from '../lantern/items';
 import { Memory, type Hoard } from '../lantern/memory';
-import { PAPERS } from '../lantern/papers';
+import { paper as findPaper } from '../lantern/papers';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
 import { Reader } from '../ui/Reader';
@@ -64,10 +65,10 @@ const HALO = 0xfff2c4;
 const GLINT: [number, number, number] = [159, 216, 230];
 const DUSK: [number, number, number] = [13, 10, 8];
 /** What each world is called in the HUD, and its backdrop colour. */
-const PLACES: Record<Realm, { name: string; bg: string }> = {
-  lower: { name: 'The Lower World', bg: '#0d0a08' },
-  upper: { name: 'The Upper World', bg: '#2c3a1e' },
-  cellar: { name: 'The Cellar', bg: '#060507' },
+const PLACES: Record<Realm, { bg: string }> = {
+  lower: { bg: '#0d0a08' },
+  upper: { bg: '#2c3a1e' },
+  cellar: { bg: '#060507' },
 };
 
 /** What the scene is started with: which world, and where and when you arrive. */
@@ -302,7 +303,7 @@ export class LanternScene extends Phaser.Scene {
       this.setupInput();
       this.hud = new LanternHud(
         () => this.scene.start('menu'),
-        PLACES[this.realm].name,
+        t().places[this.realm],
         () => this.bag?.toggle(),
       );
       this.bag = new Inventory();
@@ -310,9 +311,7 @@ export class LanternScene extends Phaser.Scene {
       if (this.start.fresh) {
         this.hud.controls();
         // Just out of the car, the first thing he sees: Victor never drove off.
-        this.time.delayedCall(FIRST_THOUGHT * 1000, () =>
-          this.hud?.think("Victor's car is still in the drive. Wherever he went, he didn't drive."),
-        );
+        this.time.delayedCall(FIRST_THOUGHT * 1000, () => this.hud?.think(t().thoughts.carStill));
       }
       document.addEventListener('visibilitychange', saveOnHide);
       this.save();
@@ -877,7 +876,7 @@ export class LanternScene extends Phaser.Scene {
    * down the first time, he may think something of it.
    */
   private readPaper(id: string): void {
-    const paper = PAPERS[id];
+    const paper = findPaper(id);
     if (!paper || !this.reader) return;
     this.hero.path = [];
     this.pending = null;
@@ -901,7 +900,8 @@ export class LanternScene extends Phaser.Scene {
   private gained(ids: string[]): void {
     const got = ids.flatMap((id) => {
       const it = ITEMS[id];
-      return it ? [{ name: it.name, icon: this.icon(...it.icon) }] : [];
+      const words = itemWords(id);
+      return it && words ? [{ name: words.name, icon: this.icon(...it.icon) }] : [];
     });
     if (got.length) this.hud?.gained(got);
   }
@@ -913,7 +913,7 @@ export class LanternScene extends Phaser.Scene {
    */
   private nudge(dt: number): void {
     if (this.demo || this.leaving || this.realm !== 'upper') return;
-    for (const [fact, nudge] of Object.entries(NUDGES) as [Fact, string][]) {
+    for (const [fact, nudge] of Object.entries(t().thoughts.nudges) as [Fact, string][]) {
       const waited = this.stuck.get(fact) ?? 0;
       if (waited < 0 || !this.memory.knows(fact) || !this.memory.lacks(fact, this.items)) continue;
       if (waited + dt < NUDGE_AFTER) {
@@ -952,13 +952,15 @@ export class LanternScene extends Phaser.Scene {
     const items: BagItem[] = [];
     for (const id of this.items) {
       const it = ITEMS[id];
-      if (it) items.push({ name: it.name, about: it.about, icon: icon(...it.icon) });
+      const words = itemWords(id);
+      if (it && words) items.push({ name: words.name, about: words.about, icon: icon(...it.icon) });
     }
     if (this.items.has('pistol')) {
+      const w = t().bag;
       items.push({
-        name: 'Rounds',
-        about: 'For the pistol. There are more in the crate in the Hollow.',
-        note: `${this.ammo.mag} loaded, ${this.ammo.spare} spare`,
+        name: w.rounds,
+        about: w.roundsAbout,
+        note: fill(w.roundsNote, { mag: this.ammo.mag, spare: this.ammo.spare }),
         icon: icon('ln-foes', 'ammo'),
       });
     }
@@ -1046,16 +1048,16 @@ export class LanternScene extends Phaser.Scene {
     const pulse = Math.sin(this.time.now / 260);
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
-    this.hud?.prompt(near && !this.reader?.open ? `E · ${near.label()}` : null);
+    this.hud?.prompt(near && !this.reader?.open ? fill(t().hud.use, { what: near.label() }) : null);
     // A twinkle on a drawer with something in it still worth having.
-    const t = this.time.now / 1000;
+    const sec = this.time.now / 1000;
     for (const g of this.glints) {
       const on = !this.demo && g.worth();
       g.img.setVisible(on);
       if (on)
         g.img
-          .setAlpha(0.35 + 0.45 * Math.max(0, Math.sin(t * 2.4)))
-          .setScale(0.6 + 0.25 * Math.sin(t * 1.2));
+          .setAlpha(0.35 + 0.45 * Math.max(0, Math.sin(sec * 2.4)))
+          .setScale(0.6 + 0.25 * Math.sin(sec * 1.2));
     }
   }
 

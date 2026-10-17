@@ -37,6 +37,7 @@
 - [Память героя](mechanics/memory.md) — «хлам», который становится нужным
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
+- [Языки](mechanics/languages.md) — перевод игры
 - [Бой](mechanics/combat.md)
 - [Инвентарь](mechanics/inventory.md)
 - [Следы](mechanics/tracks.md) — и светящиеся следы Виктора

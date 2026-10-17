@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Dialog } from './Dialog';
 import { h } from './dom';
 
@@ -9,25 +10,26 @@ const POST = 'nepsha1986@gmail.com';
  * holds up to read, or a letter of your own to the developer.
  */
 export function openMailbox(d: Dialog, onClose: () => void, read: () => void): void {
+  const w = t().mailbox;
   const mail = () =>
-    d.show('Mailbox', 'One letter, addressed to Victor. Nobody has collected it.', [
+    d.show(w.title, w.letter, [
       [
-        'Read it',
+        w.read,
         () => {
           d.close();
           read();
         },
       ],
-      ['Back', menu],
+      [w.back, menu],
     ]);
   const menu = () =>
     d.show(
-      'Mailbox',
+      w.title,
       null,
       [
-        ['Check the mail', mail],
-        ['Write to the developer', write],
-        ['Close', () => d.close()],
+        [w.check, mail],
+        [w.write, write],
+        [w.close, () => d.close()],
       ],
       onClose,
     );
@@ -37,20 +39,18 @@ export function openMailbox(d: Dialog, onClose: () => void, read: () => void): v
       class: 'letter',
       rows: 5,
       maxLength: 4000,
-      placeholder: 'Dear developer…',
+      placeholder: w.dear,
     });
     const send = () => {
       const letter = text.value.trim();
       if (!letter) return text.focus();
-      const subject = encodeURIComponent('A letter from Mirrowick');
+      const subject = encodeURIComponent(w.subject);
       window.location.href = `mailto:${POST}?subject=${subject}&body=${encodeURIComponent(letter)}`;
-      d.show('Mailbox', 'Your letter is ready: send it from your mail app.', [
-        ['Close', () => d.close()],
-      ]);
+      d.show(w.title, w.ready, [[w.close, () => d.close()]]);
     };
-    d.show('A letter to the developer', text, [
-      ['Send', send],
-      ['Back', menu],
+    d.show(w.toDeveloper, text, [
+      [w.send, send],
+      [w.back, menu],
     ]);
   };
 

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Paper } from '../lantern/papers';
 import { h, uiRoot } from './dom';
 
@@ -22,9 +23,9 @@ export class Reader {
     this.title = h('h2', {});
     this.text = h('div', { class: 'reader-text' });
     this.count = h('span', { class: 'reader-count' });
-    this.prev = h('button', { class: 'set-btn', title: 'Previous page (←)' }, '‹');
-    this.next = h('button', { class: 'set-btn', title: 'Next page (→)' }, '›');
-    const done = h('button', { class: 'set-btn' }, 'Put down');
+    this.prev = h('button', { class: 'set-btn', title: t().reader.prev }, '‹');
+    this.next = h('button', { class: 'set-btn', title: t().reader.next }, '›');
+    const done = h('button', { class: 'set-btn' }, t().reader.done);
     this.prev.addEventListener('click', () => this.turn(-1));
     this.next.addEventListener('click', () => this.turn(1));
     done.addEventListener('click', () => this.close());

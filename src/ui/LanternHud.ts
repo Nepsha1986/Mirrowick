@@ -1,3 +1,4 @@
+import { fill, t } from '../i18n';
 import { Dialog } from './Dialog';
 import { h, uiRoot } from './dom';
 
@@ -15,10 +16,10 @@ export class LanternHud {
   private readonly timers: number[] = [];
 
   constructor(mainMenu: () => void, place: string, bag: () => void) {
-    const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
+    const back = h('button', { class: 'round-btn', title: t().hud.menu }, '←');
     back.addEventListener('click', mainMenu);
     // A satchel, for the inventory.
-    const satchel = h('button', { class: 'round-btn', title: 'Inventory (I)' });
+    const satchel = h('button', { class: 'round-btn', title: t().hud.bag });
     satchel.innerHTML =
       '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" ' +
       'stroke-width="1.6" stroke-linejoin="round"><path d="M7 6V4.5a3 3 0 0 1 6 0V6"/>' +
@@ -82,13 +83,14 @@ export class LanternHud {
 
   /** How to play, for a few seconds at the start of a new game. */
   controls(): void {
+    const w = t().hud.keys;
     const keys: [string, string][] = [
-      ['Click', 'walk there'],
-      ['WASD', 'walk'],
-      ['E', 'use what glows'],
-      ['I', 'inventory'],
-      ['Hold T', 'pass time'],
-      ['Esc', 'menu'],
+      [w.click, w.clickWhat],
+      ['WASD', w.wasdWhat],
+      ['E', w.eWhat],
+      ['I', w.iWhat],
+      [w.hold, w.holdWhat],
+      ['Esc', w.escWhat],
     ];
     const el = h(
       'div',
@@ -133,15 +135,17 @@ export class LanternHud {
   update(day: number, hour: number, night: number): void {
     const hr = Math.floor(hour);
     const mn = Math.floor(((hour - hr) * 60) / 10) * 10;
-    const text = `Day ${day} · ${String(hr).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
+    const time = `${String(hr).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
+    const text = fill(t().hud.clock, { day, time });
     if (this.clock.textContent !== text) this.clock.textContent = text;
-    const phase = night >= 1 ? 'Night' : night <= 0 ? 'Day' : hour >= 12 ? 'Dusk' : 'Dawn';
+    const w = t().hud.phase;
+    const phase = night >= 1 ? w.night : night <= 0 ? w.day : hour >= 12 ? w.dusk : w.dawn;
     if (this.phase.textContent !== phase) this.phase.textContent = phase;
   }
 
   destroy(): void {
     window.clearTimeout(this.thoughtTimer);
-    for (const t of this.timers) window.clearTimeout(t);
+    for (const id of this.timers) window.clearTimeout(id);
     this.el.remove();
   }
 }

@@ -4,7 +4,7 @@ import { generateUpperWorld } from './upper';
 import { T, TOWN, type Pt } from './util';
 import { generateCellar } from './cellar';
 import { ITEMS } from './items';
-import { PAPERS } from './papers';
+import { PAPERS, paper } from './papers';
 import { upperHatch } from './mill';
 import { generateWorld, type Portal, type World } from './world';
 
@@ -136,7 +136,7 @@ describe('things', () => {
 
   it('give everything you can read something to read', () => {
     for (const w of [upper, generateCellar()]) {
-      for (const t of w.things) if (t.read) expect(PAPERS[t.read], t.id).toBeDefined();
+      for (const t of w.things) if (t.read) expect(paper(t.read), t.id).not.toBeNull();
     }
     expect(PAPERS['bookshop-letter']).toBeDefined();
   });
