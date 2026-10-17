@@ -4,7 +4,7 @@ import { h } from './dom';
 export type Choice = [label: string, run: () => void];
 
 /**
- * A small panel above the action prompt: a title, maybe some words or a
+ * A small panel by the thing you use: a title, maybe some words or a
  * field, and a few choices. One at a time; Esc closes it. Keys pressed in
  * it stay in it, so typing doesn't walk the hero about.
  */

@@ -5,7 +5,7 @@ import { t } from '../i18n';
  * that someone's footprints glow in the beam. What he thinks of it is in
  * `thoughts.facts` of the language files.
  */
-export type Fact = 'dark' | 'cellar-lock' | 'trail';
+export type Fact = 'dark' | 'cellar-lock' | 'cellar-open' | 'trail';
 
 /** A thing you can carry. Its words are in `items` of the language files, by id. */
 export interface Item {
@@ -18,14 +18,18 @@ export interface Item {
   needs?: Fact;
   /** Something on it to read (a paper id): read once you take it, and again from the bag. */
   read?: string;
+  /**
+   * Once the hero knows this, he has no more use for it: the bag shows it
+   * as likely done with, and he leaves it behind when he leaves the place.
+   */
+  spent?: Fact;
 }
 
 /** Everything the hero can carry, by id. */
 export const ITEMS: Record<string, Item> = {
   flashlight: { icon: ['ln-up', 'flashlight'], needs: 'dark' },
-  'cellar-key': { icon: ['ln-up', 'key'], needs: 'cellar-lock' },
+  'cellar-key': { icon: ['ln-up', 'key'], needs: 'cellar-lock', spent: 'cellar-open' },
   pistol: { icon: ['ln-foes', 'pistol'] },
-  phone: { icon: ['ln-up', 'phone'], read: 'phone' },
 };
 
 /**

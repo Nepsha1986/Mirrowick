@@ -57,6 +57,19 @@ describe("the hero's memory", () => {
     expect(m.worthLooking(drawer, carried)).toBe(false);
   });
 
+  it('is done with a thing once what it was for is behind him, and stops looking for it', () => {
+    const m = new Memory();
+    m.learn('cellar-lock', new Set());
+    const carried = new Set(m.search(drawer, new Set()).take);
+    expect(m.spent('cellar-key')).toBe(false);
+    m.learn('cellar-open', carried);
+    expect(m.spent('cellar-key')).toBe(true);
+    // Left behind, it is neither missed nor taken again.
+    expect(m.lacks('cellar-lock', new Set())).toBe(false);
+    expect(m.worthLooking(drawer, new Set(['flashlight']))).toBe(false);
+    expect(m.search(drawer, new Set(['flashlight'])).take).toEqual([]);
+  });
+
   it('carries over in the save', () => {
     const m = new Memory();
     m.search(drawer, new Set());

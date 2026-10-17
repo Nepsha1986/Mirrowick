@@ -40,6 +40,8 @@ const FLOORS = new Set<number>([
   TL.TILEW,
 ]);
 const SPEED = 140;
+/** How much of his pace long grass takes. */
+const WADE_SLOW = 0.18;
 const LIGHT_R = 150;
 /** How much faster time runs while T is held. */
 const FAST = 24;
@@ -101,6 +103,9 @@ interface Target extends Pt {
   label: () => string;
   use: () => void;
 }
+
+/** Where the words about a thing hang: just over the top of it. */
+const topOf = (t: Target): Pt => ({ x: t.x, y: t.y - (t.img ? t.img.displayHeight / 2 : 12) });
 
 /** A villager or a chicken pottering about. */
 interface Walker extends Pt {
@@ -192,6 +197,10 @@ export class LanternScene extends Phaser.Scene {
   private thingsOn = new Set<string>();
   /** What you carry: the flashlight, once you've found it. */
   private items = new Set<string>();
+  /** The flashlight is out: he carries it in his pocket by day and takes it out in the dark. */
+  private lit = false;
+  /** Whether he had the flashlight on him last frame: taking it out of a drawer isn't news. */
+  private hadLight = false;
   /** What the hero knows, and what he saw and left. */
   private memory = new Memory();
   /** The pistol's rounds, carried between the worlds. */
@@ -257,7 +266,9 @@ export class LanternScene extends Phaser.Scene {
     this.moving = false;
     this.thingsOn = new Set(this.start.things ?? []);
     // The menu's backdrop wanders with a light; a new game starts empty-handed.
-    this.items = new Set(this.start.items ?? (this.demo ? ['flashlight'] : []));
+    // Only what is still a thing (Victor's phone used to go in the bag).
+    const items = this.start.items ?? (this.demo ? ['flashlight'] : []);
+    this.items = new Set(items.filter((id) => id in ITEMS));
     this.memory = new Memory(this.start.known);
     const [mag, spare] = this.start.ammo ?? [PISTOL.mag, SPARE_ROUNDS];
     this.ammo = { mag, spare };
@@ -267,6 +278,8 @@ export class LanternScene extends Phaser.Scene {
     this.markerAt = null;
     this.tod = this.start.tod ?? 10.5 / 24;
     this.day = this.start.day ?? 1;
+    this.lit = this.items.has('flashlight') && this.wantLight(false);
+    this.hadLight = this.items.has('flashlight');
     createLanternTextures(this);
     if (!this.demo) music.setMood(this.realm === 'upper' ? 'upper' : 'lower');
 
@@ -314,8 +327,11 @@ export class LanternScene extends Phaser.Scene {
         () => this.scene.start('menu'),
         t().places[this.realm],
         () => this.bag?.toggle(),
+        (p) => ({ x: (p.x - cam.worldView.x) * cam.zoom, y: (p.y - cam.worldView.y) * cam.zoom }),
       );
-      // Something in the bag with words on it, a phone say: read it there.
+      // Once the camera has caught up with the hero, the words go where they belong.
+      cam.on(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, this.placeHud, this);
+      // Something in the bag with words on it: read it there.
       this.bag = new Inventory((id) => {
         this.bag?.toggle(false);
         this.readPaper(id);
@@ -324,7 +340,7 @@ export class LanternScene extends Phaser.Scene {
       if (this.start.fresh) {
         this.hud.controls();
         // Just out of the car, the first thing he sees: Victor never drove off.
-        this.time.delayedCall(FIRST_THOUGHT * 1000, () => this.hud?.think(t().thoughts.carStill));
+        this.time.delayedCall(FIRST_THOUGHT * 1000, () => this.think(t().thoughts.carStill));
       }
       document.addEventListener('visibilitychange', saveOnHide);
       this.save();
@@ -334,6 +350,7 @@ export class LanternScene extends Phaser.Scene {
       this.save();
       document.removeEventListener('visibilitychange', saveOnHide);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
+      cam.off(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, this.placeHud, this);
       this.hud?.destroy();
       this.hud = undefined;
       this.bag?.destroy();
@@ -770,6 +787,7 @@ export class LanternScene extends Phaser.Scene {
     this.moveHero(dt);
     this.combat?.update(dt);
     this.tracks?.update(dt);
+    this.checkLight();
     this.checkTargets();
     // Sundown on the first evening, or the dark below, tells the hero he needs a light.
     if (
@@ -799,7 +817,11 @@ export class LanternScene extends Phaser.Scene {
   private buildTargets(): void {
     this.targets = this.world.portals.map((p) => ({
       ...p,
-      label: () => p.label,
+      // A padlock you have the key to: unlock it first.
+      label: () =>
+        p.lock && !this.memory.knows(p.lock.open) && this.items.has(p.lock.key)
+          ? p.lock.unlock
+          : p.label,
       use: () => this.tryWay(p),
     }));
     for (const t of this.world.things) {
@@ -827,7 +849,7 @@ export class LanternScene extends Phaser.Scene {
           .setDepth((t.depth ?? t.y + 4) + 1);
         this.glints.push({ img: glint, worth });
       }
-      this.targets.push({
+      const target: Target = {
         x: t.x,
         y: t.y,
         img,
@@ -838,13 +860,14 @@ export class LanternScene extends Phaser.Scene {
             : t.take
               ? this.take(t.id, img)
               : hoard
-                ? this.look(hoard)
+                ? this.look(hoard, target)
                 : read
                   ? this.readPaper(read)
                   : says
-                    ? this.hud?.think(says)
+                    ? this.think(says, target)
                     : this.useThing(t.id),
-      });
+      };
+      this.targets.push(target);
     }
     this.haloPool = this.add
       .image(0, 0, 'glow')
@@ -877,12 +900,12 @@ export class LanternScene extends Phaser.Scene {
   }
 
   /** Through a drawer: takes what seems worth it, and says what else is there. */
-  private look(hoard: Hoard): void {
+  private look(hoard: Hoard, by: Target): void {
     const { take, says } = this.memory.search(hoard, this.items);
     for (const id of take) this.items.add(id);
     music.sfx('drawer');
     if (take.length) this.time.delayedCall(380, () => music.sfx('pickup'));
-    this.hud?.think(says);
+    this.think(says, by);
     this.gained(take);
     this.heroImg.setFrame(this.heroFrame());
     this.save();
@@ -906,15 +929,26 @@ export class LanternScene extends Phaser.Scene {
     this.save();
     this.reader.show(paper, () => {
       this.input.keyboard?.resetKeys();
-      if (first && paper.after) this.hud?.think(paper.after);
+      if (first && paper.after) this.think(paper.after);
     });
   }
 
-  /** Learns something; the first time, the hero thinks about it. */
-  private learn(fact: Fact): void {
+  /** Learns something; the first time, the hero thinks about it (over `by`, if it's about that). */
+  private learn(fact: Fact, by?: Target): void {
     const thought = this.memory.learn(fact, this.items);
-    if (thought) this.hud?.think(thought);
+    if (thought) this.think(thought, by);
     this.save();
+  }
+
+  /** A line through the hero's head: over the thing it is about, or over him. */
+  private think(text: string, about?: Target): void {
+    this.hud?.think(text, about ? topOf(about) : null);
+    this.placeHud();
+  }
+
+  /** Hangs the prompt, thoughts and dialogs over what they are about. */
+  private placeHud(): void {
+    this.hud?.place({ x: this.hero.x, y: this.hero.y - 22 });
   }
 
   /** Shows what just went into the bag, flying up to it. */
@@ -943,17 +977,25 @@ export class LanternScene extends Phaser.Scene {
       }
       // Once a visit is enough.
       this.stuck.set(fact, -1);
-      this.hud?.think(nudge);
+      this.think(nudge);
     }
   }
 
-  /** Through, unless it is locked and you have no key. */
+  /**
+   * Through, unless it is locked. With the key the hero unlocks it, and
+   * it stays open; without it he learns he needs one.
+   */
   private tryWay(p: Portal): void {
     const lock = p.lock;
-    if (!lock || this.items.has(lock.key)) return this.travel(p);
+    if (!lock || this.memory.knows(lock.open)) return this.travel(p);
+    const by = this.targets.find((t) => t.x === p.x && t.y === p.y);
+    if (this.items.has(lock.key)) {
+      music.sfx('unlock');
+      return this.learn(lock.open, by);
+    }
     music.sfx('locked');
-    if (!this.memory.knows(lock.fact)) this.learn(lock.fact);
-    else this.hud?.think(lock.says);
+    if (!this.memory.knows(lock.fact)) this.learn(lock.fact, by);
+    else this.think(lock.says, by);
   }
 
   /** Under a roof or on a floor, where feet leave no prints. */
@@ -965,7 +1007,28 @@ export class LanternScene extends Phaser.Scene {
 
   private heroFrame(): string {
     const gun = this.combat?.drawn() ? 'Gun' : '';
-    return this.items.has('flashlight') ? `heroLit${gun}` : `hero${gun}`;
+    return this.lit ? `heroLit${gun}` : `hero${gun}`;
+  }
+
+  /**
+   * Whether it is dark enough for the flashlight: always below and down in
+   * the cellar, and after dusk up here. A little either way of the turn,
+   * so it isn't flicked on and off at the edge.
+   */
+  private wantLight(was: boolean): boolean {
+    if (this.realm !== 'upper') return true;
+    return this.night() > (was ? 0.25 : 0.35);
+  }
+
+  /** Takes the flashlight out as it gets dark, and puts it away again by day. */
+  private checkLight(): void {
+    const had = this.hadLight;
+    this.hadLight = this.items.has('flashlight');
+    const lit = this.hadLight && this.wantLight(this.lit);
+    if (lit === this.lit) return;
+    this.lit = lit;
+    music.sfx('switch');
+    if (lit && had && !this.demo) this.think(t().thoughts.flashlightOn);
   }
 
   /** What the bag shows: what you carry, and how you are. */
@@ -976,7 +1039,14 @@ export class LanternScene extends Phaser.Scene {
       const it = ITEMS[id];
       const words = itemWords(id);
       if (it && words)
-        items.push({ name: words.name, about: words.about, icon: icon(...it.icon), read: it.read });
+        items.push({
+          name: words.name,
+          about: words.about,
+          icon: icon(...it.icon),
+          read: it.read,
+          // Done with: he'll leave it behind when he goes.
+          ...(this.memory.spent(id) && { note: t().bag.spent, spent: true }),
+        });
     }
     if (this.items.has('pistol')) {
       const w = t().bag;
@@ -1001,9 +1071,11 @@ export class LanternScene extends Phaser.Scene {
     const use = this.uses[id];
     if (!use) return;
     this.using = this.halo;
+    if (this.halo) this.hud?.dialogBy(topOf(this.halo));
     this.hero.path = [];
     this.input.keyboard?.resetKeys();
     use();
+    this.placeHud();
   }
 
   /**
@@ -1071,7 +1143,10 @@ export class LanternScene extends Phaser.Scene {
     const pulse = Math.sin(this.time.now / 260);
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
-    this.hud?.prompt(near && !this.reader?.open ? fill(t().hud.use, { what: near.label() }) : null);
+    this.hud?.prompt(
+      near && !this.reader?.open ? fill(t().hud.use, { what: near.label() }) : null,
+      near && topOf(near),
+    );
     // A twinkle on a drawer with something in it still worth having.
     const sec = this.time.now / 1000;
     for (const g of this.glints) {
@@ -1120,7 +1195,8 @@ export class LanternScene extends Phaser.Scene {
         tod: this.tod,
         day: this.day,
         things: [...this.thingsOn],
-        items: [...this.items],
+        // What he is done with he leaves behind.
+        items: [...this.items].filter((id) => !this.memory.spent(id)),
         known: this.memory.list,
         ammo: [this.ammo.mag, this.ammo.spare],
         via: p.fade,
@@ -1190,7 +1266,9 @@ export class LanternScene extends Phaser.Scene {
     // In a fight you face the enemy and back away slowly, or it moves you itself.
     const steer = this.leaving ? null : this.combat?.steer(want);
     const dir = steer ? steer.dir : want;
-    const s = Math.min(left, (steer ? steer.speed : SPEED) * dt);
+    // Long grass holds you back a little.
+    const pace = (steer ? steer.speed : SPEED) * (1 - WADE_SLOW * this.wading);
+    const s = Math.min(left, pace * dt);
     const mx = dir ? dir.x * s : 0;
     const my = dir ? dir.y * s : 0;
     const bx = h.x;
@@ -1225,8 +1303,8 @@ export class LanternScene extends Phaser.Scene {
   }
 
   /**
-   * Knee-deep in long grass: the blades close round the hero, sway, and
-   * rustle at each step. Returns whether he is in it.
+   * Knee-deep in long grass: tufts hide his feet, sway, and rustle at each
+   * step. Returns whether he is in it.
    */
   private wade(h: Hero, dt: number, stride: number): boolean {
     const img = this.wadeImg;
@@ -1237,14 +1315,15 @@ export class LanternScene extends Phaser.Scene {
     const foot = stride > 0.45 ? 1 : stride < -0.45 ? -1 : 0;
     if (deep && foot && foot !== this.lastFoot) music.sfx('rustle');
     if (foot) this.lastFoot = foot;
-    const sway = Math.sin(this.time.now / 700) * 3 + stride * 4;
+    // The blades turn with him and lean a little into each step.
+    const sway = Math.sin(this.time.now / 700) * 0.04 + stride * 0.06;
     img
       .setVisible(this.wading > 0)
       .setAlpha(this.wading)
       .setPosition(h.x, h.y)
       .setDepth(h.y + 7)
-      .setAngle(sway)
-      .setScale(0.92 + this.wading * 0.08);
+      .setRotation(h.facing + sway)
+      .setScale(0.9 + this.wading * 0.1);
     return deep;
   }
 
@@ -1276,7 +1355,7 @@ export class LanternScene extends Phaser.Scene {
 
   /** The flashlight's beam, or the pool around you, is on this point. */
   private inBeam(p: Pt): boolean {
-    if (!this.items.has('flashlight')) return false;
+    if (!this.lit) return false;
     const h = this.hero;
     const d = Math.hypot(p.x - h.x, p.y - h.y);
     if (d < LIGHT_R * 0.6) return true;
@@ -1286,7 +1365,7 @@ export class LanternScene extends Phaser.Scene {
 
   /** How strongly the flashlight lights a point, 0…1: the pool round you and the beam ahead. */
   private beam(p: Pt): number {
-    if (!this.items.has('flashlight')) return 0;
+    if (!this.lit) return 0;
     const h = this.hero;
     const d = Math.hypot(p.x - h.x, p.y - h.y);
     const pool = clamp(1.4 - d / (LIGHT_R * 0.5), 0, 1);
@@ -1365,7 +1444,7 @@ export class LanternScene extends Phaser.Scene {
     };
     // The flashlight: a pool around the hero and a steady beam ahead.
     // Without it, only what your eyes make out close by.
-    if (this.items.has('flashlight')) {
+    if (this.lit) {
       cut(h.x, h.y, LIGHT_R * 0.7, 1);
       this.dark.erase(
         this.eraserCone
