@@ -944,6 +944,77 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.ell(12, 13, 2, 1.2, 'rgba(120,110,90,.25)');
   });
 
+  // The vegetable garden: cabbages with their outer leaves spread, lettuces,
+  // feathery carrot tops, a wigwam of bean poles grown over, a watering can
+  // and a fork left stuck in the dug bed.
+  add('vegCabbage', 22, 22, (p) => {
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * 6.28 + ar() * 0.4;
+      p.ell(11 + Math.cos(a) * 5, 11 + Math.sin(a) * 5, 4.4, 3.4, '#4e7a3a', 0.6);
+    }
+    p.circ(11, 11, 5, '#9cc07a', 0.8);
+    p.circ(10, 10, 2.4, '#bcd898');
+  });
+  add('vegLettuce', 16, 16, (p) => {
+    for (let k = 0; k < 7; k++) {
+      const a = ar() * 6.28;
+      p.circ(8 + Math.cos(a) * 3, 8 + Math.sin(a) * 3, 3, ['#7fb04a', '#94c45a'][k % 2] as string);
+    }
+    p.circ(8, 8, 2.2, '#b8dc7a');
+  });
+  add('vegCarrot', 14, 14, (p) => {
+    for (let k = 0; k < 9; k++) {
+      const a = ar() * 6.28;
+      const l = 4 + ar() * 3;
+      p.line(
+        7,
+        7,
+        7 + Math.cos(a) * l,
+        7 + Math.sin(a) * l,
+        ['#5f9a3a', '#78b04a'][k % 2] as string,
+        1.2,
+      );
+    }
+    p.circ(7, 7, 1.3, '#d8782a');
+  });
+  add('beanpoles', 40, 40, (p) => {
+    shadow(p, 22, 23, 15, 13);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * 6.28 + 0.3;
+      p.line(20, 20, 20 + Math.cos(a) * 15, 20 + Math.sin(a) * 15, '#8a6a44', 1.6);
+    }
+    for (let k = 0; k < 22; k++) {
+      const a = ar() * 6.28;
+      const d = 3 + ar() * 12;
+      p.ell(
+        20 + Math.cos(a) * d,
+        20 + Math.sin(a) * d,
+        2.8,
+        2,
+        ['#4f8a34', '#62a040'][k % 2] as string,
+      );
+    }
+    for (let k = 0; k < 5; k++) p.circ(14 + ar() * 12, 14 + ar() * 12, 1.2, '#e0e0c8');
+    p.circ(20, 20, 2, '#6a4a2e', 0.6);
+  });
+  add('wateringcan', 24, 20, (p) => {
+    c.translate(11, 10);
+    c.rotate(0.4);
+    p.ell(1, 2, 8, 6, 'rgba(20,30,10,.3)');
+    p.ell(0, 0, 6.5, 5, '#4a7a8a', 1);
+    p.line(5, -1, 11, -4, '#4a7a8a', 2);
+    p.circ(11.5, -4.2, 1.6, '#3a6070', 0.6);
+    p.line(-4, -4, 3, -4, '#3a6070', 1.4);
+  });
+  add('gardenfork', 12, 26, (p) => {
+    c.translate(6, 13);
+    c.rotate(-0.2);
+    p.line(0, -11, 0, 5, '#8a6a44', 1.8);
+    p.rect(-3.5, 5, 7, 1.2, '#6a6c6e');
+    for (const x of [-3, -1, 1, 3]) p.line(x, 6, x, 10, '#6a6c6e', 0.8);
+    p.rect(-2.5, -12, 5, 1.6, '#6a4a2e');
+  });
+
   // Long grass round a walker's knees: a ring of blades with the middle
   // left open, laid over the hero's feet while he wades through it.
   add('wade', 52, 52, (p) => {

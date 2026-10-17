@@ -99,9 +99,11 @@ function walk(
 }
 
 /**
- * A patio of square slabs laid in neat rows, but by hand: each sits a hair
- * off true, one or two have cracked or sunk a little darker, and moss grows
- * in a few of the joints.
+ * A patio of square slabs laid by hand, not by a machine: the whole of it a
+ * little off square, each row shifted a touch, slabs not quite level or the
+ * same shade, a couple cracked or sunk, one gone and grass come up in its
+ * place, moss and grass in the joints, and the edge slabs at a corner never
+ * laid.
  */
 function paintPaving(
   c: Ctx,
@@ -112,43 +114,59 @@ function paintPaving(
   const centre = patch.pts[0] as Pt;
   const w = patch.width;
   const h = patch.height ?? patch.width;
-  const x0 = centre.x - w / 2;
-  const y0 = centre.y - h / 2;
   const SLAB = 24;
-  const j = (a = 0.7) => (r() - 0.5) * a * 2;
-  // The joints show through between the slabs.
-  c.fillStyle = '#7d7568';
-  c.fillRect(x0 + j(), y0 + j(), w, h);
-  for (let y = y0; y < y0 + h - 4; y += SLAB) {
-    for (let x = x0; x < x0 + w - 4; x += SLAB) {
-      const sw = Math.min(SLAB, x0 + w - x) - 2;
-      const sh = Math.min(SLAB, y0 + h - y) - 2;
-      const sunk = r() < 0.06;
-      c.fillStyle = sunk ? '#a39886' : pickCol(['#c9bfae', '#bfb4a2', '#d2c9b8', '#c4baa6']);
+  const cols = Math.round(w / SLAB);
+  const rows = Math.round(h / SLAB);
+  const j = (a = 1) => (r() - 0.5) * a * 2;
+  c.save();
+  c.translate(centre.x, centre.y);
+  c.rotate(-0.03);
+  c.translate(-(cols * SLAB) / 2, -(rows * SLAB) / 2);
+  for (let row = 0; row < rows; row++) {
+    const shift = j(2);
+    for (let col = 0; col < cols; col++) {
+      // A corner left short, and one slab gone.
+      const corner = row === rows - 1 && col >= cols - 1;
+      if (corner || r() < 0.03) continue;
+      const x = col * SLAB + shift;
+      const y = row * SLAB;
+      c.fillStyle = '#7d7568';
+      c.fillRect(x - 0.5, y - 0.5, SLAB + 1, SLAB + 1);
+      const sunk = r() < 0.07;
+      c.fillStyle = sunk
+        ? '#9e9381'
+        : pickCol(['#c9bfae', '#bdb29f', '#d0c6b4', '#c2b7a3', '#b5aa96']);
       c.beginPath();
-      c.moveTo(x + 1 + j(), y + 1 + j());
-      c.lineTo(x + 1 + sw + j(), y + 1 + j());
-      c.lineTo(x + 1 + sw + j(), y + 1 + sh + j());
-      c.lineTo(x + 1 + j(), y + 1 + sh + j());
+      c.moveTo(x + 1.2 + j(), y + 1.2 + j());
+      c.lineTo(x + SLAB - 1.2 + j(), y + 1.2 + j());
+      c.lineTo(x + SLAB - 1.2 + j(), y + SLAB - 1.2 + j());
+      c.lineTo(x + 1.2 + j(), y + SLAB - 1.2 + j());
       c.closePath();
       c.fill();
-      c.fillStyle = 'rgba(255,255,255,.12)';
-      c.fillRect(x + 2, y + 2, sw - 2, 1.5);
-      if (r() < 0.08) {
-        c.strokeStyle = 'rgba(60,50,40,.45)';
+      // Weathering: a lighter worn patch, or a stain.
+      c.fillStyle = r() < 0.5 ? 'rgba(255,255,255,.1)' : 'rgba(70,60,45,.12)';
+      c.beginPath();
+      c.ellipse(x + 5 + r() * 14, y + 5 + r() * 14, 3 + r() * 4, 2 + r() * 3, r() * 3, 0, 6.3);
+      c.fill();
+      if (r() < 0.1) {
+        c.strokeStyle = 'rgba(60,50,40,.5)';
         c.lineWidth = 0.7;
         c.beginPath();
-        c.moveTo(x + 2 + r() * sw * 0.3, y + 2);
-        c.lineTo(x + sw * (0.4 + r() * 0.3), y + sh * 0.6);
-        c.lineTo(x + sw - 1, y + sh - r() * 4);
+        c.moveTo(x + 2 + r() * 6, y + 2);
+        c.lineTo(x + 8 + r() * 8, y + 10 + r() * 4);
+        c.lineTo(x + SLAB - 2, y + SLAB - 3 - r() * 6);
         c.stroke();
       }
-      if (r() < 0.15) {
-        c.fillStyle = 'rgba(90,120,50,.7)';
-        c.fillRect(x + sw + 0.5, y + 2 + r() * (sh - 8), 1.6, 3 + r() * 5);
+      // Moss or a few blades of grass in the joints.
+      for (let k = 0; k < 2; k++) {
+        if (r() > 0.25) continue;
+        c.fillStyle = r() < 0.5 ? 'rgba(90,120,50,.75)' : 'rgba(110,140,60,.7)';
+        if (r() < 0.5) c.fillRect(x + SLAB - 1.2, y + 2 + r() * 16, 1.8, 3 + r() * 5);
+        else c.fillRect(x + 2 + r() * 16, y + SLAB - 1.2, 3 + r() * 5, 1.8);
       }
     }
   }
+  c.restore();
 }
 
 /**

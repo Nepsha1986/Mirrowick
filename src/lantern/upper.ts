@@ -490,11 +490,12 @@ export function generateUpperWorld(): World {
         : { kind: 'window', x: cx - OUTER / 2, y: cy - 11, w: OUTER, h: 22 },
     );
   }
-  // The front door: a step, a lamp on a green porch canopy (painted with the
-  // roof) and a mat on the gravel, so you can tell the way in from the road.
+  // The front door: a step, a green porch canopy (painted with the roof) with
+  // a lamp under it that lights the step, and a mat on the gravel, so you can
+  // tell the way in from the road.
   decal('step', 22.5, 32.9);
   decal('porchmat', 22.5, 33.7, { angle: 3, alpha: 1 });
-  light({ x: 23 * T, y: 33.9 * T }, 60, LAMP);
+  light({ x: 23 * T, y: 33.7 * T }, 72, LAMP);
 
   // --- The front yard ------------------------------------------------------------------
   // Victor's car at the top of the drive, where it has stood for days; yours
@@ -566,9 +567,9 @@ export function generateUpperWorld(): World {
     solid(Math.floor(x), Math.floor(y));
   }
 
-  // The barbecue corner beside the house, off the kitchen's end: a square
-  // patio of slabs, a brick grill against its back edge, a round table with
-  // four chairs, tucked in but not quite straight.
+  // The barbecue corner beside the house, off the kitchen's end: a patio of
+  // slabs laid by hand, a brick grill against its back edge, a round table
+  // with four chairs, one pushed back as someone got up.
   patches.push({ kind: 'paving', pts: [P(10.1, 27.3)], width: 4.5 * T, height: 3.75 * T });
   obj('grill', 8.3, 25.5, { angle: -1.5 });
   solid(8, 25);
@@ -576,10 +577,10 @@ export function generateUpperWorld(): World {
   obj('bbqtable', 9.6, 26.8);
   solid(10, 27);
   for (const [x, y, a] of [
-    [9.55, 25.85, 4],
-    [10.6, 26.85, 93],
-    [9.65, 27.75, 178],
-    [8.6, 26.75, -84],
+    [9.5, 25.85, -9],
+    [10.7, 26.95, 112],
+    [9.85, 27.95, 158],
+    [8.6, 26.7, -71],
   ] as const) {
     obj('gardenchair', x, y, { angle: a });
   }
@@ -599,26 +600,58 @@ export function generateUpperWorld(): World {
   // Vegetable beds and a bench by the path, logs stacked under the eaves, a
   // chopping block, washing on the line, the compost heap and a wheelbarrow
   // left where Victor last used it.
-  for (const [a, b] of [
-    [9.4, 11.5],
-    [13.5, 15.3],
-  ] as const) {
-    patches.push({ kind: 'soil', width: 2.6 * T, pts: [P(a, 18.5), P(b, 18.4 + R() * 0.2)] });
-  }
-  for (let x = 8; x <= 15; x++) {
-    for (let y = 17; y <= 19; y++) {
-      if (x === 12 || R() < 0.12) continue;
-      decals.push({
-        key: 'ln-town',
-        frame: 'cabbage',
-        x: (x + 0.5) * T + (R() - 0.5) * 7,
-        y: (y + 0.5) * T + (R() - 0.5) * 7,
-        scale: 0.8 + R() * 0.4,
-        angle: R() * 360,
-        depth: -45,
-      });
+  // Six beds in two columns, none quite square to the others, each with
+  // its own crop in rows: cabbages, lettuces, carrots, beans up their poles;
+  // one bed half picked, one dug over and empty with the fork left in it.
+  // A crop is the frame of each plant in its rows; beans grow up poles
+  // instead, and the dug bed has no rows at all.
+  type Crop = 'vegCabbage' | 'vegLettuce' | 'vegCarrot' | 'beans' | 'dug';
+  const beds: [x0: number, x1: number, y: number, crop: Crop, rows: number, gaps: number][] = [
+    [7.5, 11.3, 16.9, 'vegCabbage', 2, 0.08],
+    [12.4, 16.1, 16.95, 'vegLettuce', 3, 0.1],
+    [7.45, 11.25, 18.55, 'vegCarrot', 3, 0.05],
+    [12.35, 16.05, 18.5, 'beans', 0, 0],
+    [7.55, 11.35, 20.15, 'dug', 0, 0],
+    [12.45, 16.1, 20.1, 'vegCabbage', 2, 0.45],
+  ];
+  for (const [x0, x1, y, crop, rows, gaps] of beds) {
+    const tilt = (R() - 0.5) * 0.12;
+    patches.push({ kind: 'soil', width: 1.25 * T, pts: [P(x0, y - tilt), P(x1, y + tilt)] });
+    const step = crop === 'vegCabbage' ? 0.62 : crop === 'vegCarrot' ? 0.32 : 0.45;
+    for (let row = 0; row < rows; row++) {
+      const dy = rows === 1 ? 0 : (row / (rows - 1) - 0.5) * 0.62;
+      for (let x = x0 + 0.35; x < x1 - 0.25; x += step) {
+        if (R() < gaps) continue;
+        const along = (x - x0) / (x1 - x0);
+        decals.push({
+          key: 'ln-up',
+          frame: crop,
+          x: x * T + (R() - 0.5) * 3,
+          y: (y + dy - tilt + along * tilt * 2) * T + (R() - 0.5) * 3,
+          scale: 0.85 + R() * 0.3,
+          angle: R() * 360,
+          depth: -44,
+          alpha: 1,
+        });
+      }
+    }
+    if (crop === 'beans') {
+      for (const x of [x0 + 0.7, (x0 + x1) / 2, x1 - 0.7]) {
+        objects.push({ key: 'ln-up', frame: 'beanpoles', x: x * T, y: y * T, angle: R() * 360 });
+        solid(Math.floor(x), Math.floor(y));
+      }
     }
   }
+  decals.push({
+    key: 'ln-up',
+    frame: 'gardenfork',
+    ...P(10.4, 19.9),
+    angle: 8,
+    depth: -43,
+    alpha: 1,
+  });
+  obj('wateringcan', 11.6, 19.1, { angle: -20 });
+
   objects.push({ key: 'ln-town', frame: 'bench', ...C(20, 18.6), angle: 2 });
   solid(20, 19);
   obj('woodpile', 24, 21, { x: 24.5 * T, angle: -1.5 });
@@ -650,7 +683,7 @@ export function generateUpperWorld(): World {
   obj('wheelbarrow', 12, 13, { x: 12.3 * T });
   solid(12, 13);
   for (const [x, y] of [
-    [8, 15],
+    [6, 13],
     [33, 19],
     [37, 11],
     [13, 9],
