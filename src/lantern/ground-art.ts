@@ -603,23 +603,29 @@ export function paintWalls(scene: Phaser.Scene, key: string, walls: ThinWall[]):
     }
   }
 
-  // Steel bars, round and a little uneven, with a rail across them.
+  // Steel bars, round and a little uneven, between two rails; one bar
+  // rusted, now and then one bent a touch out of line.
   for (const m of walls) {
     if (m.kind !== 'bars') continue;
-    c.fillStyle = INK;
-    c.fillRect(m.x, m.y + m.h / 2 - 1.5, m.w, 3);
-    c.fillStyle = '#5e6468';
-    c.fillRect(m.x, m.y + m.h / 2 - 0.8, m.w, 1.6);
-    for (let t = 3; t < m.w - 1; t += 7) {
-      const x = m.x + t + (r() - 0.5) * 0.8;
+    for (const o of [1.5, m.h - 1.5]) {
+      c.fillStyle = INK;
+      c.fillRect(m.x, m.y + o - 2, m.w, 4);
+      c.fillStyle = '#7c8488';
+      c.fillRect(m.x, m.y + o - 1, m.w, 2);
+    }
+    for (let t = 4; t < m.w - 2; t += 8) {
+      const x = m.x + t + (r() < 0.1 ? (r() - 0.5) * 3 : 0);
+      const y = m.y + m.h / 2;
       c.fillStyle = INK;
       c.beginPath();
-      c.arc(x, m.y + m.h / 2, 2.6, 0, Math.PI * 2);
+      c.arc(x, y, 3.4, 0, Math.PI * 2);
       c.fill();
-      c.fillStyle = r() < 0.15 ? '#7a5a40' : '#8a9296';
+      c.fillStyle = r() < 0.12 ? '#8a6040' : '#b4bcc0';
       c.beginPath();
-      c.arc(x, m.y + m.h / 2, 1.7, 0, Math.PI * 2);
+      c.arc(x, y, 2.4, 0, Math.PI * 2);
       c.fill();
+      c.fillStyle = 'rgba(255,255,255,.5)';
+      c.fillRect(x - 1.2, y - 1.6, 1.2, 1.2);
     }
   }
 

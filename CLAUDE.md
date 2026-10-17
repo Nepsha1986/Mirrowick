@@ -1,9 +1,9 @@
 # Mirrowick — notes for Claude
 
-A top-down web game about two parallel worlds that share one name: the dark,
-solitary **Lower World** and the ordinary, sunlit **Upper World**, joined by a
-mirror in a cellar under Victor's shed (it comes out in the Lower World's
-windmill). Phaser 4 (WebGL), TypeScript, Vite.
+A top-down web game about two parallel worlds: the ordinary, sunlit **Upper
+World** and the dark **Lower World**, a near-future world on the edge of ruin,
+joined by a mirror in a cellar under Victor's shed. It comes out in Chamber 7
+of the Facility, a vast abandoned laboratory built round the mirror. Phaser 4 (WebGL), TypeScript, Vite.
 
 ## Docs
 
@@ -65,20 +65,23 @@ a merge commit or rebase.
   another realm (`scene.restart`). The camera follows the hero, and a
   darkness texture is refilled every frame with lights erased out of it.
   Objects are culled in chunks.
-- `src/lantern/world.ts`: the Lower World, generated from a fixed seed.
-  Also defines `World`, `Portal`, `Light` and `Realm`. `town.ts` lays out the
-  village by hand.
+- `src/lantern/world.ts`: the shapes every place shares: `World`, `Portal`,
+  `Thing` (doors too), `Light`, `Realm`.
+- `src/lantern/lab.ts`: the Lower World, the Facility, laid out by hand on a
+  big map that is mostly solid roof for now: Chamber 7, the corridor, the
+  vivarium with caged foes, the checkpoint and the yard. `World.indoors`
+  marks where it is always dark.
 - `src/lantern/upper.ts`: the Upper World homestead, laid out by hand: Victor's
   house, front yard, back garden and the shed with the hatch, and his glowing
   footprints (`World.trail`).
 - `src/lantern/cellar.ts`: the cellar under Victor's shed (realm `'cellar'`):
   stairs up to the shed's hatch, a mirror down to the Lower World.
-- `src/lantern/mill.ts`: the Lower World's round windmill, and where each way
-  between the places comes out.
+- `src/lantern/ways.ts`: where each way between the places comes out.
 - `src/lantern/ground-art.ts`: roads, paths and beds painted over the ground
   with ragged edges (`World.patches`), and thin walls, posts and fences
   (`World.walls`). Thin walls have their own collision in `Nav`.
-- `src/lantern/art.ts`, `town-art.ts`, `upper-art.ts`: every texture is painted
+- `src/lantern/art.ts`, `house-art.ts`, `upper-art.ts`, `lab-art.ts`,
+  `cellar-art.ts`, `foe-art.ts`: every texture is painted
   by code into canvases at start-up. There are no image or sound files, so keep
   it that way.
 - `src/lantern/nav.ts`: circle collision, A* and path smoothing over the tile
@@ -115,5 +118,5 @@ landmarks.
 
 Conventions: worlds are deterministic (seeded `mulberry32`, never
 `Math.random` in generation); tests in `src/lantern/world.test.ts` check
-that key places can be reached. Match the surrounding code's style and
+that key places can be reached and caged foes can't get out. Match the surrounding code's style and
 comment density.

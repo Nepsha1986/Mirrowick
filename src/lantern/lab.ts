@@ -14,7 +14,7 @@ import {
 
 /** The Facility's walls, and the bars and fence. */
 const WALL = 12;
-const BARS = 6;
+const BARS = 9;
 const MESH = 5;
 /** Emergency lighting, a dying fluorescent panel, screens, the cages' lamps. */
 const ALARM = 0xff3a2a;
