@@ -47,6 +47,25 @@ export const en = {
       road: 'Four hours of road later…',
     },
   },
+  /** The first crawl down under the shed, before the cellar opens out. */
+  descent: {
+    steps:
+      'Under the hatch, stone steps go down into the earth. Then they stop, and there is only a low hole in the wall.',
+    dark: 'Dark. Properly dark.',
+    crawl: 'He goes on, on hands and knees.',
+    dislike: "I don't like this place.",
+    damp: 'It smells of damp. And of something else. Sweet, and rotten.',
+    long: 'Minutes go by. Or longer. The stone is cold and wet under his palms.',
+    far: "How far does this go? The shed's only a few yards across.",
+    victor: 'Victor… you came down here on your own?',
+    behind: 'Something scrapes, far behind him. Then nothing.',
+    rats: "Rats. It's only rats.",
+    faster: 'He crawls on, faster now.',
+    keepGoing: "Don't look back. Just keep going.",
+    light: 'Ahead, the dark thins a little. Candlelight. The passage opens out.',
+    never: "I've never seen anything like this.",
+    what: 'What is this place?',
+  },
   hud: {
     menu: 'Main menu (Esc)',
     bag: 'Inventory (I)',

@@ -33,7 +33,10 @@ export type Sfx =
   | 'unlock'
   | 'steps'
   | 'mirror'
-  | 'rustle';
+  | 'rustle'
+  | 'crawl'
+  | 'drip'
+  | 'scrape';
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -480,6 +483,28 @@ export class AmbientMusic {
       case 'rustle':
         // Long grass brushing past the legs.
         noise('bandpass', 2400 + Math.random() * 800, 0.05, 0.22, { q: 0.8, swell: 0.08 });
+        break;
+      case 'crawl':
+        // Palms and knees dragged over wet stone, a hand, then a knee, unevenly.
+        for (const [d, f] of [
+          [0, 520],
+          [0.42, 380],
+          [1.05, 560],
+          [1.5, 400],
+        ] as const) {
+          noise('bandpass', f, 0.14, 0.34, { q: 2.5, delay: d, swell: 0.1 });
+          noise('lowpass', 180, 0.12, 0.1, { delay: d + 0.2 });
+        }
+        break;
+      case 'drip':
+        // A single drop into a puddle, somewhere close.
+        tone('sine', 1500, 620, 0.05, 0.12);
+        noise('highpass', 3000, 0.02, 0.05);
+        break;
+      case 'scrape':
+        // Something heavy dragged a little way, far behind.
+        noise('bandpass', 260, 0.1, 1.1, { q: 6, swell: 0.4 });
+        noise('bandpass', 340, 0.05, 0.9, { q: 8, swell: 0.5, delay: 0.15 });
         break;
       case 'mirror':
         // Glass that hums and rises, and lets you through.

@@ -19,6 +19,7 @@ export interface Search {
 
 const seen = (item: string) => `seen:${item}`;
 const read = (paper: string) => `read:${paper}`;
+const been = (place: string) => `been:${place}`;
 
 /**
  * What the hero knows and has seen. He leaves what he has no use for, but
@@ -45,6 +46,13 @@ export class Memory {
   read(paper: string): boolean {
     if (this.known.has(read(paper))) return false;
     this.known.add(read(paper));
+    return true;
+  }
+
+  /** Comes to a place: true the first time. */
+  visit(place: string): boolean {
+    if (this.known.has(been(place))) return false;
+    this.known.add(been(place));
     return true;
   }
 

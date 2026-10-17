@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
 import { loadSave } from '../lantern/save';
-import { Intro } from '../ui/Intro';
+import { Cutscene } from '../ui/Cutscene';
 import { MainMenu } from '../ui/MainMenu';
 import type { LanternData } from './LanternScene';
 
@@ -26,7 +26,7 @@ export class MenuScene extends Phaser.Scene {
       cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         // Restart the backdrop as the real thing; a new game opens with the call.
         this.scene.stop('lantern');
-        if (intro) new Intro(() => this.scene.start('lantern', data));
+        if (intro) Cutscene.call(() => this.scene.start('lantern', data));
         else this.scene.start('lantern', data);
       });
     };
