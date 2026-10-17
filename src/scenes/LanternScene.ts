@@ -9,6 +9,8 @@ import { generateUpperWorld } from '../lantern/upper';
 import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
+import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
+import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
 import { Combat } from './Combat';
 import { openMailbox } from '../ui/mailbox';
@@ -49,9 +51,25 @@ export interface LanternData {
   things?: string[];
   /** What you carry. */
   items?: string[];
+  /** Rounds in the pistol and spare. */
+  ammo?: [number, number];
   /** How you arrived: through a mirror, or down or up the stairs. */
   via?: Portal['fade'];
 }
+
+/** What the things you can carry are, and their pictures in the atlases. */
+const ITEMS: Record<string, { name: string; about: string; icon: [string, string] }> = {
+  flashlight: {
+    name: 'Flashlight',
+    about: 'A steady beam ahead of you.',
+    icon: ['ln-up', 'flashlight'],
+  },
+  pistol: {
+    name: 'Pistol',
+    about: 'A worn service pistol. It jams now and then.',
+    icon: ['ln-foes', 'pistol'],
+  },
+};
 
 const chunkOf = (p: Pt) => `${Math.floor(p.x / CHUNK)},${Math.floor(p.y / CHUNK)}`;
 
@@ -128,6 +146,11 @@ export class LanternScene extends Phaser.Scene {
   private thingsOn = new Set<string>();
   /** What you carry: the flashlight, once you've found it. */
   private items = new Set<string>();
+  /** The pistol's rounds, carried between the worlds. */
+  private ammo: Ammo = { mag: PISTOL.mag, spare: SPARE_ROUNDS };
+  private bag?: Inventory;
+  /** The pictures of things, for the bag, painted once. */
+  private icons = new Map<string, string>();
   private leaving = false;
   private sinceSave = 0;
   private walkers: Walker[] = [];
@@ -182,6 +205,8 @@ export class LanternScene extends Phaser.Scene {
     this.thingsOn = new Set(this.start.things ?? []);
     // The menu's backdrop wanders with a light; a new game starts empty-handed.
     this.items = new Set(this.start.items ?? (this.demo ? ['flashlight'] : []));
+    const [mag, spare] = this.start.ammo ?? [PISTOL.mag, SPARE_ROUNDS];
+    this.ammo = { mag, spare };
     this.leaving = false;
     this.sinceSave = 0;
     this.holding = false;
@@ -225,7 +250,12 @@ export class LanternScene extends Phaser.Scene {
     };
     if (!this.demo) {
       this.setupInput();
-      this.hud = new LanternHud(() => this.scene.start('menu'), PLACES[this.realm].name);
+      this.hud = new LanternHud(
+        () => this.scene.start('menu'),
+        PLACES[this.realm].name,
+        () => this.bag?.toggle(),
+      );
+      this.bag = new Inventory();
       document.addEventListener('visibilitychange', saveOnHide);
       this.save();
     }
@@ -236,6 +266,8 @@ export class LanternScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
       this.hud?.destroy();
       this.hud = undefined;
+      this.bag?.destroy();
+      this.bag = undefined;
       this.combat?.destroy();
       this.textures.remove('ln-dark');
     });
@@ -480,6 +512,7 @@ export class LanternScene extends Phaser.Scene {
         nav: this.nav,
         hero: this.hero,
         heroR: HERO_R,
+        ammo: this.ammo,
         above: DEPTH_ABOVE_DARK,
         armed: () => this.items.has('pistol'),
         dark: (p) => this.darkAt(p),
@@ -578,6 +611,7 @@ export class LanternScene extends Phaser.Scene {
     kb.on('keydown-E', () => this.inReach()?.use());
     kb.on('keydown-F', () => this.combat?.setStance('fight'));
     kb.on('keydown-R', () => this.combat?.setStance('fallback'));
+    kb.on('keydown-I', () => this.bag?.toggle());
   }
 
   private goTo(pointer: Phaser.Input.Pointer): void {
@@ -617,6 +651,7 @@ export class LanternScene extends Phaser.Scene {
     this.drawMarker(dt);
     this.updateLighting(dt);
     this.hud?.update(this.day, this.hour(), this.night());
+    if (this.bag?.open) this.bag.show(this.bagView());
   }
 
   // --- Using things ------------------------------------------------------------------
@@ -678,6 +713,29 @@ export class LanternScene extends Phaser.Scene {
   private heroFrame(): string {
     const gun = this.combat?.drawn() ? 'Gun' : '';
     return this.items.has('flashlight') ? `heroLit${gun}` : `hero${gun}`;
+  }
+
+  /** What the bag shows: what you carry, and how you are. */
+  private bagView() {
+    const icon = (key: string, frame: string) => {
+      const k = `${key}/${frame}`;
+      if (!this.icons.has(k)) this.icons.set(k, this.textures.getBase64(key, frame));
+      return this.icons.get(k);
+    };
+    const items: BagItem[] = [];
+    for (const id of this.items) {
+      const it = ITEMS[id];
+      if (it) items.push({ name: it.name, about: it.about, icon: icon(...it.icon) });
+    }
+    if (this.items.has('pistol')) {
+      items.push({
+        name: 'Rounds',
+        about: 'For the pistol. There are more in the crate in the Hollow.',
+        note: `${this.ammo.mag} loaded, ${this.ammo.spare} spare`,
+        icon: icon('ln-foes', 'ammo'),
+      });
+    }
+    return { items, hp: this.combat?.hp ?? HERO_HP, maxHp: HERO_HP, skills: HERO_SKILLS };
   }
 
   private useThing(id: string): void {
@@ -748,6 +806,7 @@ export class LanternScene extends Phaser.Scene {
       day: this.day,
       things: [...this.thingsOn],
       items: [...this.items],
+      ammo: [this.ammo.mag, this.ammo.spare],
     });
   }
 
@@ -771,6 +830,7 @@ export class LanternScene extends Phaser.Scene {
         day: this.day,
         things: [...this.thingsOn],
         items: [...this.items],
+        ammo: [this.ammo.mag, this.ammo.spare],
         via: p.fade,
       };
       this.scene.restart(next);
@@ -795,6 +855,7 @@ export class LanternScene extends Phaser.Scene {
         day: this.day,
         things: [...this.thingsOn],
         items: [...this.items],
+        ammo: [this.ammo.mag, this.ammo.spare],
         via: 'dark',
       } satisfies LanternData);
     });
@@ -850,11 +911,16 @@ export class LanternScene extends Phaser.Scene {
     const bob = mx || my ? Math.sin(h.walk) * 0.04 : 0;
     const frame = this.heroFrame();
     if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
+    // A shot kicks you back a little; a wound flushes you red.
+    const look = this.combat?.heroLook();
+    const kick = look?.kick ?? 0;
     this.heroImg
-      .setPosition(h.x, h.y)
+      .setPosition(h.x - Math.cos(h.facing) * kick, h.y - Math.sin(h.facing) * kick)
       .setRotation(h.facing)
       .setDepth(h.y + 6)
       .setScale(1 + bob, 1 - bob);
+    if (look?.hurt) this.heroImg.setTint(0xff8a78);
+    else this.heroImg.clearTint();
   }
 
   private drawMarker(dt: number): void {

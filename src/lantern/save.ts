@@ -15,6 +15,8 @@ export interface SaveData {
   things: string[];
   /** What you carry. */
   items: string[];
+  /** Rounds in the pistol and spare. */
+  ammo?: [number, number];
 }
 
 /** The saved game, or null if there is none or it can't be read. */
@@ -31,7 +33,11 @@ export function loadSave(): SaveData | null {
     const things = strings(d.things) ?? [];
     // Saves from before you had to find the flashlight already carry it.
     const items = strings(d.items) ?? ['flashlight'];
-    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items };
+    const ammo =
+      Array.isArray(d.ammo) && d.ammo.length === 2 && d.ammo.every((n) => num(n) && n >= 0)
+        ? d.ammo
+        : undefined;
+    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items, ammo };
   } catch {
     return null;
   }

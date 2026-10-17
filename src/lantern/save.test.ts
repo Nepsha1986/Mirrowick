@@ -19,7 +19,8 @@ describe('saved game', () => {
       tod: 0.4,
       day: 3,
       things: ['tv'],
-      items: ['flashlight'],
+      items: ['flashlight', 'pistol'],
+      ammo: [5, 24] as [number, number],
     };
     writeSave(save);
     expect(loadSave()).toEqual(save);
