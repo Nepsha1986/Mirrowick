@@ -47,6 +47,119 @@ export function paintUpperTiles(at: At, r: () => number): void {
   });
 }
 
+// --- Trees -------------------------------------------------------------------------------
+
+/** The size of a crown's frame; at scale 1 it is a little over four tiles across. */
+export const CROWN = 144;
+
+/**
+ * The Upper World's trees, in their own sheet: big crowns that hang over the
+ * hero (`crown0`…`crown2`, `crownApple`), the trunk under them, and the
+ * shade a crown casts on the grass. A few shared crowns, turned and scaled
+ * per tree, keep start-up cheap.
+ */
+export function paintUpperTrees(scene: Phaser.Scene): void {
+  const tex = scene.textures.createCanvas('ln-trees', 6 * (CROWN + 2), CROWN);
+  if (!tex) return;
+  const c = tex.getContext();
+  const r = mulberry32(808);
+  let ax = 0;
+  const add = (name: string, w: number, fn: (p: Painter) => void) => {
+    c.save();
+    c.translate(ax, 0);
+    c.beginPath();
+    c.rect(0, 0, w, CROWN);
+    c.clip();
+    fn(painter(c));
+    c.restore();
+    tex.add(name, 0, ax, 0, w, CROWN);
+    ax += w + 2;
+  };
+  const m = CROWN / 2;
+  /**
+   * A crown from above: lobes of leaves round a ragged ring, lit from the
+   * top left, one lobe missing so a bough shows through, and darker clumps
+   * on the shaded side.
+   */
+  const crown = (cols: [string, string, string], fruit?: string) => (p: Painter) => {
+    const lobes: [number, number, number][] = [];
+    const gap = Math.floor(r() * 11);
+    for (let k = 0; k < 11; k++) {
+      if (k === gap) continue;
+      const a = (k / 11) * Math.PI * 2 + (r() - 0.5) * 0.4;
+      const d = 38 + r() * 9;
+      lobes.push([m + Math.cos(a) * d, m + Math.sin(a) * d, 17 + r() * 8]);
+    }
+    lobes.push([m, m, 44]);
+    // Boughs from the trunk, seen only through the gap.
+    for (let k = 0; k < 5; k++) {
+      const a = ((gap + k * 2.2) / 11) * Math.PI * 2;
+      p.line(m, m, m + Math.cos(a) * 52, m + Math.sin(a) * 52, '#4a3524', 3.2 - k * 0.3);
+    }
+    for (const [x, y, rad] of lobes) p.circ(x, y, rad + 1.6, INK);
+    for (const [x, y, rad] of lobes) p.circ(x, y, rad, cols[0]);
+    for (const [x, y, rad] of lobes) p.circ(x - 4, y - 4, rad * 0.72, cols[1]);
+    for (let k = 0; k < 14; k++) {
+      const a = r() * Math.PI * 2;
+      const d = r() * 40;
+      p.circ(m - 10 + Math.cos(a) * d, m - 10 + Math.sin(a) * d, 4 + r() * 6, cols[2]);
+    }
+    // Leaves: light flecks and the shade between clumps.
+    for (let k = 0; k < 160; k++) {
+      const a = r() * Math.PI * 2;
+      const d = Math.sqrt(r()) * 50;
+      const x = m + Math.cos(a) * d;
+      const y = m + Math.sin(a) * d;
+      const lit = x + y < 2 * m - 10;
+      p.circ(x, y, 1.2 + r() * 1.4, lit ? 'rgba(220,240,160,.22)' : 'rgba(10,30,5,.2)');
+    }
+    for (let k = 0; k < 5; k++) {
+      const a = Math.PI * 0.25 + (r() - 0.5) * 1.4;
+      const d = 22 + r() * 22;
+      p.circ(m + Math.cos(a) * d, m + Math.sin(a) * d, 8 + r() * 6, 'rgba(10,30,5,.18)');
+    }
+    if (fruit) {
+      for (let k = 0; k < 22; k++) {
+        const a = r() * Math.PI * 2;
+        const d = 8 + r() * 40;
+        p.circ(m + Math.cos(a) * d, m + Math.sin(a) * d, 2.6, fruit, 0.6);
+      }
+    }
+  };
+  add('crown0', CROWN, crown(['#335e25', '#44772f', '#62953f']));
+  add('crown1', CROWN, crown(['#3e6a29', '#548636', '#77a64a']));
+  add('crown2', CROWN, crown(['#2f5824', '#3f6e2c', '#5a8a3a']));
+  add('crownApple', CROWN, crown(['#3b6a2a', '#4f8234', '#6ea044'], '#c8362c'));
+  // The shade under a crown: soft, darkest near the trunk.
+  add('crownShade', CROWN, () => {
+    const g = c.createRadialGradient(m, m, 8, m, m, m - 2);
+    g.addColorStop(0, 'rgba(12,28,6,.42)');
+    g.addColorStop(0.7, 'rgba(12,28,6,.26)');
+    g.addColorStop(1, 'rgba(12,28,6,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, CROWN, CROWN);
+  });
+  // The trunk: bark, a few roots into the grass.
+  add('trunk', 40, (p) => {
+    const y = m;
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 + r() * 0.8;
+      p.line(
+        20,
+        y,
+        20 + Math.cos(a) * (13 + r() * 5),
+        y + Math.sin(a) * (13 + r() * 5),
+        '#5a4130',
+        3,
+      );
+    }
+    p.circ(20, y, 10, '#5e4532', 1.4);
+    p.circ(18.5, y - 1.5, 6, '#72563f');
+    p.line(15, y + 3, 24, y - 4, 'rgba(30,20,12,.5)', 1);
+  });
+  tex.refresh();
+}
+
 // --- Objects -----------------------------------------------------------------------------
 
 /** The Upper World's things, and the Lower World windmill's insides, in one atlas. */
@@ -147,41 +260,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     }
   });
 
-  // Bright summer canopies, and an apple tree.
-  const tree =
-    (cols: [string, string, string], fruit?: string) => (p: Painter, w: number, h: number) => {
-      shadow(p, w / 2 + 5, h / 2 + 6, w / 2 - 6, h / 2 - 8);
-      const cx = w / 2;
-      const cy = h / 2;
-      const blobs: [number, number, number][] = [];
-      for (let k = 0; k < 9; k++) {
-        const a = ar() * 6.28;
-        const d = ar() * 10;
-        blobs.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d, 11 + ar() * 6]);
-      }
-      for (const [x, y, r] of blobs) p.circ(x, y, r + 1.4, INK);
-      for (const [x, y, r] of blobs) p.circ(x, y, r, cols[0]);
-      for (let k = 0; k < 8; k++) {
-        const a = ar() * 6.28;
-        const d = ar() * 9;
-        p.circ(cx + Math.cos(a) * d - 2, cy + Math.sin(a) * d - 2, 6 + ar() * 5, cols[1]);
-      }
-      for (let k = 0; k < 6; k++) {
-        const a = ar() * 6.28;
-        const d = ar() * 8;
-        p.circ(cx + Math.cos(a) * d - 4, cy + Math.sin(a) * d - 4, 3 + ar() * 3, cols[2]);
-      }
-      if (fruit) {
-        for (let k = 0; k < 9; k++) {
-          const a = ar() * 6.28;
-          const d = 4 + ar() * 12;
-          p.circ(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 2.2, fruit, 0.6);
-        }
-      }
-    };
-  add('utree', 62, 62, tree(['#3b6a2a', '#4f8234', '#6ea044']));
-  add('utree2', 62, 62, tree(['#46732c', '#5d8f38', '#82b04e']));
-  add('appletree', 62, 62, tree(['#41702c', '#568a36', '#76a648'], '#c8362c'));
   add('bush', 30, 30, (p) => {
     shadow(p, 17, 18, 12, 9);
     for (let k = 0; k < 6; k++)
@@ -503,8 +581,8 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
 
   // --- Victor's place ------------------------------------------------------------------
   // Victor's old estate car from above, nose to the south: boxy, maroon, its
-  // paint gone dull on the roof. Dust on the glass and leaves on the roof and
-  // bonnet: it hasn't moved in days. A dent in the rear wing, one hubcap gone.
+  // paint gone dull on the roof, dust on the glass. A dent in the rear wing,
+  // one hubcap gone.
   add('carVictor', 64, 128, (p) => {
     shadow(p, 35, 67, 29, 58);
     rrect(5, 5, 54, 118, 9);
@@ -543,16 +621,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(12, 10, 40, 5, 'rgba(200,185,160,.4)');
     // A dent in the rear wing.
     p.ell(55, 22, 2.5, 5, 'rgba(30,10,10,.45)');
-    // Fallen leaves on the roof and the bonnet.
-    for (let k = 0; k < 11; k++) {
-      const x = 14 + ar() * 36;
-      const y = (k < 7 ? 28 : 98) + ar() * (k < 7 ? 50 : 16);
-      c.save();
-      c.translate(x, y);
-      c.rotate(ar() * 6.28);
-      p.ell(0, 0, 3, 1.7, ['#c88a2a', '#a8582a', '#d8b040', '#8a6a2a'][k % 4] as string);
-      c.restore();
-    }
     // Mirrors, lights, wheels; the front right one bare without its hubcap.
     p.rect(1, 84, 5, 7, '#2a2422', 1);
     p.rect(58, 84, 5, 7, '#2a2422', 1);

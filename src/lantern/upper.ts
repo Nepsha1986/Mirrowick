@@ -62,6 +62,31 @@ export function generateUpperWorld(): World {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inb(x, y)) clear[I(x, y)] = 1;
   };
 
+  const crowns: WorldObject[] = [];
+  const trunks: Pt[] = [];
+  /**
+   * A tree on a tile: a solid trunk, its shade on the grass and a big crown
+   * over it, turned a little and mirrored so no two look alike while the
+   * light still falls from the top left.
+   */
+  const tree = (frame: string, x: number, y: number, scale: number) => {
+    const at = { x: (x + 0.5) * T + (R() - 0.5) * 6, y: (y + 0.5) * T + (R() - 0.5) * 6 };
+    const flip = R() < 0.5 ? -1 : 1;
+    objects.push({ key: 'ln-trees', frame: 'trunk', ...at, angle: R() * 360, depth: at.y + 4 });
+    decals.push({
+      key: 'ln-trees',
+      frame: 'crownShade',
+      x: at.x + 10 * scale,
+      y: at.y + 12 * scale,
+      scale,
+      depth: -40,
+      alpha: 1,
+    });
+    crowns.push({ key: 'ln-trees', frame, ...at, scale: scale * flip, angle: (R() - 0.5) * 30 });
+    trunks.push({ x, y });
+    solid(x, y);
+  };
+
   // A green meadow.
   for (let y = 0; y < UH; y++) {
     for (let x = 0; x < UW; x++) {
@@ -458,7 +483,7 @@ export function generateUpperWorld(): World {
     angle: 3,
     depth: 28.6 * T,
     label: "Look at Victor's car",
-    says: "Victor's old estate. Dust on the glass, leaves on the roof. It hasn't moved in days.",
+    says: "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
   });
   for (let y = 24; y <= 28; y++) for (const x of [30, 31]) solid(x, y);
   objects.push({ key: 'ln-up', frame: 'car', x: 31.15 * T, y: 33 * T, angle: -6, depth: 34.8 * T });
@@ -556,8 +581,7 @@ export function generateUpperWorld(): World {
     [10, 35],
     [38, 35],
   ] as const) {
-    obj('appletree', x, y, { depth: (y + 1) * T, angle: R() * 360 });
-    solid(x, y);
+    tree('crownApple', x, y, 0.8 + R() * 0.15);
   }
 
   // --- The shed ------------------------------------------------------------------------
@@ -602,30 +626,53 @@ export function generateUpperWorld(): World {
   light(C(47, 8.2), 110, WARM, { room: shedRoom });
   light(hatch, 44, GLASS, { room: shedRoom, flicker: 0.15, slow: true });
 
-  // Victor's footprints, from the back door along the path to the shed and
-  // in, to the hatch. He had been through the mirror before, so they glow:
-  // only the beam shows them, after dark.
+  // Victor's footprints, trodden round the shed door and inside about the
+  // hatch: he came and went here many times. He had been through the mirror,
+  // so they glow: only the beam shows them, after dark.
   const trail: Print[] = [];
-  const steps = [...footpath, P(47.45, 11), P(47.5, 9.5)];
   let left = false;
-  for (let i = 0; i + 1 < steps.length; i++) {
-    const a = steps[i] as Pt;
-    const b = steps[i + 1] as Pt;
-    const len = Math.hypot(b.x - a.x, b.y - a.y);
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    for (let d = 0; d < len; d += 15) {
-      left = !left;
-      // He walks a little to one side of the path, and some prints have worn away.
-      const wander = Math.sin((trail.length + i * 7) * 0.13) * 5;
-      const s = (left ? -4 : 4) + wander;
-      if (R() < 0.08) continue;
-      trail.push({
-        x: a.x + Math.cos(angle) * d - Math.sin(angle) * s,
-        y: a.y + Math.sin(angle) * d + Math.cos(angle) * s,
-        angle: angle + (R() - 0.5) * 0.25,
-        left,
-      });
+  const print = (x: number, y: number, angle: number) => {
+    left = !left;
+    trail.push({ x, y, angle: angle + (R() - 0.5) * 0.25, left });
+  };
+  const walk = (...pts: [number, number][]) => {
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = P(...(pts[i] as [number, number]));
+      const b = P(...(pts[i + 1] as [number, number]));
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      for (let d = 0; d < len; d += 15) {
+        // A little to one side, then the other; some have worn away.
+        const s = (left ? 4 : -4) + Math.sin(trail.length * 0.7) * 2;
+        if (R() < 0.1) {
+          left = !left;
+          continue;
+        }
+        print(
+          a.x + Math.cos(angle) * d - Math.sin(angle) * s,
+          a.y + Math.sin(angle) * d + Math.cos(angle) * s,
+          angle,
+        );
+      }
     }
+  };
+  // In and out of the door, and back and forth in front of it.
+  walk([46.1, 14.3], [47.3, 12.5], [47.45, 11], [47.5, 9.5]);
+  walk([47.7, 9.7], [47.65, 11], [48.5, 12.8], [49.7, 13.7]);
+  walk([45.3, 12.7], [47, 13.3], [48.7, 12.5]);
+  walk([48.9, 13.5], [47.3, 12.9], [46, 13.7]);
+  // Round the hatch, and over to the bench.
+  walk([47.3, 10.3], [46.5, 9.3], [46.8, 8.1], [48.2, 8.1], [48.3, 9.4], [47.6, 10.3]);
+  walk([47.9, 10.1], [46.4, 8.4]);
+  // And stray prints where he stood and turned.
+  for (let k = 0; k < 16; k++) {
+    const a = R() * Math.PI * 2;
+    const d = (0.6 + R() * 1.6) * T;
+    print(47.5 * T + Math.cos(a) * d * 1.3, 13 * T + Math.abs(Math.sin(a)) * d, R() * 6.28);
+  }
+  for (let k = 0; k < 6; k++) {
+    const at = P(46.5 + R() * 2, 8 + R() * 2.2);
+    print(at.x, at.y, R() * 6.28);
   }
 
   // The road goes on last, over the ends of the walk and the drive.
@@ -650,18 +697,12 @@ export function generateUpperWorld(): World {
       const edge = Math.min(x, y, UW - 1 - x);
       const p = edge < 2 ? 0.55 : n2(x * 0.15 + 9, y * 0.15) > 0.62 ? 0.18 : 0.03;
       const r = R();
-      if (r < p) {
-        block[i] = 1;
-        objects.push({
-          key: 'ln-up',
-          frame: R() < 0.5 ? 'utree' : 'utree2',
-          x: (x + 0.5) * T + (R() - 0.5) * 6,
-          y: (y + 0.5) * T + (R() - 0.5) * 6,
-          angle: R() * 360,
-          scale: 0.85 + R() * 0.35,
-          depth: (y + 0.5) * T + 14,
-        });
-      } else if (r < p + 0.03) {
+      // Crowns are wide, so trunks keep their distance; under and between
+      // them grow bushes.
+      const room = trunks.every((t) => Math.hypot(t.x - x, t.y - y) > 2.8);
+      if (r < p && room) {
+        tree(`crown${Math.floor(R() * 3)}`, x, y, 0.85 + R() * 0.3);
+      } else if (r < p ? R() < 0.25 : r < p + 0.03) {
         block[i] = 1;
         obj('bush', x, y, { angle: R() * 360 });
       } else if (r < p + 0.12) {
@@ -698,5 +739,6 @@ export function generateUpperWorld(): World {
     ],
     sails: [],
     trail,
+    crowns,
   };
 }

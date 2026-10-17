@@ -22,6 +22,11 @@ import { openMailbox } from '../ui/mailbox';
 
 const DEPTH_DARK = 100_000;
 const DEPTH_ABOVE_DARK = 100_001;
+/** Tree crowns hang over everything on the ground, under the roofs. */
+const DEPTH_CROWN = 49_500;
+/** How far a crown reaches at scale 1, and how thin it gets while you're under it. */
+const CROWN_R = 60;
+const CROWN_UNDER = 0.3;
 const HERO_R = 10;
 /** Ground tiles that are floors. */
 const FLOORS = new Set<number>([
@@ -140,6 +145,8 @@ export class LanternScene extends Phaser.Scene {
   private tracks?: Tracks;
   private roofs: { img: Phaser.GameObjects.Image; area: Phaser.Geom.Rectangle }[] = [];
   private sails: { img: Phaser.GameObjects.Image; room: number }[] = [];
+  /** Tree crowns, and how far each reaches. */
+  private crowns: { img: Phaser.GameObjects.Image; r: number }[] = [];
   /** Glows under the outdoor lights; in the Upper World they only show after dark. */
   private glows: Phaser.GameObjects.Image[] = [];
   /** Mirrors and things you can use. */
@@ -229,6 +236,7 @@ export class LanternScene extends Phaser.Scene {
     this.motes = [];
     this.roofs = [];
     this.sails = [];
+    this.crowns = [];
     this.glows = [];
     this.walkers = [];
     this.combat = undefined;
@@ -385,6 +393,14 @@ export class LanternScene extends Phaser.Scene {
         .setScale(o.scale ?? 1);
       this.chunked(img);
     }
+    for (const o of this.world.crowns ?? []) {
+      const img = this.add
+        .image(o.x, o.y, o.key ?? 'ln-trees', o.frame)
+        .setDepth(DEPTH_CROWN)
+        .setAngle(o.angle ?? 0)
+        .setScale(o.scale ?? 1, Math.abs(o.scale ?? 1));
+      this.crowns.push({ img: this.chunked(img), r: CROWN_R * Math.abs(o.scale ?? 1) });
+    }
     // Warm or cold glow under each light: shows through where the dark is cut away.
     for (const l of this.world.lights) {
       if (l.room !== undefined) continue;
@@ -511,6 +527,12 @@ export class LanternScene extends Phaser.Scene {
     for (const { img, area } of this.roofs) {
       const target = area.contains(h.x, h.y) ? 0 : 1;
       img.setAlpha(img.alpha + (target - img.alpha) * Math.min(1, dt * 6));
+    }
+    // A crown thins out while you walk under it, so you never lose the hero.
+    for (const { img, r } of this.crowns) {
+      if (!img.visible) continue;
+      const target = Math.hypot(img.x - h.x, img.y - h.y) < r + HERO_R ? CROWN_UNDER : 1;
+      img.setAlpha(img.alpha + (target - img.alpha) * Math.min(1, dt * 5));
     }
     // The sails turn slowly and thin out while you're inside, like the roof.
     for (const { img, room } of this.sails) {

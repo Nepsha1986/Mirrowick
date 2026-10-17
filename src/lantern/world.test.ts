@@ -147,12 +147,13 @@ describe("Victor's glowing footprints", () => {
   const trail = upper.trail ?? [];
   const hatch = upperHatch();
 
-  it('run from the back door all the way to the hatch in the shed', () => {
+  it('are trodden round the shed door and inside about the hatch, not along the garden', () => {
     expect(trail.length).toBeGreaterThan(40);
-    const first = trail[0] as Pt;
-    const last = trail[trail.length - 1] as Pt;
-    expect(Math.hypot(first.x - 17.5 * T, first.y - 22 * T)).toBeLessThan(T);
-    expect(Math.hypot(last.x - hatch.x, last.y - hatch.y)).toBeLessThan(1.5 * T);
+    const door = { x: 47.5 * T, y: 11.5 * T };
+    for (const p of trail) expect(Math.hypot(p.x - door.x, p.y - door.y)).toBeLessThan(4 * T);
+    expect(trail.some((p) => p.y < 11 * T)).toBe(true);
+    expect(trail.some((p) => p.y > 12 * T)).toBe(true);
+    expect(trail.some((p) => Math.hypot(p.x - hatch.x, p.y - hatch.y) < T)).toBe(true);
   });
 
   it('follow a way the hero can walk', () => {

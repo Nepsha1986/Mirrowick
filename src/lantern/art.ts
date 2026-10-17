@@ -3,7 +3,7 @@ import { INK, painter, type Painter } from './brush';
 import { paintTownAtlas, paintTownTiles } from './town-art';
 import { paintCellarAtlas } from './cellar-art';
 import { paintFoeAtlas } from './foe-art';
-import { paintUpperAtlas, paintUpperTiles } from './upper-art';
+import { paintUpperAtlas, paintUpperTiles, paintUpperTrees } from './upper-art';
 import { T, TILE_SLOTS, TL, mulberry32 } from './util';
 
 /**
@@ -16,6 +16,7 @@ export function createLanternTextures(scene: Phaser.Scene): void {
   paintAtlas(scene);
   paintTownAtlas(scene);
   paintUpperAtlas(scene);
+  paintUpperTrees(scene);
   paintCellarAtlas(scene);
   paintFoeAtlas(scene);
   paintLights(scene);
