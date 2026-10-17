@@ -908,8 +908,11 @@ export class LanternScene extends Phaser.Scene {
     // Turn smoothly towards the walking direction, or the enemy.
     const face = steer?.face ?? (mx || my ? Math.atan2(my, mx) : null);
     if (face !== null) h.facing += Phaser.Math.Angle.Wrap(face - h.facing) * Math.min(1, dt * 12);
-    const bob = mx || my ? Math.sin(h.walk) * 0.04 : 0;
-    const frame = this.heroFrame();
+    // Mid-stride on one foot, then the other; a little lift on each step.
+    const stride = mx || my ? Math.sin(h.walk) : 0;
+    const bob = Math.abs(stride) * 0.03;
+    const step = stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
+    const frame = this.heroFrame() + step;
     if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
     // A shot kicks you back a little; a wound flushes you red.
     const look = this.combat?.heroLook();

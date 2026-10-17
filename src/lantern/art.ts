@@ -468,19 +468,30 @@ function paintAtlas(scene: Phaser.Scene): void {
   });
   // The hero from above, facing right: an ordinary person in an open
   // jacket over a grey hoodie. 'heroLit' holds the flashlight out ahead;
-  // with 'Gun' the pistol is drawn in the other hand.
-  const hero = (p: Painter, lit: boolean, gun = false) => {
+  // with 'Gun' the pistol is drawn in the other hand. `step` (-1..1) puts
+  // one foot forward from under the jacket and swings the free arms against
+  // it; the left shoe is a touch more worn and turned out.
+  const hero = (p: Painter, lit: boolean, gun = false, step = 0) => {
     const skin = '#d9a77f';
     const sleeve = '#33475b';
     shadow(p, 18, 20, 12, 13);
+    if (step) {
+      const shoe = (x: number, y: number, tilt: number, col: string) => {
+        p.ell(x, y, 3.6, 2.2, INK);
+        p.ell(x, y + tilt, 2.9, 1.6, col);
+      };
+      shoe(16 + step * 7.4, 12.8, -0.3, '#3d352d');
+      shoe(16 - step * 7, 23.4, 0.2, '#453b31');
+    }
+    const swing = -step * 2.4;
     if (gun) {
       p.line(17, 8.6, 27, 11, INK, 6.2);
       p.line(17, 8.6, 27, 11, sleeve, 4);
       p.rect(27, 10, 8.4, 2.6, '#2c2f33', 0.8);
       p.circ(27.4, 11.2, 2.1, skin, 1);
     } else {
-      p.ell(16.5, 7.6, 5, 2.9, sleeve, 1.2);
-      p.circ(21.2, 7.4, 2.1, skin, 1);
+      p.ell(16.5 + swing, 7.6, 5, 2.9, sleeve, 1.2);
+      p.circ(21.2 + swing * 1.4, 7.4, 2.1, skin, 1);
     }
     if (lit) {
       p.line(17, 27.4, 27, 25.6, INK, 6.2);
@@ -489,8 +500,8 @@ function paintAtlas(scene: Phaser.Scene): void {
       p.rect(32.6, 23.5, 2, 4, '#fff0b8', 0.8);
       p.circ(27.6, 25.6, 2.1, skin, 1);
     } else {
-      p.ell(16.8, 28.6, 5, 2.9, sleeve, 1.2);
-      p.circ(21.4, 29, 2.1, skin, 1);
+      p.ell(16.8 + step * 2.4, 28.6, 5, 2.9, sleeve, 1.2);
+      p.circ(21.4 + step * 3.4, 29, 2.1, skin, 1);
     }
     p.ell(16, 18, 6.6, 11.2, '#3d556c', 1.4);
     p.ell(11.4, 18.4, 2.6, 5.2, '#8d9196', 0.8);
@@ -499,10 +510,17 @@ function paintAtlas(scene: Phaser.Scene): void {
     p.circ(18.6, 18.1, 5.6, '#4b3222', 1.3);
     p.ell(17, 16.4, 2.2, 1.2, 'rgba(255,255,255,.12)');
   };
-  add('hero', 36, 36, (p) => hero(p, false));
-  add('heroLit', 36, 36, (p) => hero(p, true));
-  add('heroGun', 36, 36, (p) => hero(p, false, true));
-  add('heroLitGun', 36, 36, (p) => hero(p, true, true));
+  // Each pose standing, and mid-stride on either foot ('Step1', 'Step2').
+  for (const [name, lit, gun] of [
+    ['hero', false, false],
+    ['heroLit', true, false],
+    ['heroGun', false, true],
+    ['heroLitGun', true, true],
+  ] as const) {
+    add(name, 36, 36, (p) => hero(p, lit, gun));
+    add(`${name}Step1`, 36, 36, (p) => hero(p, lit, gun, 1));
+    add(`${name}Step2`, 36, 36, (p) => hero(p, lit, gun, -1));
+  }
   add('dot', 8, 8, (p) => p.circ(4, 4, 3.5, '#ffffff'));
   A.refresh();
 }
