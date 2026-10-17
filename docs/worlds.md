@@ -32,7 +32,7 @@
 
 - [Свет, тьма и время суток](mechanics/light.md)
 - [Переход между мирами](mechanics/mirror-travel.md)
-- [Интро](mechanics/intro.md) — звонок и приезд
+- [Интро и кат-сцены](mechanics/intro.md) — звонок и приезд, первый спуск в подвал
 - [Взаимодействие](mechanics/interaction.md)
 - [Чтение](mechanics/reading.md) — записки, письма, книги
 - [Память героя](mechanics/memory.md) — «хлам», который становится нужным

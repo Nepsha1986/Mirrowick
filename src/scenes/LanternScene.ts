@@ -14,6 +14,7 @@ import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lanter
 import { ITEMS, itemWords, type Fact } from '../lantern/items';
 import { Memory, type Hoard } from '../lantern/memory';
 import { paper as findPaper } from '../lantern/papers';
+import { Cutscene } from '../ui/Cutscene';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
 import { Reader } from '../ui/Reader';
@@ -1125,7 +1126,12 @@ export class LanternScene extends Phaser.Scene {
         ammo: [this.ammo.mag, this.ammo.spare],
         via: p.fade,
       };
-      this.scene.restart(next);
+      // The first time down under the shed is a long crawl in the dark.
+      if (p.to === 'cellar' && this.memory.visit('cellar')) {
+        next.known = this.memory.list;
+        music.setMood('lower');
+        Cutscene.descent(() => this.scene.restart(next));
+      } else this.scene.restart(next);
     });
   }
 
