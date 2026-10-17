@@ -506,30 +506,7 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.ell(40, 30, 28, 20, '#e8d8b8');
   });
 
-  // The Lower World windmill's insides.
-  const stone = (p: Painter, cx: number, cy: number, r: number) => {
-    p.circ(cx, cy, r, '#8f877a', 1.6);
-    for (let k = 0; k < 12; k++) {
-      const a = (k / 12) * 6.28;
-      p.line(
-        cx + Math.cos(a) * 6,
-        cy + Math.sin(a) * 6,
-        cx + Math.cos(a) * (r - 2),
-        cy + Math.sin(a) * (r - 2),
-        'rgba(40,30,20,.4)',
-        1,
-      );
-    }
-    p.circ(cx, cy, 5, '#2a2018', 1);
-  };
-  add('millstone', 64, 64, (p) => {
-    shadow(p, 35, 36, 28, 26);
-    p.circ(32, 32, 30, '#5e4330', 1.6);
-    stone(p, 32, 32, 24);
-    p.line(32, 2, 32, 62, WOOD_DARK, 4);
-    p.rect(26, 26, 12, 12, '#6a4a2e', 1);
-  });
-  // The mirror set in the floor: the same black glass as the Lower World's lake.
+  // The mirror set in the floor: black glass with a cold light in it.
   add('mirror', 56, 56, (p) => {
     p.circ(28, 28, 26, '#5d5549', 1.6);
     p.circ(28, 28, 21, '#121619', 1.2);
@@ -540,36 +517,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     c.restore();
     p.ell(22, 20, 8, 4, 'rgba(207,238,244,.22)');
     for (let k = 0; k < 5; k++) p.rect(10 + ar() * 34, 10 + ar() * 34, 2, 2, '#9fd8e6');
-  });
-  add('sacks', 32, 32, (p) => {
-    shadow(p, 17, 18, 13, 11);
-    for (const [x, y] of [
-      [11, 12],
-      [21, 19],
-    ] as const) {
-      p.ell(x, y, 9, 8, '#c8b48a', 1.1);
-      p.circ(x - 2, y - 3, 2, 'rgba(255,250,235,.4)');
-    }
-  });
-  // Sails: four lattice blades round a hub.
-  const blade = (p: Painter, len: number) => {
-    p.rect(-2, 0, 4, len, '#5e4330', 1);
-    for (let y = 10; y < len; y += 9) {
-      p.rect(2, y, 14, 2, '#6a4a2e');
-    }
-    p.rect(16, 8, 2, len - 8, '#5e4330', 0.6);
-    p.rect(3, 10, 13, len - 14, 'rgba(232,222,196,.55)');
-  };
-  add('sails', 240, 240, (p) => {
-    for (let k = 0; k < 4; k++) {
-      c.save();
-      c.translate(120, 120);
-      c.rotate((k * Math.PI) / 2);
-      blade(p, 112);
-      c.restore();
-    }
-    p.circ(120, 120, 9, '#3e2c1f', 1.4);
-    p.circ(120, 120, 3, '#8a8a8a');
   });
 
   // --- Victor's place ------------------------------------------------------------------

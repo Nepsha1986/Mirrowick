@@ -9,7 +9,7 @@ const GRASS = ['#5d7d36', '#668740', '#517030', '#6b8c44'];
 
 const pick = (r: () => number, cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
 
-/** A round floor: boards that don't quite match, or flagstones. */
+/** A round floor of flagstones. */
 function paintFloor(
   c: Ctx,
   patch: GroundPatch,
@@ -30,25 +30,12 @@ function paintFloor(
     else c.moveTo(x, y);
   }
   c.closePath();
-  c.fillStyle = patch.kind === 'planks' ? '#2a1c12' : '#2c2620';
+  c.fillStyle = '#2c2620';
   c.fill();
   c.globalCompositeOperation = 'source-atop';
   const x0 = centre.x - rx;
   const y0 = centre.y - ry;
-  if (patch.kind === 'planks') {
-    for (let y = y0; y < centre.y + ry; y += 8) {
-      for (let x = x0 - r() * 40; x < centre.x + rx;) {
-        const len = 30 + r() * 50;
-        c.fillStyle = pickCol(['#6e4d30', '#765335', '#68472b', '#7d5a3a', '#5e4128']);
-        c.fillRect(x + 0.5, y + 0.5, len - 1, 7);
-        c.fillStyle = 'rgba(40,24,12,.3)';
-        c.fillRect(x + 2, y + 2 + r() * 4, len - 4, 0.6);
-        c.fillStyle = '#2a1c12';
-        c.fillRect(x + 2, y + 3.5, 1, 1);
-        x += len;
-      }
-    }
-  } else {
+  {
     // Flagstones in rough rows, each its own shape and shade.
     for (let y = y0; y < centre.y + ry; y += 20) {
       for (let x = x0 - r() * 20; x < centre.x + rx;) {
@@ -233,7 +220,7 @@ interface Box {
   h: number;
 }
 
-const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones', 'paving']);
+const ROUND = new Set<GroundPatch['kind']>(['flagstones', 'paving']);
 
 /** The area a layer needs, so its texture covers that and not the whole map. */
 function bounds(boxes: Box[], margin: number): Box {
@@ -315,6 +302,7 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
     // rough rectangle round its line.
     const base: Record<string, string> = {
       road: '#8a7556',
+      asphalt: '#393a3a',
       gravel: '#9d9486',
       dirt: '#8a7352',
       soil: '#4c3826',
@@ -444,6 +432,37 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
       if (patch.width > 64) {
         for (const side of [-1, 1]) track(side * patch.width * 0.22, 'rgba(80,70,58,.28)', 6);
       }
+    } else if (patch.kind === 'asphalt') {
+      speck(['#323333', '#444545', '#2c2d2d', '#4c4d4c', '#3e3f3f'], 0.18, 1.5);
+      // A faded line down the middle, mostly gone, and potholes and cracks.
+      track(0, 'rgba(200,190,140,.35)', 2, 0.5);
+      for (let k = 0; k < line.length / 30; k++) {
+        const p = line[Math.floor(r() * line.length)] as (typeof line)[number];
+        const o = (r() - 0.5) * patch.width * 0.8;
+        blob(p.x + p.nx * o, p.y + p.ny * o, 3 + r() * 6, 2 + r() * 3, '#232424');
+      }
+      for (let k = 0; k < line.length / 12; k++) {
+        const p = line[Math.floor(r() * line.length)] as (typeof line)[number];
+        const o = (r() - 0.5) * patch.width * 0.9;
+        let x = p.x + p.nx * o;
+        let y = p.y + p.ny * o;
+        c.strokeStyle = 'rgba(18,18,18,.6)';
+        c.lineWidth = 0.8;
+        c.beginPath();
+        c.moveTo(x, y);
+        for (let s = 0; s < 4; s++) {
+          x += (r() - 0.5) * 14;
+          y += (r() - 0.5) * 14;
+          c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+      // Ash blown over it in drifts.
+      for (let k = 0; k < line.length / 25; k++) {
+        const p = line[Math.floor(r() * line.length)] as (typeof line)[number];
+        const o = (r() - 0.5) * patch.width;
+        blob(p.x + p.nx * o, p.y + p.ny * o, 6 + r() * 10, 3 + r() * 4, 'rgba(110,106,98,.3)');
+      }
     } else if (patch.kind === 'dirt') {
       speck(['#7e6848', '#967e5c', '#735f42', '#a08865'], 0.12);
       track(0, 'rgba(170,148,112,.35)', patch.width * 0.35);
@@ -466,15 +485,16 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
     c.globalCompositeOperation = 'source-over';
     main.drawImage(tmp, own.x, own.y);
 
-    // Grass creeping over the edges.
+    // Grass creeping over the edges; dead stalks at the asphalt's.
     if (patch.kind !== 'soil') {
+      const weeds = patch.kind === 'asphalt' ? ['#6e6650', '#5a5444', '#7a7260'] : null;
       for (const p of line) {
         if (r() > 0.35) continue;
         for (const side of [-1, 1]) {
           const hw = half(p.s, side) - 1;
           const x = p.x + p.nx * hw * side;
           const y = p.y + p.ny * hw * side;
-          main.strokeStyle = pick(['#6a8a40', '#7a9c4c', '#56752f']);
+          main.strokeStyle = pick(weeds ?? ['#6a8a40', '#7a9c4c', '#56752f']);
           main.lineWidth = 1;
           main.beginPath();
           main.moveTo(x, y);
@@ -489,8 +509,9 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
 
 /**
  * Thin walls, posts and fences on one texture: plaster tops with chips and
- * cracks, timber posts, windowpanes, and a picket fence gone a little
- * crooked, with a picket missing here and there.
+ * cracks, timber posts, windowpanes, a picket fence gone a little crooked
+ * with a picket missing here and there, and the Facility's concrete, cage
+ * bars and chain-link.
  */
 export function paintWalls(scene: Phaser.Scene, key: string, walls: ThinWall[]): void {
   if (scene.textures.exists(key)) return;
@@ -553,6 +574,95 @@ export function paintWalls(scene: Phaser.Scene, key: string, walls: ThinWall[]):
       c.fillStyle = 'rgba(20,14,8,.6)';
       if (along) c.fillRect(m.x + r() * m.w, m.y + m.h / 2 - 0.4, 6, 0.8);
       else c.fillRect(m.x + m.w / 2 - 0.4, m.y + r() * m.h, 0.8, 6);
+    }
+  }
+
+  // Poured concrete: grey, darker where water ran, the odd crack and a
+  // chunk knocked out of an edge.
+  const concrete = walls.filter((m) => m.kind === 'concrete');
+  for (const m of concrete) rough(m.x, m.y, m.w, m.h, 1.4, INK);
+  for (const m of concrete) {
+    rough(m.x, m.y, m.w, m.h, 0, '#8a8c88');
+    c.fillStyle = 'rgba(255,255,255,.1)';
+    c.fillRect(m.x + 1, m.y + 1, m.w - 2, 1.5);
+    for (let k = 0; k < (m.w * m.h) / 40; k++) {
+      c.fillStyle = r() < 0.7 ? 'rgba(30,30,28,.25)' : 'rgba(255,255,255,.15)';
+      c.fillRect(m.x + r() * m.w, m.y + r() * m.h, 1 + r() * 1.5, 1);
+    }
+    const along = m.w > m.h;
+    const len = along ? m.w : m.h;
+    for (let t = 20 + r() * 60; t < len; t += 60 + r() * 120) {
+      c.fillStyle = 'rgba(40,38,34,.25)';
+      if (along) c.fillRect(m.x + t, m.y, 6 + r() * 10, m.h);
+      else c.fillRect(m.x, m.y + t, m.w, 6 + r() * 10);
+      if (r() < 0.3) {
+        c.fillStyle = INK;
+        if (along) c.fillRect(m.x + t + 4, m.y + m.h - 2.5, 4, 2.5);
+        else c.fillRect(m.x + m.w - 2.5, m.y + t + 4, 2.5, 4);
+      }
+    }
+  }
+
+  // Steel bars, round and a little uneven, with a rail across them.
+  for (const m of walls) {
+    if (m.kind !== 'bars') continue;
+    c.fillStyle = INK;
+    c.fillRect(m.x, m.y + m.h / 2 - 1.5, m.w, 3);
+    c.fillStyle = '#5e6468';
+    c.fillRect(m.x, m.y + m.h / 2 - 0.8, m.w, 1.6);
+    for (let t = 3; t < m.w - 1; t += 7) {
+      const x = m.x + t + (r() - 0.5) * 0.8;
+      c.fillStyle = INK;
+      c.beginPath();
+      c.arc(x, m.y + m.h / 2, 2.6, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = r() < 0.15 ? '#7a5a40' : '#8a9296';
+      c.beginPath();
+      c.arc(x, m.y + m.h / 2, 1.7, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+
+  // Chain-link on posts, barbed wire coiled along the top, sagging a little.
+  for (const f of walls) {
+    if (f.kind !== 'mesh') continue;
+    const along = f.w > f.h;
+    const len = along ? f.w : f.h;
+    const at = (t: number, o: number): Pt => {
+      const sag = Math.sin(((t % 96) / 96) * Math.PI) * 1;
+      return along
+        ? { x: f.x + t, y: f.y + f.h / 2 + o + sag }
+        : { x: f.x + f.w / 2 + o + sag, y: f.y + t };
+    };
+    c.lineWidth = 0.7;
+    c.strokeStyle = 'rgba(150,156,158,.75)';
+    for (let t = 0; t < len; t += 3) {
+      if (r() < 0.02) continue; // a hole in the mesh
+      const a = at(t, -2);
+      const b = at(t + 3, 2);
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.stroke();
+    }
+    c.strokeStyle = 'rgba(110,116,118,.9)';
+    c.lineWidth = 0.6;
+    for (let t = 0; t < len; t += 5) {
+      const p = at(t, 0);
+      c.beginPath();
+      c.moveTo(p.x - 1.5, p.y - 1.5);
+      c.lineTo(p.x + 1.5, p.y + 1.5);
+      c.moveTo(p.x + 1.5, p.y - 1.5);
+      c.lineTo(p.x - 1.5, p.y + 1.5);
+      c.stroke();
+    }
+    for (let t = 0; t <= len; t += 96) {
+      const p = at(Math.min(t, len - 2), 0);
+      const lean = (r() - 0.5) * 1.5;
+      c.fillStyle = INK;
+      c.fillRect(p.x - 3 + lean, p.y - 3, 6, 6);
+      c.fillStyle = '#5a5f63';
+      c.fillRect(p.x - 2 + lean, p.y - 2, 4, 4);
     }
   }
 

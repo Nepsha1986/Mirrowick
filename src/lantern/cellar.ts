@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { cellarMirror, cellarStairs, lowerMirror, upperHatch, wallTiles } from './mill';
+import { cellarMirror, cellarStairs, labMirror, upperHatch, wallTiles } from './ways';
 import { CH, CW, T, TL, mulberry32, type Pt } from './util';
 import {
   GLASS,
@@ -193,12 +193,11 @@ export function generateCellar(): World {
     h: CH,
     ground,
     block,
-    town: new Uint8Array(N),
     objects,
     decals,
     lights,
     spawn: foot,
-    life: { buildings: [], festoons: [], spots: [] },
+    buildings: [],
     portals: [
       {
         ...P(5.5, 13),
@@ -210,12 +209,11 @@ export function generateCellar(): World {
       {
         ...mid,
         to: 'lower',
-        exit: lowerMirror(),
+        exit: labMirror(),
         label: t().use.mirror,
         fade: 'glint',
       },
     ],
-    sails: [],
     walls,
     patches,
     things,

@@ -4,11 +4,12 @@ import { fill, t } from '../i18n';
 import { createLanternTextures } from '../lantern/art';
 import { groundBox, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
 import { generateCellar } from '../lantern/cellar';
-import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/town-art';
+import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/house-art';
 import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
 import { writeSave } from '../lantern/save';
-import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
+import { generateLab } from '../lantern/lab';
+import type { Lock, Portal, Realm, Thing, World } from '../lantern/world';
 import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
 import { ITEMS, itemWords, type Fact } from '../lantern/items';
@@ -32,13 +33,15 @@ const CROWN_UNDER = 0.3;
 const HERO_R = 10;
 /** Ground tiles that are floors. */
 const FLOORS = new Set<number>([
-  TL.FLOOR,
   TL.PLANK,
   TL.PLANK2,
   TL.PARQUET,
   TL.CHECKER,
   TL.CARPET,
   TL.TILEW,
+  TL.CONCRETE,
+  TL.LINO,
+  TL.GRATE,
 ]);
 const SPEED = 140;
 /** How much of his pace long grass takes. */
@@ -106,15 +109,6 @@ interface Target extends Pt {
 /** Where the words about a thing hang: just over the top of it. */
 const topOf = (t: Target): Pt => ({ x: t.x, y: t.y - (t.img ? t.img.displayHeight / 2 : 12) });
 
-/** A villager or a chicken pottering about. */
-interface Walker extends Pt {
-  img: Phaser.GameObjects.Image;
-  path: Pt[];
-  wait: number;
-  speed: number;
-  chicken: boolean;
-}
-
 interface Hero extends Pt {
   facing: number;
   path: Pt[];
@@ -124,9 +118,9 @@ interface Hero extends Pt {
 /**
  * The lantern prototype: Заслон's way of playing — free top-down movement,
  * a world painted by code, real darkness with a lantern beam and a day–night
- * cycle. It plays either Mirrowick: the Lower World of dusk around the
- * village, or the Upper World — an ordinary sunny homestead — and the
- * mirror in the cellar under Victor's shed leads from one to the other.
+ * cycle. It plays the Upper World — an ordinary sunny homestead — the
+ * cellar under Victor's shed, or the Lower World beyond the cellar's
+ * mirror: the Facility, abandoned and dark inside.
  */
 export class LanternScene extends Phaser.Scene {
   private realm: Realm = 'lower';
@@ -153,7 +147,6 @@ export class LanternScene extends Phaser.Scene {
   /** Footprints behind the hero and the enemies; none in the cellar. */
   private tracks?: Tracks;
   private roofs: { img: Phaser.GameObjects.Image; area: Phaser.Geom.Rectangle }[] = [];
-  private sails: { img: Phaser.GameObjects.Image; room: number }[] = [];
   /** Tree crowns, and how far each reaches. */
   private crowns: { img: Phaser.GameObjects.Image; r: number }[] = [];
   /** Glows under the outdoor lights; in the Upper World they only show after dark. */
@@ -211,11 +204,12 @@ export class LanternScene extends Phaser.Scene {
   private icons = new Map<string, string>();
   private leaving = false;
   private sinceSave = 0;
-  private walkers: Walker[] = [];
   /** The fight, where there are enemies about. */
   private combat?: Combat;
   /** How dark it is this frame, 0…1. */
   private darkness = 0;
+  /** How far under a windowless roof the hero is, easing in and out, 0…1. */
+  private inside = 0;
   private chunks = new Map<string, Phaser.GameObjects.Image[]>();
   private visible = new Set<string>();
   private cullKey = '';
@@ -233,7 +227,7 @@ export class LanternScene extends Phaser.Scene {
   init(data?: LanternData): void {
     this.start = data ?? {};
     this.demo = !!data?.demo;
-    // The menu's backdrop is the Lower World; a new game starts at home, upstairs.
+    // The menu's backdrop is the mirror in Chamber 7; a new game starts at home, upstairs.
     this.realm = data?.realm ?? (this.demo ? 'lower' : 'upper');
   }
 
@@ -243,7 +237,7 @@ export class LanternScene extends Phaser.Scene {
         ? generateUpperWorld()
         : this.realm === 'cellar'
           ? generateCellar()
-          : generateWorld();
+          : generateLab();
     this.nav = new Nav(this.world.block, this.world.w, this.world.h, this.world.walls);
     this.chunks.clear();
     this.visible.clear();
@@ -251,10 +245,8 @@ export class LanternScene extends Phaser.Scene {
     this.erasers = [];
     this.motes = [];
     this.roofs = [];
-    this.sails = [];
     this.crowns = [];
     this.glows = [];
-    this.walkers = [];
     this.combat = undefined;
     this.keys = {};
     this.halo = null;
@@ -266,9 +258,9 @@ export class LanternScene extends Phaser.Scene {
     this.trail = [];
     this.stuck.clear();
     this.moving = false;
-    // The menu's backdrop wanders with a light; a new game starts empty-handed.
-    // Only what is still a thing (Victor's phone used to go in the bag).
-    const items = this.start.items ?? (this.demo ? ['flashlight'] : []);
+    // A new game starts empty-handed. Only what is still a thing (Victor's
+    // phone used to go in the bag).
+    const items = this.start.items ?? [];
     this.items = new Set(items.filter((id) => id in ITEMS));
     this.memory = new Memory(this.start.known);
     const [mag, spare] = this.start.ammo ?? [PISTOL.mag, SPARE_ROUNDS];
@@ -295,7 +287,7 @@ export class LanternScene extends Phaser.Scene {
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
     this.wading = 0;
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
-    this.buildTownLife();
+    this.buildRoofs();
     this.buildTrail();
     this.buildFoes();
     this.buildDarkness();
@@ -304,12 +296,10 @@ export class LanternScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.world.w * T, this.world.h * T);
     cam.setBackgroundColor(PLACES[this.realm].bg);
+    this.inside = this.insideAt(this.hero);
     if (this.demo) {
       this.tod = (19.4 - 6) / 24;
-      this.hero.x = 43.5 * T;
-      this.hero.y = 38 * T;
-      this.hero.facing = Math.PI / 2;
-      this.moveHero(0);
+      this.heroImg.setVisible(false);
     } else {
       cam.startFollow(this.heroImg, true, 0.14, 0.14);
     }
@@ -402,7 +392,6 @@ export class LanternScene extends Phaser.Scene {
   }
 
   private buildObjects(): void {
-    this.hangFestoons();
     for (const d of this.world.decals) {
       this.chunked(
         this.add
@@ -443,58 +432,11 @@ export class LanternScene extends Phaser.Scene {
       );
       this.glows.push(glow);
     }
-    // The Wick's flame.
-    if (!this.world.wick) return;
-    const { x, y } = this.world.wick;
-    this.add
-      .particles(x, y, 'ln-atlas', {
-        frame: 'dot',
-        lifespan: { min: 500, max: 900 },
-        speedY: { min: -46, max: -20 },
-        speedX: { min: -8, max: 8 },
-        scale: { start: 1.6, end: 0 },
-        alpha: { start: 0.9, end: 0 },
-        tint: [0xffe0a0, 0xffa04a, 0xe0602a],
-        blendMode: Phaser.BlendModes.ADD,
-        frequency: 30,
-      })
-      .setDepth(y + 10);
   }
 
-  /** Strings of little lights: a sagging wire, bulbs that cut the dark. */
-  private hangFestoons(): void {
-    const g = this.add.graphics().setDepth(49_000);
-    for (const { a, b } of this.world.life.festoons) {
-      const sag = 14;
-      const point = (t: number) => ({
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * sag,
-      });
-      g.lineStyle(1.2, 0x1c130d, 0.9);
-      g.beginPath();
-      for (let t = 0; t <= 1.001; t += 0.05) {
-        const p = point(t);
-        if (t === 0) g.moveTo(p.x, p.y);
-        else g.lineTo(p.x, p.y);
-      }
-      g.strokePath();
-      const n = Math.round(Math.hypot(b.x - a.x, b.y - a.y) / 22);
-      for (let k = 1; k < n; k++) {
-        const p = point(k / n);
-        const color = [0xffc86a, 0xff8a5a, 0xfff0b0][k % 3] as number;
-        this.add
-          .image(p.x, p.y + 2, 'ln-atlas', 'dot')
-          .setTint(color)
-          .setScale(0.55)
-          .setDepth(49_001);
-        this.world.lights.push({ x: p.x, y: p.y + 2, radius: 30, flicker: 0.08, color });
-      }
-    }
-  }
-
-  /** Roofs that lift when you walk in, chimney smoke, forge sparks, villagers, hens. */
-  private buildTownLife(): void {
-    const { buildings, forge, spots, coop } = this.world.life;
+  /** Roofs that lift when you walk in, and chimney smoke. */
+  private buildRoofs(): void {
+    const { buildings } = this.world;
     paintRoofs(this, buildings, this.realm);
     buildings.forEach((b, i) => {
       const img = this.add
@@ -519,38 +461,9 @@ export class LanternScene extends Phaser.Scene {
           .setDepth(50_001);
       }
     });
-    for (const s of this.world.sails) {
-      const img = this.add.image(s.x, s.y, 'ln-up', 'sails').setDepth(50_002);
-      this.sails.push({ img, room: s.room });
-    }
-    if (forge)
-      this.add
-        .particles(forge.x, forge.y, 'ln-atlas', {
-          frame: 'dot',
-          lifespan: { min: 300, max: 700 },
-          speed: { min: 20, max: 70 },
-          angle: { min: 200, max: 340 },
-          gravityY: 60,
-          scale: { start: 0.45, end: 0 },
-          tint: [0xffe0a0, 0xff9a40],
-          blendMode: Phaser.BlendModes.ADD,
-          frequency: 140,
-        })
-        .setDepth(forge.y + 20);
-
-    spots.slice(0, 4).forEach((p, i) => {
-      const img = this.add.image(p.x, p.y, 'ln-town', `villager${i}`);
-      this.walkers.push({ ...p, img, path: [], wait: rnd(0, 3), speed: 34, chicken: false });
-    });
-    for (let i = 0; coop && i < 5; i++) {
-      const x = rnd(coop.x0 + 0.5, coop.x1 + 0.5) * T;
-      const y = rnd(coop.y0 + 0.5, coop.y1 + 0.5) * T;
-      const img = this.add.image(x, y, 'ln-town', i % 2 ? 'chicken2' : 'chicken');
-      this.walkers.push({ x, y, img, path: [], wait: rnd(0, 2), speed: 26, chicken: true });
-    }
   }
 
-  private updateTownLife(dt: number): void {
+  private updateRoofs(dt: number): void {
     const h = this.hero;
     for (const { img, area } of this.roofs) {
       const target = area.contains(h.x, h.y) ? 0 : 1;
@@ -561,46 +474,6 @@ export class LanternScene extends Phaser.Scene {
       if (!img.visible) continue;
       const target = Math.hypot(img.x - h.x, img.y - h.y) < r + HERO_R ? CROWN_UNDER : 1;
       img.setAlpha(img.alpha + (target - img.alpha) * Math.min(1, dt * 5));
-    }
-    // The sails turn slowly and thin out while you're inside, like the roof.
-    for (const { img, room } of this.sails) {
-      img.rotation += dt * 0.35;
-      img.setAlpha(0.2 + 0.8 * (this.roofs[room]?.img.alpha ?? 1));
-    }
-    const { spots, coop } = this.world.life;
-    for (const w of this.walkers) {
-      if (w.wait > 0) {
-        w.wait -= dt;
-        // Hens peck while they wait.
-        if (w.chicken)
-          w.img.setScale(1, 1 + Math.max(0, Math.sin(this.time.now / 90 + w.x)) * 0.12);
-      } else if (!w.path.length) {
-        const to =
-          w.chicken && coop
-            ? { x: rnd(coop.x0 + 0.3, coop.x1 + 0.7) * T, y: rnd(coop.y0 + 0.3, coop.y1 + 0.7) * T }
-            : (spots[Math.floor(Math.random() * spots.length)] as Pt);
-        w.path = w.chicken ? [to] : this.nav.route(w, to, 8);
-        if (!w.path.length) w.wait = 1;
-      } else {
-        const t = w.path[0] as Pt;
-        const dx = t.x - w.x;
-        const dy = t.y - w.y;
-        const d = Math.hypot(dx, dy);
-        if (d < 3) {
-          w.path.shift();
-          if (!w.path.length) w.wait = w.chicken ? rnd(0.6, 2.5) : rnd(2, 7);
-        } else {
-          const s = Math.min(d, w.speed * dt);
-          const bx = w.x;
-          const by = w.y;
-          this.nav.move(w, (dx / d) * s, (dy / d) * s, w.chicken ? 4 : 8);
-          if (w.x === bx && w.y === by) w.path = [];
-          w.img.setRotation(Math.atan2(dy, dx));
-          const bob = Math.sin(this.time.now / (w.chicken ? 50 : 110)) * 0.05;
-          w.img.setScale(1 + bob, 1 - bob);
-        }
-      }
-      w.img.setPosition(w.x, w.y).setDepth(w.y + 4);
     }
   }
 
@@ -656,8 +529,6 @@ export class LanternScene extends Phaser.Scene {
         armed: () => this.items.has('pistol'),
         dark: (p) => this.darkAt(p),
         inBeam: (p) => this.inBeam(p),
-        safe: (p) =>
-          this.world.town[Math.floor(p.y / T) * this.world.w + Math.floor(p.x / T)] === 1,
         fall: () => this.fall(),
         tracks: this.tracks,
       },
@@ -800,7 +671,7 @@ export class LanternScene extends Phaser.Scene {
     this.nudge(dt);
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE) this.save();
-    this.updateTownLife(dt);
+    this.updateRoofs(dt);
     this.cull();
     this.drawMarker(dt);
     this.updateLighting(dt);
@@ -827,9 +698,10 @@ export class LanternScene extends Phaser.Scene {
     }));
     for (const t of this.world.things) {
       if (t.take && this.items.has(t.id)) continue;
+      const open = t.door && this.doorOpen(t);
       const img = this.chunked(
         this.add
-          .image(t.x, t.y, t.key, t.frame)
+          .image(t.x, t.y, t.key, open && t.door ? t.door.open : t.frame)
           .setDepth(t.depth ?? t.y + 4)
           .setScale(t.scale ?? 1)
           .setAngle(t.angle ?? 0),
@@ -841,6 +713,11 @@ export class LanternScene extends Phaser.Scene {
         : read
           ? () => !this.memory.hasRead(read)
           : null;
+      // A door blocks its doorway until it opens, and then there is nothing to do with it.
+      if (t.door) {
+        this.shut(t, !open);
+        if (open) continue;
+      }
       if (worth) {
         const glint = this.add
           .image(t.x + 6, t.y - 6, 'ln-up', 'glint')
@@ -852,17 +729,22 @@ export class LanternScene extends Phaser.Scene {
         x: t.x,
         y: t.y,
         img,
-        label: () => t.label,
+        label: () => {
+          const lock = t.door?.lock;
+          return lock && this.items.has(lock.key) ? lock.unlock : t.label;
+        },
         use: () =>
-          t.take
-            ? this.take(t.id, img)
-            : hoard
-              ? this.look(hoard, target)
-              : read
-                ? this.readPaper(read)
-                : says
-                  ? this.think(says, target)
-                  : this.useThing(t.id),
+          t.door
+            ? this.tryDoor(t, target)
+            : t.take
+              ? this.take(t.id, img)
+              : hoard
+                ? this.look(hoard, target)
+                : read
+                  ? this.readPaper(read)
+                  : says
+                    ? this.think(says, target)
+                    : this.useThing(t.id),
       };
       this.targets.push(target);
     }
@@ -872,6 +754,41 @@ export class LanternScene extends Phaser.Scene {
       .setTint(HALO)
       .setScale(90 / 256)
       .setVisible(false);
+  }
+
+  /** Whether a door has been opened, for good. */
+  private doorOpen(t: Thing): boolean {
+    const lock = t.door?.lock;
+    return !lock || this.memory.knows(lock.open);
+  }
+
+  /** Blocks a doorway, or frees it. */
+  private shut(t: Thing, shut: boolean): void {
+    for (const [x, y] of t.door?.tiles ?? []) this.world.block[y * this.world.w + x] = shut ? 1 : 0;
+  }
+
+  /**
+   * A locked door: with the key the hero opens it, and it slides into the
+   * wall for good; without it he learns he needs one.
+   */
+  private tryDoor(t: Thing, by: Target): void {
+    const lock = t.door?.lock as Lock;
+    if (!this.items.has(lock.key)) return this.tryLock(lock, by);
+    music.sfx('unlock');
+    this.time.delayedCall(250, () => music.sfx('door'));
+    this.learn(lock.open, by);
+    this.shut(t, false);
+    by.img?.setFrame(t.door?.open ?? t.frame);
+    this.setHalo(null);
+    this.targets = this.targets.filter((x) => x !== by);
+    this.heroImg.setFrame(this.heroFrame());
+  }
+
+  /** Tried a lock without its key: the first time he learns he needs one. */
+  private tryLock(lock: Lock, by?: Target): void {
+    music.sfx('locked');
+    if (!this.memory.knows(lock.fact)) this.learn(lock.fact, by);
+    else this.think(lock.says, by);
   }
 
   /** Into your pockets: gone from the world, and the hero carries it. */
@@ -982,9 +899,12 @@ export class LanternScene extends Phaser.Scene {
       music.sfx('unlock');
       return this.learn(lock.open, by);
     }
-    music.sfx('locked');
-    if (!this.memory.knows(lock.fact)) this.learn(lock.fact, by);
-    else this.think(lock.says, by);
+    this.tryLock(lock, by);
+  }
+
+  /** How much a point is under a roof with no windows: 1 inside, 0 out in the open. */
+  private insideAt(p: Pt): number {
+    return this.world.indoors?.[Math.floor(p.y / T) * this.world.w + Math.floor(p.x / T)] ?? 0;
   }
 
   /** Under a roof or on a floor, where feet leave no prints. */
@@ -1239,16 +1159,19 @@ export class LanternScene extends Phaser.Scene {
         ammo: [this.ammo.mag, this.ammo.spare],
         via: p.fade,
       };
-      // The first time down under the shed is a long crawl in the dark.
-      if (p.to === 'cellar' && this.memory.visit('cellar')) {
+      // The first time down under the shed is a long crawl in the dark; the
+      // first time through the mirror, you wake on a cold floor somewhere else.
+      const first = (p.to === 'cellar' || p.to === 'lower') && this.memory.visit(p.to);
+      if (first) {
         next.known = this.memory.list;
         music.setMood('lower');
-        Cutscene.descent(() => this.scene.restart(next));
+        const play = p.to === 'cellar' ? Cutscene.descent : Cutscene.arrival;
+        play(() => this.scene.restart(next));
       } else this.scene.restart(next);
     });
   }
 
-  /** Down in a fight: the dark takes you, and you come to by the Wick. */
+  /** Down in a fight: the dark takes you, and you come to by the mirror. */
   private fall(): void {
     if (this.leaving) return;
     this.leaving = true;
@@ -1274,7 +1197,7 @@ export class LanternScene extends Phaser.Scene {
   /** The menu backdrop: a slow loop over the square and the rooftops. */
   private drift(): void {
     const t = this.time.now / 1000;
-    const { x, y } = this.world.wick ?? this.world.spawn;
+    const { x, y } = this.world.portals[0] ?? this.world.spawn;
     this.cameras.main.centerOn(x + Math.cos(t * 0.06) * 220, y + Math.sin(t * 0.09) * 130);
   }
 
@@ -1446,11 +1369,15 @@ export class LanternScene extends Phaser.Scene {
       g = Math.round(lerp(lerp(40, 12, n), 44, dusk * 0.6));
       b = Math.round(lerp(lerp(60, 34, n), 40, dusk * 0.6));
     } else {
-      // The Lower World never gets truly bright; dusk and dawn go crimson-violet.
-      alpha = lerp(0.16, 0.92, n);
-      r = Math.round(lerp(lerp(30, 5, n), 52, dusk * 0.5));
-      g = Math.round(lerp(lerp(24, 6, n), 18, dusk * 0.5));
-      b = Math.round(lerp(lerp(22, 12, n), 34, dusk * 0.5));
+      // Outside, the Lower World never gets truly bright, under a sky of
+      // smoke, and dusk and dawn go a sick rust-violet. Inside the Facility
+      // it is always night.
+      this.inside += (this.insideAt(h) - this.inside) * Math.min(1, dt * 3);
+      const k = Math.max(n, this.inside);
+      alpha = lerp(0.2, 0.92, k);
+      r = Math.round(lerp(lerp(34, 6, k), 58, dusk * 0.5 * (1 - this.inside)));
+      g = Math.round(lerp(lerp(30, 7, k), 26, dusk * 0.5 * (1 - this.inside)));
+      b = Math.round(lerp(lerp(28, 12, k), 34, dusk * 0.5 * (1 - this.inside)));
     }
     this.darkness = alpha;
     this.dark.clear();

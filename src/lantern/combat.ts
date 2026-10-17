@@ -72,7 +72,16 @@ export interface Armour {
   dr: number;
 }
 
-export type FoeId = 'wolf' | 'brigand' | 'boar' | 'crawler' | 'shade';
+export type FoeId = 'wolf' | 'marauder' | 'boar' | 'crawler' | 'shade';
+
+/** Where an enemy lives, and comes back to (world pixels). */
+export interface FoeSpawn {
+  x: number;
+  y: number;
+  kind: FoeId;
+  /** Shut in a cage: it paces and snarls at you, but never comes out. */
+  caged?: boolean;
+}
 
 /** One kind of enemy and how it fights. */
 export interface FoeKind {
@@ -127,24 +136,25 @@ export const FOES: Record<FoeId, FoeKind> = {
     leash: 14,
     flee: 0.35,
   },
-  // Keeps his distance and shoots an old flintlock that sometimes won't fire.
-  brigand: {
-    id: 'brigand',
-    name: 'Brigand',
+  // Keeps his distance and fires short bursts from a rifle: three rounds
+  // at a time, none of them very careful.
+  marauder: {
+    id: 'marauder',
+    name: 'Marauder',
     hp: 26,
     speed: 62,
     evasion: 10,
     armour: { dt: 1, dr: 0.1 },
-    skill: 45,
+    skill: 40,
     attack: {
-      name: 'flintlock',
-      dmg: [6, 12],
-      range: 8,
-      acc: 0,
-      mag: 1,
-      reload: 4,
-      cycle: 0.6,
-      jam: 0.12,
+      name: 'rifle',
+      dmg: [3, 7],
+      range: 9,
+      acc: -5,
+      mag: 3,
+      reload: 2.6,
+      cycle: 0.12,
+      jam: 0.04,
     },
     r: 10,
     aggro: 7,

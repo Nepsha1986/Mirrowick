@@ -6,7 +6,7 @@
 export const en = {
   menu: {
     eyebrow: 'Chapter I · The Lower World',
-    tagline: 'Two villages, one name. Only one of them is still on the maps.',
+    tagline: 'Two worlds, and a mirror between them. One of them is ending.',
     version: 'v0.1 · prototype',
     credits: 'Art painted in code · Music: procedural',
     play: 'Play',
@@ -66,6 +66,23 @@ export const en = {
     never: "I've never seen anything like this.",
     what: 'What is this place?',
   },
+  /** The first time through the mirror: somewhere else entirely. */
+  arrival: {
+    through: 'Cold light, and the floor falls away.',
+    floor: 'He lands hard, on concrete. Flat, smooth, cold.',
+    cold: "That's not stone. That's…",
+    hum: 'Somewhere close, a machine hums. Low and patient, as if it never stopped.',
+    notCellar: "This isn't the cellar.",
+    lamp: 'A red lamp turns on the wall. Round and round, without a sound.',
+    drip: 'Water drips. The air smells of dust and hot wiring.',
+    hello: 'Hello? Is anybody here?',
+    nobody: 'The echo comes back thin, from far off. Nobody answers.',
+    dust: 'Dust on everything. Papers on the floor. A chair on its side.',
+    left: 'They left in a hurry. A long time ago.',
+    screen: 'And still one screen glows in the dark, scrolling lines for no one.',
+    far: 'Far off, behind the walls, something scrapes against metal. Then quiet.',
+    victor: 'Victor… what did you find?',
+  },
   hud: {
     menu: 'Main menu (Esc)',
     bag: 'Inventory (I)',
@@ -85,7 +102,7 @@ export const en = {
   },
   /** Where you are, top left: the place, and a line on where that is. */
   places: {
-    lower: { name: 'Mirrowick', where: 'Through the mirror' },
+    lower: { name: 'The Facility', where: 'Through the mirror' },
     upper: { name: "Victor's house", where: 'On the edge of Mirrowick' },
     cellar: { name: 'The cellar', where: "Under Victor's shed" },
   },
@@ -97,7 +114,7 @@ export const en = {
     health: 'Health {hp} / {max}',
     skills: 'Guns {guns} · Melee {melee} · Dodge {dodge}',
     rounds: 'Rounds',
-    roundsAbout: 'For the pistol. There are more in the crate in the Hollow.',
+    roundsAbout: 'For the pistol. There are more in the crate at the checkpoint.',
     roundsNote: '{mag} loaded, {spare} spare',
     spent: 'Probably not needed any more',
     read: 'Click to read',
@@ -122,13 +139,22 @@ export const en = {
     tome: 'Read the open book',
     shedUp: 'Climb up to the shed',
     mirror: 'Step into the mirror',
-    pistol: 'Take the pistol',
     rounds: 'Take rounds',
+    screen: 'Look at the screen',
+    shiftLog: 'Read the shift log',
+    labDesk: 'Look in the desk',
+    door: 'Open the door',
+    swipe: 'Swipe the keycard',
+    sealed: 'Try the door',
+    plaque: 'Read the plaque',
+    gunLocker: 'Look in the weapons locker',
   },
   /** Drawers and pockets: where you look, and the junk in them. */
   hoard: {
     drawer: 'In the drawer',
     wardrobe: 'In the wardrobe',
+    deskDrawer: 'In the desk drawer',
+    gunLocker: 'In the weapons locker',
     took: '{place}: you take {what}. The rest is junk.',
     nothingNeeded: '{place}: {what}. Nothing you need.',
     nothing: 'nothing',
@@ -140,6 +166,11 @@ export const en = {
       shirts: 'shirts',
       jumper: 'a moth-eaten jumper',
       bills: 'a box of old bills',
+      pens: 'chewed pens',
+      pager: 'a dead pager',
+      printouts: 'coffee-stained printouts',
+      holster: 'an empty holster',
+      manual: 'a torn manual',
     },
   },
   /**
@@ -161,6 +192,13 @@ export const en = {
       taken: 'the little brass key',
       recall: "That little brass key in Victor's bedside table. It might fit this padlock.",
     },
+    keycard: {
+      name: 'Keycard',
+      about: 'A Facility keycard, the photo scratched off. It opens Chamber 7.',
+      plain: 'a keycard',
+      taken: 'the keycard',
+      recall: 'There was a keycard in the desk drawer, by the racks.',
+    },
     pistol: {
       name: 'Pistol',
       about: 'A worn service pistol. It jams now and then.',
@@ -177,6 +215,8 @@ export const en = {
       'cellar-open': "The padlock's off. I doubt I'll need that key again.",
       trail:
         'Footprints, glowing where the light falls. Someone came and went here, again and again.',
+      'door7-lock': 'Locked. The reader by the door wants a card. Someone here must have left one.',
+      'door7-open': "The door slides into the wall. I won't need the card again.",
     },
     nudges: {
       dark: "Still no light. Victor's bedroom is off the hall, just inside the front door. His bedside table, maybe.",
@@ -187,6 +227,18 @@ export const en = {
     car: "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
     padlocked: 'Padlocked. I need the key.',
     flashlightOn: 'Too dark to see. Out with the flashlight.',
+    keycard: 'Locked. I need a keycard.',
+    screen:
+      "Lines scroll up the screen: STATUS: APERTURE OPEN. PERSONNEL ON SITE: 0. It doesn't care that nobody's reading.",
+    sealed: 'Sealed. The light by the handle glows red.',
+    /** The plaques on the five cages in the vivarium. */
+    plaques: [
+      'V-1. A wolf, more or less. Do not feed by hand.',
+      'V-2. Boar. Charges the bars at the sight of a uniform. Feed through the hatch.',
+      'V-3. Glass crawler. Bullets glance off it. Do not tap on the bars.',
+      'V-4. Shade. No lamp: it hates the light. Do not stand close.',
+      'V-5. Nobody wrote down what it was. The cage is empty, the bars bent outward.',
+    ],
   },
   /** Things to read: a title, its pages (blank lines split paragraphs), and a thought after. */
   papers: {
@@ -221,6 +273,14 @@ export const en = {
       ],
       after: 'He went through the mirror. Into whatever is behind it.',
     },
+    'shift-log': {
+      title: 'Chamber 7 · Shift log',
+      pages: [
+        'CHAMBER 7 · SHIFT LOG\n\n06:00 Shift begins. Aperture stable. Readings normal.\n\n09:40 Resonance up 4%. Logged.\n\n13:15 Resonance up 11%. The vivarium says V-5 is restless. Feeding doubled.\n\n17:30 Power dipped twice. Backup holding.',
+        '21:02 Resonance off the scale. The glass is warm to the touch.\n\n21:07 Lights in the aperture. Not ours.\n\n21:09 Evacuation ordered. Leaving the console running, so whoever comes next can see.\n\n21:11 There is something on the other side and it',
+      ],
+      after: 'It stops there. Whatever they saw, they left before they could write it down.',
+    },
   },
   combat: {
     fight: 'F · Fight',
@@ -249,7 +309,7 @@ export const en = {
     boarPaws: 'The boar paws the ground…',
     boarCharges: 'The boar charges!',
     sidestep: 'You sidestep the boar.',
-    misfire: "The brigand's flintlock misfires.",
+    misfire: "The marauder's rifle jams.",
     pistol: 'Pistol · {mag}/{size} · {spare} spare',
     bareHands: 'Bare hands · no gun',
     jammedState: ' · jammed!',
@@ -275,18 +335,18 @@ export const en = {
         hurtsYou: 'The wolf bites you for {dmg}.',
         givesUp: 'The wolf gives up the chase.',
       },
-      brigand: {
-        name: 'Brigand',
-        notice: 'The brigand draws his flintlock.',
-        miss: 'You miss the brigand.',
-        glance: 'The bullet glances off the brigand.',
-        hit: 'You hit the brigand for {dmg}.',
-        crit: 'A critical hit! The brigand takes {dmg}.',
-        flee: 'The brigand runs for it.',
-        death: 'The brigand is dead.',
-        missesYou: 'The brigand fires and misses.',
-        hurtsYou: 'The brigand shoots you for {dmg}.',
-        givesUp: 'The brigand gives up the chase.',
+      marauder: {
+        name: 'Marauder',
+        notice: 'The marauder raises his rifle.',
+        miss: 'You miss the marauder.',
+        glance: 'The bullet glances off the marauder.',
+        hit: 'You hit the marauder for {dmg}.',
+        crit: 'A critical hit! The marauder takes {dmg}.',
+        flee: 'The marauder runs for it.',
+        death: 'The marauder is dead.',
+        missesYou: 'The marauder fires a burst and misses.',
+        hurtsYou: "The marauder's burst hits you for {dmg}.",
+        givesUp: 'The marauder gives up the chase.',
       },
       boar: {
         name: 'Boar',
@@ -325,7 +385,7 @@ export const en = {
         death: 'The shade comes apart like smoke.',
         missesYou: 'The shade misses.',
         hurtsYou: 'The shade chills you for {dmg}.',
-        givesUp: 'The shade melts back into the trees.',
+        givesUp: 'The shade melts back into the dark.',
       },
     },
   },
