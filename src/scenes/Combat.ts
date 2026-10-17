@@ -1,11 +1,13 @@
 import * as Phaser from 'phaser';
-import { music } from '../audio/AmbientMusic';
+import { music, type Sfx } from '../audio/AmbientMusic';
 import {
   FISTS,
   FOES,
   HERO_HP,
   HERO_SKILLS,
+  ON_THE_MOVE,
   PISTOL,
+  SPARE_ROUNDS,
   aimTime,
   clearTime,
   comfortRange,
@@ -14,6 +16,7 @@ import {
   jamChance,
   reloadTime,
   rollAttack,
+  type Ammo,
   type FoeId,
   type FoeKind,
   type Weapon,
@@ -36,7 +39,6 @@ const CALM = 11 * T;
 const ALERT = 5 * T;
 /** Seconds before the dead come back, once you're away. */
 const RESPAWN = 60;
-const SPARE = 32;
 const RED = '#ff8a7a';
 const PALE = '#d8d0c0';
 
@@ -61,8 +63,10 @@ interface Foe extends Pt {
   repath: number;
   walk: number;
   hurt: number;
-  /** The wolf's skip back after a bite. */
+  /** Backing off after a blow, before coming in again. */
   skip: number;
+  /** The lunge of a blow, for the look of it. */
+  lunge: number;
   /** The brigand's flintlock. */
   loaded: boolean;
   /** The boar's charge: its stage, heading and how far it has run. */
@@ -86,6 +90,8 @@ export interface CombatHost {
   nav: Nav;
   hero: Pt & { facing: number };
   heroR: number;
+  /** The rounds you carry, kept by the scene between the worlds. */
+  ammo: Ammo;
   /** A depth that draws over the darkness. */
   above: number;
   /** Carrying the pistol. */
@@ -129,6 +135,23 @@ const unit = (dx: number, dy: number): Pt | null => {
   return d > 0.001 ? { x: dx / d, y: dy / d } : null;
 };
 const lower = (f: Foe) => f.kind.name.toLowerCase();
+/** What each enemy sounds like when it notices you, and when it strikes. */
+const CRY: Record<FoeId, Sfx | null> = {
+  wolf: 'growl',
+  brigand: 'reload',
+  boar: 'snort',
+  crawler: 'glass',
+  shade: 'whisper',
+};
+const STRIKE: Record<FoeId, Sfx> = {
+  wolf: 'bite',
+  brigand: 'boom',
+  boar: 'thud',
+  crawler: 'swish',
+  shade: 'swish',
+};
+/** How long each backs off after a blow, seconds. */
+const SKIP: Record<FoeId, number> = { wolf: 0.8, brigand: 0, boar: 0.9, crawler: 0.6, shade: 0.7 };
 
 /**
  * A real-time fight played like the old turn-based ones: you never aim. In
@@ -147,14 +170,17 @@ export class Combat {
   private target: Foe | null = null;
   /** The nearest enemy close enough that you can't turn your back on it. */
   private threat: Foe | null = null;
-  private mag = PISTOL.mag;
-  private spare = SPARE;
   private jam = 0;
   private reload = 0;
   /** Seconds spent steadying the aim; below zero while the last shot recovers. */
   private aim = 0;
-  /** Moving this frame: no shooting on the move. */
+  /** Moving this frame: shots are harder and the aim steadies slower. */
   private moving = false;
+  /** The kick of your last shot, and the flinch of your last wound, seconds. */
+  private kick = 0;
+  private flinch = 0;
+  /** Till the next beat of the drum that plays while something hunts you. */
+  private beat = 0;
   private sinceThreat = 99;
   private sinceFight = 99;
   private down = false;
@@ -163,6 +189,11 @@ export class Combat {
   private readonly g: Phaser.GameObjects.Graphics;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly panel?: CombatPanel;
+  /** Bursts of blood, glass and smoke when something is hit. */
+  private readonly bits: Record<
+    'blood' | 'glass' | 'smoke',
+    Phaser.GameObjects.Particles.ParticleEmitter
+  >;
 
   constructor(
     private readonly host: CombatHost,
@@ -201,6 +232,7 @@ export class Combat {
         walk: 0,
         hurt: 0,
         skip: 0,
+        lunge: 0,
         loaded: true,
         charge: 'ready',
         dir: 0,
@@ -211,6 +243,24 @@ export class Combat {
     this.ring = scene.add.graphics().setDepth(-20);
     this.g = scene.add.graphics().setDepth(host.above);
     if (hud) this.panel = new CombatPanel((s) => this.setStance(s));
+    const burst = (tint: number, add: boolean) =>
+      scene.add
+        .particles(0, 0, 'ln-atlas', {
+          frame: 'dot',
+          lifespan: { min: 220, max: 520 },
+          speed: { min: 30, max: 120 },
+          scale: { start: 0.55, end: 0 },
+          alpha: { start: 1, end: 0 },
+          tint,
+          blendMode: add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL,
+          emitting: false,
+        })
+        .setDepth(49_000);
+    this.bits = {
+      blood: burst(0x8a1a12, false),
+      glass: burst(0xbfeaf4, true),
+      smoke: burst(0x0c0a14, false),
+    };
   }
 
   destroy(): void {
@@ -218,6 +268,15 @@ export class Combat {
   }
 
   // --- What the scene asks ---------------------------------------------------------
+
+  private get ammo(): Ammo {
+    return this.host.ammo;
+  }
+
+  /** How the hero looks this frame: pushed back by a shot, red from a wound. */
+  heroLook(): { kick: number; hurt: boolean } {
+    return { kick: this.kick > 0 ? 3 : 0, hurt: this.flinch > 0 };
+  }
 
   /** Pistol drawn: around a fight, while carrying it. */
   drawn(): boolean {
@@ -264,9 +323,10 @@ export class Combat {
       this.say('Rounds, but nothing to fire them from.');
       return;
     }
-    this.spare = SPARE;
+    this.ammo.spare = SPARE_ROUNDS;
+    music.sfx('reload');
     this.float('+ rounds', this.host.hero, '#e8d8a0');
-    this.say(`You take rounds: ${this.spare} spare.`, 'good');
+    this.say(`You take rounds: ${this.ammo.spare} spare.`, 'good');
   }
 
   /**
@@ -339,6 +399,15 @@ export class Combat {
     }
     if (!this.target && this.threat) this.target = this.threat;
     this.sinceThreat = hunted ? 0 : this.sinceThreat + dt;
+    this.kick -= dt;
+    this.flinch -= dt;
+    // A low drum while something hunts you, quicker when it's close.
+    this.beat -= dt;
+    if (!hunted || this.down) this.beat = 0;
+    else if (this.beat <= 0) {
+      music.sfx('drum');
+      this.beat = this.threat ? 0.55 : 0.9;
+    }
     this.sinceFight = hunted || this.target ? 0 : this.sinceFight + dt;
 
     if (!this.down) {
@@ -355,7 +424,7 @@ export class Combat {
   // --- The hero's side -------------------------------------------------------------
 
   private weapon(): Weapon {
-    return this.host.armed() && this.mag + this.spare > 0 ? PISTOL : FISTS;
+    return this.host.armed() && this.ammo.mag + this.ammo.spare > 0 ? PISTOL : FISTS;
   }
 
   private skill(w: Weapon): number {
@@ -371,7 +440,8 @@ export class Combat {
 
   private chance(f: Foe, w = this.weapon()): number {
     const d = dist(this.host.hero, f) / T;
-    return hitChance(this.skill(w), w, d, this.evasion(f), this.host.dark(f));
+    const move = this.moving ? ON_THE_MOVE : 0;
+    return hitChance(this.skill(w), w, d, this.evasion(f), this.host.dark(f) + move);
   }
 
   /** Where you'd like to be to hit them: close for fists, at ease for the pistol. */
@@ -379,6 +449,18 @@ export class Combat {
     const w = this.weapon();
     if (w === FISTS) return f.kind.r + this.host.heroR + 8;
     return comfortRange(this.skill(w), w, this.evasion(f), this.host.dark(f)) * T;
+  }
+
+  /**
+   * Whether you'd strike now: standing, you wait till you're at ease; on the
+   * move — backing off, say — you take any shot within the gun's reach.
+   */
+  private canStrike(f: Foe): boolean {
+    const h = this.host.hero;
+    const w = this.weapon();
+    if (!this.host.nav.lineFree(h.x, h.y, f.x, f.y, 2)) return false;
+    const d = dist(h, f);
+    return this.moving && w !== FISTS ? d <= w.range * T : d <= this.reach(f);
   }
 
   private tooFar(f: Foe): boolean {
@@ -398,20 +480,22 @@ export class Combat {
       if (this.reload > 0) {
         this.reload -= dt;
         if (this.reload <= 0) {
-          const n = Math.min(PISTOL.mag - this.mag, this.spare);
-          this.mag += n;
-          this.spare -= n;
+          const n = Math.min(PISTOL.mag - this.ammo.mag, this.ammo.spare);
+          this.ammo.mag += n;
+          this.ammo.spare -= n;
         }
         return;
       }
-      if (this.mag === 0) {
+      if (this.ammo.mag === 0) {
         this.reload = reloadTime(HERO_SKILLS.guns, PISTOL);
+        music.sfx('reload');
         this.say('Reloading…');
         return;
       }
     }
-    this.aim = Math.min(this.aim + dt, 9);
-    if (!t || this.stance !== 'fight' || this.moving || this.tooFar(t)) {
+    // On the move the aim steadies slower, but you keep shooting.
+    this.aim = Math.min(this.aim + dt * (this.moving ? 0.6 : 1), 9);
+    if (!t || !this.canStrike(t)) {
       this.aim = Math.min(this.aim, 0);
       return;
     }
@@ -424,7 +508,7 @@ export class Combat {
     this.sinceFight = 0;
 
     if (w === PISTOL) {
-      this.mag--;
+      this.ammo.mag--;
       if (Math.random() < jamChance(skill, PISTOL)) {
         this.jam = clearTime(skill);
         this.aim = 0;
@@ -434,6 +518,7 @@ export class Combat {
         return;
       }
       music.sfx('shot');
+      this.kick = 0.09;
       const m = this.muzzle(h, h.facing, 17, -7);
       this.flash(m, h.facing);
       this.alert();
@@ -456,12 +541,18 @@ export class Combat {
     if (w === PISTOL) this.tracer(h, t, false);
     const dmg = damage(w, t.kind.armour, roll === 'crit', Math.random);
     if (dmg === 0) {
+      music.sfx('glass');
+      this.bits.glass.explode(5, t.x, t.y);
       this.float('glances off', t, PALE);
       this.say(`The bullet glances off the ${name}.`);
       this.wake(t);
       return;
     }
-    if (w === FISTS) music.sfx('thud');
+    music.sfx(t.kind.id === 'crawler' ? 'glass' : w === FISTS ? 'thud' : 'hit');
+    this.splash(t, roll === 'crit' ? 14 : 7);
+    // The blow pushes it back a little.
+    const push = unit(t.x - h.x, t.y - h.y);
+    if (push) this.host.nav.move(t, push.x * 6, push.y * 6, t.kind.r);
     this.say(
       roll === 'crit'
         ? `A critical hit! The ${name} takes ${dmg}.`
@@ -500,9 +591,11 @@ export class Combat {
     this.sinceThreat = 0;
     this.float(`-${dmg}`, this.host.hero, RED);
     this.say(line, 'bad');
+    this.flinch = 0.18;
+    this.bits.blood.explode(6, this.host.hero.x, this.host.hero.y);
     const cam = this.host.scene.cameras.main;
     cam.shake(120, 0.004 + dmg * 0.0006);
-    music.sfx('thud');
+    music.sfx('hurt');
     if (this.hp > 0) return;
     this.down = true;
     this.say('You fall.', 'bad');
@@ -532,6 +625,8 @@ export class Combat {
     f.calm = 0;
     f.t = 0;
     f.cd = Math.max(f.cd, 0.4);
+    const cry = CRY[f.kind.id];
+    if (cry) music.sfx(cry);
     this.say(NOTICE[f.kind.id], 'bad');
   }
 
@@ -547,6 +642,7 @@ export class Combat {
     if (f.state === 'hunt' && f.kind.flee && f.hp < f.kind.hp * f.kind.flee) {
       f.state = 'flee';
       f.t = 0;
+      if (f.kind.id === 'wolf') music.sfx('yelp');
       this.say(f.kind.id === 'wolf' ? 'The wolf yelps and bolts.' : `The ${lower(f)} runs for it.`);
     }
   }
@@ -559,11 +655,21 @@ export class Combat {
     this.say(DEATH[f.kind.id], 'good');
     if (this.target === f) this.target = null;
     const { scene } = this.host;
+    this.splash(f, 16);
     if (f.kind.id === 'shade') {
       scene.tweens.add({ targets: f.img, alpha: 0, scale: 1.6, duration: 900 });
       return;
     }
+    // It goes down: rolls onto its side and sinks a little.
     f.img.setTint(0x6a6a6a).setDepth(f.y - 6);
+    scene.tweens.add({
+      targets: f.img,
+      rotation: f.facing + (Math.random() < 0.5 ? -1.3 : 1.3),
+      scaleX: 0.9,
+      scaleY: 0.9,
+      duration: 380,
+      ease: 'Quad.easeIn',
+    });
     if (f.kind.id !== 'crawler') {
       const blood = scene.add
         .image(f.x, f.y, 'ln-foes', 'blood')
@@ -587,7 +693,7 @@ export class Combat {
       wander: null,
     });
     (f.img.getData('blood') as Phaser.GameObjects.Image | undefined)?.destroy();
-    f.img.clearTint().setAlpha(1).setScale(1);
+    f.img.clearTint().setAlpha(1).setScale(1).setPosition(f.x, f.y);
     for (const e of f.eyes) e.setVisible(true);
   }
 
@@ -604,6 +710,8 @@ export class Combat {
     );
     const roll = rollAttack(chance, f.kind.skill, Math.random);
     const name = lower(f);
+    f.lunge = 0.16;
+    if (f.kind.id !== 'brigand') music.sfx(STRIKE[f.kind.id]);
     if (roll === 'miss' || roll === 'fumble') {
       this.float('miss', h, PALE);
       this.say(f.kind.id === 'brigand' ? 'The brigand fires and misses.' : `The ${name} misses.`);
@@ -619,6 +727,7 @@ export class Combat {
     const h = this.host.hero;
     const d = dist(f, h);
     f.hurt = Math.max(0, f.hurt - dt);
+    f.lunge = Math.max(0, f.lunge - dt);
     f.t += dt;
     if (f.state === 'dead') {
       if (f.t > RESPAWN && dist(h, f.home) > 12 * T) this.respawn(f);
@@ -686,9 +795,18 @@ export class Combat {
   private melee(f: Foe, d: number, dt: number): void {
     const h = this.host.hero;
     const slow = f.kind.id === 'shade' && this.host.inBeam(f) ? 0.5 : 1;
+    // After a blow it backs off, still facing you — the wolf turns and
+    // lopes away — then comes in again.
     if (f.skip > 0) {
       f.skip -= dt;
-      this.step(f, f.x - h.x, f.y - h.y, f.kind.speed * 0.45, dt);
+      const u = unit(f.x - h.x, f.y - h.y);
+      const speed = Math.max(f.kind.speed * 0.6, 60);
+      if (f.kind.id === 'wolf') this.step(f, f.x - h.x, f.y - h.y, speed, dt);
+      else if (u) {
+        this.host.nav.move(f, u.x * speed * dt, u.y * speed * dt, f.kind.r);
+        this.turn(f, angle(f, h), dt);
+        f.walk += dt * speed * 0.08;
+      }
       return;
     }
     if (f.kind.id === 'boar') {
@@ -700,8 +818,10 @@ export class Combat {
         return;
       }
     }
-    if (d > this.contact(f)) {
-      this.walk(f, h, f.kind.speed * slow, dt);
+    // It keeps after you as you back away, and strikes once it's close
+    // enough — it doesn't wait to be pressed right up against you.
+    if (d > this.contact(f)) this.walk(f, h, f.kind.speed * slow, dt);
+    if (d > this.contact(f) + 12) {
       f.cd = Math.max(f.cd, 0.35);
       return;
     }
@@ -710,7 +830,7 @@ export class Combat {
     if (f.cd > 0) return;
     f.cd = f.kind.attack.cycle * rnd(0.85, 1.15);
     this.foeAttacks(f);
-    if (f.kind.id === 'wolf') f.skip = 0.5;
+    f.skip = SKIP[f.kind.id] * rnd(0.8, 1.2);
   }
 
   /** The boar's charge: paw the ground, run straight, stand blown. */
@@ -723,6 +843,7 @@ export class Combat {
       f.dir = angle(f, h);
       f.ran = 0;
       f.t = 0;
+      music.sfx('snort');
       this.say('The boar charges!', 'bad');
       return;
     }
@@ -840,6 +961,12 @@ export class Combat {
     this.host.scene.time.delayedCall(60, () => img.destroy());
   }
 
+  /** Blood, glass or smoke where something is hit. */
+  private splash(f: Foe, n: number): void {
+    const kind = f.kind.id === 'crawler' ? 'glass' : f.kind.id === 'shade' ? 'smoke' : 'blood';
+    this.bits[kind].explode(n, f.x, f.y);
+  }
+
   private tracer(from: Pt, to: Pt, miss: boolean): void {
     const b = miss ? { x: to.x + rnd(-18, 18), y: to.y + rnd(-18, 18) } : { ...to };
     this.tracers.push({ a: { ...from }, b, t: 0.07 });
@@ -872,12 +999,15 @@ export class Combat {
   private draw(dt: number): void {
     const now = this.host.scene.time.now;
     for (const f of this.foes) {
-      const alive = f.state !== 'dead';
-      let x = f.x;
+      if (f.state === 'dead') continue;
+      // A blow lunges forward and back; a boar about to charge trembles.
+      const l = f.lunge > 0 ? Math.sin((1 - f.lunge / 0.16) * Math.PI) * 8 : 0;
+      let x = f.x + Math.cos(f.facing) * l;
+      const y = f.y + Math.sin(f.facing) * l;
       if (f.charge === 'windup') x += Math.sin(now / 25) * 1.5;
-      const bob = alive && f.state !== 'idle' ? Math.sin(f.walk) * 0.04 : 0;
-      f.img.setPosition(x, f.y).setRotation(f.facing);
-      if (!alive) continue;
+      if (f.charge === 'run' && Math.random() < 0.4) this.bits.smoke.explode(1, f.x, f.y);
+      const bob = f.state !== 'idle' ? Math.sin(f.walk) * 0.04 : 0;
+      f.img.setPosition(x, y).setRotation(f.facing);
       f.img.setDepth(f.y + 4).setScale(1 + bob, 1 - bob);
       if (f.hurt > 0) f.img.setTint(0xff8070);
       else if (f.charge === 'blown') f.img.setTint(0xb8a898);
@@ -925,9 +1055,15 @@ export class Combat {
     if (!show) return;
     const armed = this.host.armed();
     const state =
-      this.jam > 0 ? ' · jammed!' : this.reload > 0 ? ' · reloading…' : this.mag ? '' : ' · empty';
+      this.jam > 0
+        ? ' · jammed!'
+        : this.reload > 0
+          ? ' · reloading…'
+          : this.ammo.mag
+            ? ''
+            : ' · empty';
     const weapon = armed
-      ? `Pistol · ${this.mag}/${PISTOL.mag} · ${this.spare} spare${state}`
+      ? `Pistol · ${this.ammo.mag}/${PISTOL.mag} · ${this.ammo.spare} spare${state}`
       : 'Bare hands · no gun';
     const t = this.target;
     const target = t

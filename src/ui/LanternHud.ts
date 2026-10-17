@@ -10,9 +10,17 @@ export class LanternHud {
   private readonly phase: HTMLElement;
   private readonly action: HTMLElement;
 
-  constructor(mainMenu: () => void, place: string) {
+  constructor(mainMenu: () => void, place: string, bag: () => void) {
     const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
     back.addEventListener('click', mainMenu);
+    // A satchel, for the inventory.
+    const satchel = h('button', { class: 'round-btn', title: 'Inventory (I)' });
+    satchel.innerHTML =
+      '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.6" stroke-linejoin="round"><path d="M7 6V4.5a3 3 0 0 1 6 0V6"/>' +
+      '<path d="M3.5 7.2c0-.7.5-1.2 1.2-1.2h10.6c.7 0 1.2.5 1.2 1.2l-.8 9.1c0 .7-.6 1.2-1.3 ' +
+      '1.2H5.6c-.7 0-1.2-.5-1.3-1.2z"/><path d="M3.8 10.5h12.4M9 10.5v2h2v-2"/></svg>';
+    satchel.addEventListener('click', bag);
     this.clock = h('div', { class: 'title' });
     this.phase = h('div', { class: 'sub' });
     this.action = h('div', { class: 'action-pill', hidden: true });
@@ -26,6 +34,7 @@ export class LanternHud {
           'div',
           { class: 'place' },
           back,
+          satchel,
           h(
             'div',
             {},

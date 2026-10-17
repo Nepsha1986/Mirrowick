@@ -26,7 +26,7 @@ export interface Weapon {
 /** A worn service pistol: the hero's only gun. */
 export const PISTOL: Weapon = {
   name: 'Pistol',
-  dmg: [4, 9],
+  dmg: [5, 10],
   range: 10,
   acc: 10,
   mag: 8,
@@ -35,9 +35,18 @@ export const PISTOL: Weapon = {
   jam: 0.06,
 };
 
+/** Rounds you can carry besides the magazine. */
+export const SPARE_ROUNDS = 32;
+
+/** What the hero has to shoot with: the magazine and the rest. */
+export interface Ammo {
+  mag: number;
+  spare: number;
+}
+
 export const FISTS: Weapon = {
   name: 'Fists',
-  dmg: [1, 4],
+  dmg: [2, 5],
   range: 1.1,
   acc: 0,
   mag: 0,
@@ -147,7 +156,7 @@ export const FOES: Record<FoeId, FoeKind> = {
   boar: {
     id: 'boar',
     name: 'Boar',
-    hp: 30,
+    hp: 24,
     speed: 90,
     evasion: 5,
     armour: { dt: 1, dr: 0.15 },
@@ -166,7 +175,7 @@ export const FOES: Record<FoeId, FoeKind> = {
     hp: 28,
     speed: 46,
     evasion: 0,
-    armour: { dt: 3, dr: 0.3 },
+    armour: { dt: 2, dr: 0.25 },
     skill: 50,
     attack: tooth('claws', [6, 12], 2.2),
     r: 14,
@@ -231,7 +240,9 @@ export function comfortRange(skill: number, w: Weapon, evasion: number, dark = 0
 }
 
 /** Seconds to steady the aim before each shot. */
-export const aimTime = (skill: number) => lerp(1.3, 0.4, k(skill));
+export const aimTime = (skill: number) => lerp(1.1, 0.35, k(skill));
+/** Taken off the chance to hit when you shoot on the move. */
+export const ON_THE_MOVE = 15;
 /** Chance a shot jams: a worn gun in unsure hands jams more. */
 export const jamChance = (skill: number, w: Weapon) => w.jam * lerp(2.2, 0.4, k(skill));
 /** Seconds to clear a jam. */

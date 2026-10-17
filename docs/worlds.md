@@ -33,3 +33,4 @@
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
 - [Бой](mechanics/combat.md)
+- [Инвентарь](mechanics/inventory.md)

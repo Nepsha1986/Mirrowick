@@ -4,6 +4,24 @@ const VOLUME_KEY = 'mirrowick.volume';
 /** Master gain at full volume. */
 const FULL = 0.5;
 
+/** The sounds of a fight. */
+export type Sfx =
+  | 'shot'
+  | 'boom'
+  | 'click'
+  | 'reload'
+  | 'hit'
+  | 'glass'
+  | 'swish'
+  | 'bite'
+  | 'growl'
+  | 'snort'
+  | 'whisper'
+  | 'yelp'
+  | 'hurt'
+  | 'thud'
+  | 'drum';
+
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
 
@@ -243,39 +261,130 @@ export class AmbientMusic {
   }
 
   /**
-   * A short sound of the fight, through the same reverb: a pistol shot, the
-   * deeper boom of a flintlock, the click of a jam, the thud of a blow.
+   * A short sound of the fight, through the same reverb, made from noise
+   * and a tone or two: shots, blows, beasts, and a low drum while something
+   * hunts you.
    */
-  sfx(kind: 'shot' | 'boom' | 'click' | 'thud'): void {
+  sfx(kind: Sfx): void {
     const ctx = this.ctx;
     if (!ctx || ctx.state !== 'running') return;
-    const t = ctx.currentTime + 0.01;
-    const g = ctx.createGain();
-    g.connect(this.master as GainNode);
-    g.connect(this.reverb as ConvolverNode);
-    if (kind === 'click') {
-      const o = ctx.createOscillator();
-      o.type = 'square';
-      o.frequency.value = 1900;
-      g.gain.setValueAtTime(0.06, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
-      o.connect(g);
-      o.start(t);
-      o.stop(t + 0.05);
-      return;
-    }
-    const len = { shot: 0.25, boom: 0.6, thud: 0.18 }[kind];
+    const now = ctx.currentTime + 0.01;
     this.noise ??= this.impulse(1);
-    const src = ctx.createBufferSource();
-    src.buffer = this.noise;
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = { shot: 2600, boom: 900, thud: 420 }[kind];
-    g.gain.setValueAtTime({ shot: 0.5, boom: 0.6, thud: 0.4 }[kind], t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    src.connect(lp).connect(g);
-    src.start(t, Math.random() * 0.3);
-    src.stop(t + len);
+    const out = (gain: number, len: number, at: number, swell = 0) => {
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(swell ? 0.0001 : gain, at);
+      if (swell) g.gain.exponentialRampToValueAtTime(gain, at + swell);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      g.connect(this.master as GainNode);
+      g.connect(this.reverb as ConvolverNode);
+      return g;
+    };
+    const noise = (
+      type: BiquadFilterType,
+      freq: number,
+      gain: number,
+      len: number,
+      { q = 1, delay = 0, swell = 0 } = {},
+    ) => {
+      const at = now + delay;
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise as AudioBuffer;
+      const f = ctx.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      src.connect(f).connect(out(gain, len, at, swell));
+      src.start(at, Math.random() * 0.3);
+      src.stop(at + len);
+    };
+    const tone = (
+      type: OscillatorType,
+      from: number,
+      to: number,
+      gain: number,
+      len: number,
+      { delay = 0, cutoff = 0 } = {},
+    ) => {
+      const at = now + delay;
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(from, at);
+      o.frequency.exponentialRampToValueAtTime(to, at + len);
+      const g = out(gain, len, at);
+      if (cutoff) {
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = cutoff;
+        o.connect(f).connect(g);
+      } else {
+        o.connect(g);
+      }
+      o.start(at);
+      o.stop(at + len + 0.02);
+    };
+    switch (kind) {
+      case 'shot':
+        noise('lowpass', 2600, 0.5, 0.25);
+        tone('sine', 140, 50, 0.25, 0.12);
+        break;
+      case 'boom':
+        noise('lowpass', 900, 0.6, 0.6);
+        tone('sine', 90, 35, 0.3, 0.4);
+        break;
+      case 'click':
+        tone('square', 1900, 1700, 0.06, 0.04);
+        break;
+      case 'reload':
+        tone('square', 1300, 1200, 0.05, 0.03);
+        tone('square', 900, 800, 0.06, 0.04, { delay: 0.22 });
+        break;
+      case 'hit':
+        noise('bandpass', 1100, 0.4, 0.08, { q: 2 });
+        noise('lowpass', 260, 0.35, 0.14);
+        break;
+      case 'glass':
+        for (const [f, d] of [
+          [2300, 0],
+          [3500, 0.02],
+          [4700, 0.05],
+        ] as const) {
+          tone('sine', f, f * 0.98, 0.04, 0.5, { delay: d });
+        }
+        break;
+      case 'swish':
+        noise('bandpass', 1600, 0.16, 0.16, { q: 1.5, swell: 0.05 });
+        break;
+      case 'bite':
+        noise('bandpass', 2400, 0.32, 0.07, { q: 3 });
+        tone('square', 320, 110, 0.035, 0.08, { cutoff: 900 });
+        break;
+      case 'growl':
+        tone('sawtooth', 82, 64, 0.11, 0.8, { cutoff: 420 });
+        tone('sawtooth', 87, 70, 0.07, 0.7, { cutoff: 380 });
+        break;
+      case 'snort':
+        noise('bandpass', 650, 0.35, 0.22, { q: 4 });
+        noise('bandpass', 480, 0.3, 0.3, { q: 4, delay: 0.25 });
+        break;
+      case 'whisper':
+        noise('bandpass', 3200, 0.1, 1.2, { q: 6, swell: 0.5 });
+        noise('bandpass', 2100, 0.07, 1.4, { q: 8, swell: 0.7 });
+        break;
+      case 'yelp':
+        tone('triangle', 1150, 650, 0.08, 0.28);
+        break;
+      case 'hurt':
+        tone('triangle', 210, 130, 0.12, 0.22, { cutoff: 900 });
+        noise('lowpass', 500, 0.2, 0.1);
+        break;
+      case 'thud':
+        noise('lowpass', 420, 0.4, 0.18);
+        break;
+      case 'drum':
+        tone('sine', 72, 42, 0.2, 0.35);
+        noise('lowpass', 140, 0.15, 0.12);
+        break;
+    }
   }
 
   private impulse(seconds: number): AudioBuffer {
