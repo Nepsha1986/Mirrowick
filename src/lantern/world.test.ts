@@ -111,7 +111,7 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it.each(['tv', 'mailbox', 'nightstand', 'notebook', 'fridge-note', 'victor-car'])(
+  it.each(['tv', 'mailbox', 'nightstand', 'coat', 'fridge-note', 'victor-car'])(
     'put the %s within reach',
     (id) => {
       const thing = upper.things.find((t) => t.id === id) as Pt;
@@ -139,6 +139,26 @@ describe('things', () => {
       for (const t of w.things) if (t.read) expect(paper(t.read), t.id).not.toBeNull();
     }
     expect(PAPERS['bookshop-letter']).toBeDefined();
+    for (const it of Object.values(ITEMS)) if (it.read) expect(paper(it.read)).not.toBeNull();
+  });
+});
+
+describe('the long grass', () => {
+  const upper = generateUpperWorld();
+  const tall = upper.tall ?? new Uint8Array();
+  const at = (p: Pt) => tall[Math.floor(p.y / T) * upper.w + Math.floor(p.x / T)];
+
+  it('grows round the edges, on free ground only', () => {
+    expect(tall.reduce((a, b) => a + b, 0)).toBeGreaterThan(200);
+    tall.forEach((v, i) => v && expect(upper.block[i], `tile ${i}`).toBe(0));
+  });
+
+  it('keeps off the paths, the yard and where you start', () => {
+    expect(at(upper.spawn)).toBe(0);
+    for (const p of upper.patches) {
+      if (p.kind === 'meadow' || p.kind === 'road') continue;
+      for (const q of p.pts) expect(at(q), `${p.kind} at ${q.x},${q.y}`).toBe(0);
+    }
   });
 });
 

@@ -131,6 +131,11 @@ export class LanternScene extends Phaser.Scene {
   private nav!: Nav;
   private hero!: Hero;
   private heroImg!: Phaser.GameObjects.Image;
+  /** Long grass round the hero's knees, while he wades through it. */
+  private wadeImg?: Phaser.GameObjects.Image;
+  private wading = 0;
+  /** Which foot was last forward, for the rustle of each step through grass. */
+  private lastFoot = 0;
   private hud?: LanternHud;
   /** Backdrop for the main menu: no hero control, the camera drifts at dusk. */
   private demo = false;
@@ -274,6 +279,10 @@ export class LanternScene extends Phaser.Scene {
     const at = want && this.nav.circleFree(want.x, want.y, HERO_R) ? want : this.world.spawn;
     this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
+    this.wading = 0;
+    this.wadeImg = this.world.tall
+      ? this.add.image(this.hero.x, this.hero.y, 'ln-up', 'wade').setAlpha(0)
+      : undefined;
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
     this.buildTrail();
@@ -306,7 +315,11 @@ export class LanternScene extends Phaser.Scene {
         t().places[this.realm],
         () => this.bag?.toggle(),
       );
-      this.bag = new Inventory();
+      // Something in the bag with words on it, a phone say: read it there.
+      this.bag = new Inventory((id) => {
+        this.bag?.toggle(false);
+        this.readPaper(id);
+      });
       this.reader = new Reader();
       if (this.start.fresh) {
         this.hud.controls();
@@ -844,6 +857,7 @@ export class LanternScene extends Phaser.Scene {
   private toggle(id: string, redraw: () => void): void {
     if (this.thingsOn.has(id)) this.thingsOn.delete(id);
     else this.thingsOn.add(id);
+    music.sfx('switch');
     redraw();
     this.save();
   }
@@ -851,6 +865,7 @@ export class LanternScene extends Phaser.Scene {
   /** Into your pockets: gone from the world, and the hero carries it. */
   private take(id: string, img: Phaser.GameObjects.Image): void {
     this.items.add(id);
+    music.sfx('pickup');
     this.gained([id]);
     this.setHalo(null);
     this.targets = this.targets.filter((t) => t.img !== img);
@@ -865,10 +880,15 @@ export class LanternScene extends Phaser.Scene {
   private look(hoard: Hoard): void {
     const { take, says } = this.memory.search(hoard, this.items);
     for (const id of take) this.items.add(id);
+    music.sfx('drawer');
+    if (take.length) this.time.delayedCall(380, () => music.sfx('pickup'));
     this.hud?.think(says);
     this.gained(take);
     this.heroImg.setFrame(this.heroFrame());
     this.save();
+    // Found something with words on it: he looks at it there and then.
+    const words = take.map((id) => ITEMS[id]?.read).find((r) => r !== undefined);
+    if (words) this.time.delayedCall(700, () => !this.leaving && this.readPaper(words));
   }
 
   /**
@@ -882,6 +902,7 @@ export class LanternScene extends Phaser.Scene {
     this.pending = null;
     this.input.keyboard?.resetKeys();
     const first = this.memory.read(id);
+    music.sfx('paper');
     this.save();
     this.reader.show(paper, () => {
       this.input.keyboard?.resetKeys();
@@ -930,6 +951,7 @@ export class LanternScene extends Phaser.Scene {
   private tryWay(p: Portal): void {
     const lock = p.lock;
     if (!lock || this.items.has(lock.key)) return this.travel(p);
+    music.sfx('locked');
     if (!this.memory.knows(lock.fact)) this.learn(lock.fact);
     else this.hud?.think(lock.says);
   }
@@ -953,7 +975,8 @@ export class LanternScene extends Phaser.Scene {
     for (const id of this.items) {
       const it = ITEMS[id];
       const words = itemWords(id);
-      if (it && words) items.push({ name: words.name, about: words.about, icon: icon(...it.icon) });
+      if (it && words)
+        items.push({ name: words.name, about: words.about, icon: icon(...it.icon), read: it.read });
     }
     if (this.items.has('pistol')) {
       const w = t().bag;
@@ -1087,6 +1110,7 @@ export class LanternScene extends Phaser.Scene {
     this.hero.path = [];
     this.setHalo(null);
     this.hud?.prompt(null);
+    music.sfx(p.fade === 'glint' ? 'mirror' : 'steps');
     const cam = this.cameras.main;
     cam.fadeOut(700, ...(p.fade === 'glint' ? GLINT : DUSK));
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -1183,7 +1207,9 @@ export class LanternScene extends Phaser.Scene {
     // Mid-stride on one foot, then the other; a little lift on each step.
     const stride = mx || my ? Math.sin(h.walk) : 0;
     const bob = Math.abs(stride) * 0.03;
-    const step = stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
+    const deep = this.wade(h, dt, stride);
+    // In long grass the feet don't show.
+    const step = deep ? '' : stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
     const frame = this.heroFrame() + step;
     if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
     // A shot kicks you back a little; a wound flushes you red.
@@ -1196,6 +1222,30 @@ export class LanternScene extends Phaser.Scene {
       .setScale(1 + bob, 1 - bob);
     if (look?.hurt) this.heroImg.setTint(0xff8a78);
     else this.heroImg.clearTint();
+  }
+
+  /**
+   * Knee-deep in long grass: the blades close round the hero, sway, and
+   * rustle at each step. Returns whether he is in it.
+   */
+  private wade(h: Hero, dt: number, stride: number): boolean {
+    const img = this.wadeImg;
+    const tall = this.world.tall;
+    if (!img || !tall) return false;
+    const deep = tall[Math.floor(h.y / T) * this.world.w + Math.floor(h.x / T)] === 1;
+    this.wading = Phaser.Math.Clamp(this.wading + (deep ? dt : -dt) * 6, 0, 1);
+    const foot = stride > 0.45 ? 1 : stride < -0.45 ? -1 : 0;
+    if (deep && foot && foot !== this.lastFoot) music.sfx('rustle');
+    if (foot) this.lastFoot = foot;
+    const sway = Math.sin(this.time.now / 700) * 3 + stride * 4;
+    img
+      .setVisible(this.wading > 0)
+      .setAlpha(this.wading)
+      .setPosition(h.x, h.y)
+      .setDepth(h.y + 7)
+      .setAngle(sway)
+      .setScale(0.92 + this.wading * 0.08);
+    return deep;
   }
 
   private drawMarker(dt: number): void {

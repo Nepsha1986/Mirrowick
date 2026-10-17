@@ -4,7 +4,7 @@ import { h, uiRoot } from './dom';
 
 /**
  * A sheet of paper held up in the middle of the screen: a note, a letter,
- * a page of a book. ← and → turn the pages; E, Esc or a click outside puts
+ * a page of a book; or a phone, its messages in bubbles. ← and → turn the pages; E, Esc or a click outside puts
  * it down. Keys pressed while it is open stay with it.
  */
 export class Reader {
@@ -90,7 +90,18 @@ export class Reader {
   private render(): void {
     const pages = this.paper?.pages ?? [];
     const text = pages[this.page] ?? '';
-    this.text.replaceChildren(...text.split('\n\n').map((para) => h('p', {}, para)));
+    const paras = text.split('\n\n');
+    this.text.replaceChildren(
+      ...(this.paper?.hand === 'phone'
+        ? paras.map((para) =>
+            para.startsWith('# ')
+              ? h('p', { class: 'sms-date' }, para.slice(2))
+              : para.startsWith('> ')
+                ? h('p', { class: 'sms out' }, para.slice(2))
+                : h('p', { class: 'sms' }, para),
+          )
+        : paras.map((para) => h('p', {}, para))),
+    );
     const many = pages.length > 1;
     this.count.textContent = many ? `${this.page + 1} / ${pages.length}` : '';
     this.prev.hidden = !many;

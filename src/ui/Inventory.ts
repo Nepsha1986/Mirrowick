@@ -9,6 +9,8 @@ export interface BagItem {
   icon?: string;
   /** A count or state shown beside it: rounds, say. */
   note?: string;
+  /** A paper id, if it has something to read: a click reads it. */
+  read?: string;
 }
 
 /** What the bag shows: your things and yourself. */
@@ -22,7 +24,7 @@ export interface BagView {
 /**
  * The inventory, top right under the clock: what the hero carries, with a
  * picture of each, and how they are — health and skills. `I` or the bag
- * button opens and closes it.
+ * button opens and closes it. A thing with words on it reads on a click.
  */
 export class Inventory {
   private readonly el: HTMLElement;
@@ -30,7 +32,7 @@ export class Inventory {
   private readonly stats: HTMLElement;
   private last = '';
 
-  constructor() {
+  constructor(private readonly onRead: (paper: string) => void) {
     this.list = h('ul', { class: 'bag-items' });
     this.stats = h('div', { class: 'bag-stats' });
     const close = h('button', { class: 'bag-close', title: t().bag.close }, '×');
@@ -61,10 +63,10 @@ export class Inventory {
     this.last = key;
     this.list.replaceChildren(
       ...(v.items.length
-        ? v.items.map((it) =>
-            h(
+        ? v.items.map((it) => {
+            const li = h(
               'li',
-              {},
+              { class: it.read ? 'bag-read' : '', title: it.read ? t().bag.read : '' },
               it.icon ? h('img', { src: it.icon, alt: '' }) : h('span', { class: 'bag-blank' }),
               h(
                 'div',
@@ -72,8 +74,11 @@ export class Inventory {
                 h('b', {}, it.name, it.note ? h('em', {}, ` · ${it.note}`) : null),
                 h('span', {}, it.about),
               ),
-            ),
-          )
+            );
+            const read = it.read;
+            if (read) li.addEventListener('click', () => this.onRead(read));
+            return li;
+          })
         : [h('li', { class: 'bag-empty' }, t().bag.empty)]),
     );
     const hp = Math.max(0, Math.ceil(v.hp));

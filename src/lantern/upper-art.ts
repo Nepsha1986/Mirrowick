@@ -658,16 +658,27 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.circ(0, -6.5, 1.8, '#c8362c', 0.5);
   });
 
-  // Victor's notebook on the desk: a worn brown cover, a pencil across it.
-  add('notebook', 22, 24, (p) => {
+  // Victor's phone, for the bag: an old one, its corner chipped, the
+  // screen cracked across one end.
+  add('phone', 22, 24, (p) => {
     c.translate(11, 12);
-    c.rotate(-0.18);
-    p.rect(-7, -9, 14, 18, '#6a4428', 1);
-    p.rect(-7, -9, 2, 18, '#4a2e1a');
-    p.rect(-4.5, -9, 1.2, 18, '#222');
-    p.rect(-6.5, 7, 13, 1.4, '#ece4d0');
-    p.line(-8, 5, 8, -3, '#d8a83a', 1.6);
-    p.line(7, -2.5, 8.6, -3.3, '#2a2a2a', 1.2);
+    c.rotate(-0.15);
+    p.poly(
+      [
+        [-6, -10],
+        [6, -10],
+        [6, 8.5],
+        [4.5, 10],
+        [-6, 10],
+      ],
+      '#26282c',
+      1,
+    );
+    p.rect(-4.6, -7.6, 9.2, 14, '#3c5470');
+    p.rect(-4.6, -7.6, 9.2, 4, 'rgba(160,200,240,.35)');
+    p.line(1, 6.4, 4.6, 2, 'rgba(230,240,255,.55)', 0.6);
+    p.line(2.6, 4.2, 4.6, 5.4, 'rgba(230,240,255,.45)', 0.5);
+    p.rect(-1.5, 7.6, 3, 1, '#4a4c52');
   });
 
   // The shed's things: a workbench with a vice and tools left out, tins of
@@ -823,33 +834,210 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(-2, -18, 4, 7, '#1d1f22', 0.6);
     p.ell(3, 0, 3, 2, 'rgba(160,110,60,.6)');
   });
-  // The washing line, sagging between its poles: a shirt, a towel, two socks.
-  add('clothesline', 230, 34, (p) => {
-    const at = (x: number) => 6 + Math.sin((x / 230) * Math.PI) * 7;
-    c.strokeStyle = '#d8d4c8';
-    c.lineWidth = 1;
-    c.beginPath();
-    for (let x = 0; x <= 230; x += 5) {
-      if (x) c.lineTo(x, at(x));
-      else c.moveTo(x, at(x));
+  // Washing lines, sagging between their poles, each pegged with what
+  // Victor last hung out: a shirt, a towel and two socks; a sheet and a
+  // pillowcase, one end slipped off its peg; a tea towel and bare pegs.
+  type Wash = readonly [x: number, w: number, h: number, col: string, slip?: number];
+  const washing = (name: string, w: number, items: readonly Wash[], pegs: number[] = []) =>
+    add(name, w, 40, (p) => {
+      const at = (x: number) => 6 + Math.sin((x / w) * Math.PI) * 7;
+      c.strokeStyle = '#d8d4c8';
+      c.lineWidth = 1;
+      c.beginPath();
+      for (let x = 0; x <= w; x += 5) {
+        if (x) c.lineTo(x, at(x));
+        else c.moveTo(x, at(x));
+      }
+      c.stroke();
+      for (const x of pegs) p.rect(x - 1, at(x) - 1.5, 2, 3, '#b8905e');
+      for (const [x, iw, h, col, slip = 0] of items) {
+        const y = at(x + iw / 2) - 1;
+        c.save();
+        c.translate(x + iw / 2, y);
+        // Hung from one peg, it swings down from that corner.
+        c.rotate(slip || (ar() - 0.5) * 0.12);
+        p.rect(-iw / 2, 0, iw, h, col, 0.9);
+        p.rect(-iw / 2, 0, iw, 2, 'rgba(255,255,255,.3)');
+        p.rect(-iw / 2 + 3, -1.5, 2, 3, '#b8905e');
+        if (!slip) p.rect(iw / 2 - 5, -1.5, 2, 3, '#b8905e');
+        c.restore();
+      }
+    });
+  washing('clothesline', 230, [
+    [40, 26, 22, '#c8d4e4'],
+    [92, 30, 18, '#e0a8a0'],
+    [138, 8, 12, '#3a3a40'],
+    [150, 8, 11, '#4a4a52'],
+    [180, 22, 20, '#e8e0c8'],
+  ]);
+  washing(
+    'clothesline2',
+    200,
+    [
+      [30, 70, 26, '#eef0ea'],
+      [128, 26, 18, '#b8c8dc', 0.35],
+    ],
+    [170],
+  );
+  washing('clothesline3', 220, [[150, 18, 14, '#d86a50']], [40, 52, 96, 110]);
+
+  // Flowering shrubs for along the fence: lilac, hydrangea, an old rose.
+  for (const [name, leaf, blooms, size] of [
+    ['shrubLilac', ['#3f6c2b', '#4a7a32'], ['#a77ad0', '#c09ae0', '#8a5cbc'], 3.4],
+    ['shrubHydrangea', ['#3a6a30', '#467a38'], ['#7ea6e0', '#a8c4ee', '#d89ac8'], 4.2],
+    ['shrubRose', ['#2f5a26', '#3c6a2e'], ['#d0384a', '#e86070', '#f4e8e0'], 1.8],
+  ] as const) {
+    add(name, 58, 58, (p) => {
+      shadow(p, 32, 33, 24, 19);
+      for (let k = 0; k < 12; k++) {
+        const a = ar() * 6.28;
+        const d = ar() * 12;
+        p.circ(
+          29 + Math.cos(a) * d,
+          28 + Math.sin(a) * d,
+          8 + ar() * 4,
+          leaf[k % 2] as string,
+          0.8,
+        );
+      }
+      for (let k = 0; k < 16; k++) {
+        const a = ar() * 6.28;
+        const d = 3 + ar() * 15;
+        p.circ(
+          29 + Math.cos(a) * d,
+          28 + Math.sin(a) * d,
+          size * (0.8 + ar() * 0.6),
+          blooms[k % 3] as string,
+          0.4,
+        );
+      }
+    });
+  }
+
+  // The barbecue corner: a brick grill with ash in its grate, a round table
+  // with a forgotten glass on it, and white plastic chairs, a bit grubby.
+  add('grill', 46, 34, (p) => {
+    shadow(p, 25, 19, 21, 14);
+    p.rect(3, 4, 40, 25, '#9a4a34', 1.4);
+    for (let y = 8; y < 29; y += 5) {
+      p.line(4, y, 42, y + (ar() - 0.5) * 0.6, 'rgba(60,30,20,.45)', 0.7);
+      for (let x = 4 + ((y / 5) % 2) * 5; x < 42; x += 10)
+        p.line(x, y - 5, x, y, 'rgba(60,30,20,.4)', 0.7);
     }
-    c.stroke();
-    for (const [x, w, h, col] of [
-      [40, 26, 22, '#c8d4e4'],
-      [92, 30, 18, '#e0a8a0'],
-      [138, 8, 12, '#3a3a40'],
-      [150, 8, 11, '#4a4a52'],
-      [180, 22, 20, '#e8e0c8'],
-    ] as const) {
-      const y = at(x + w / 2) - 1;
-      c.save();
-      c.translate(x + w / 2, y);
-      c.rotate((ar() - 0.5) * 0.12);
-      p.rect(-w / 2, 0, w, h, col, 0.9);
-      p.rect(-w / 2, 0, w, 2, 'rgba(255,255,255,.3)');
-      p.rect(-w / 2 + 3, -1.5, 2, 3, '#b8905e');
-      p.rect(w / 2 - 5, -1.5, 2, 3, '#b8905e');
-      c.restore();
+    p.rect(9, 8, 28, 16, '#2a2622', 1);
+    for (let x = 11; x < 36; x += 3) p.line(x, 9, x, 23, '#5a5652', 0.8);
+    p.ell(20, 17, 6, 3, 'rgba(200,190,180,.35)');
+    p.rect(38, 3, 4, 3, '#b0aca4');
+  });
+  add('bbqtable', 40, 40, (p) => {
+    shadow(p, 22, 23, 17, 15);
+    p.circ(20, 20, 16, '#9a7048', 1.3);
+    for (let y = 8; y < 34; y += 5) p.line(5, y, 35, y + (ar() - 0.5), 'rgba(80,50,25,.35)', 0.7);
+    p.circ(14, 16, 3.2, '#e8eef0', 0.6);
+    p.circ(14, 16, 1.8, 'rgba(180,120,60,.5)');
+    p.ell(25, 24, 5, 3.4, '#f4f0e8', 0.6);
+  });
+  add('gardenchair', 20, 20, (p) => {
+    shadow(p, 11, 11, 8, 7);
+    p.rect(3, 3, 14, 14, '#ecebe4', 1);
+    p.rect(3, 3, 14, 4, '#dcdad0', 1);
+    p.ell(12, 13, 2, 1.2, 'rgba(120,110,90,.25)');
+  });
+
+  // The vegetable garden: cabbages with their outer leaves spread, lettuces,
+  // feathery carrot tops, a wigwam of bean poles grown over, a watering can
+  // and a fork left stuck in the dug bed.
+  add('vegCabbage', 22, 22, (p) => {
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * 6.28 + ar() * 0.4;
+      p.ell(11 + Math.cos(a) * 5, 11 + Math.sin(a) * 5, 4.4, 3.4, '#4e7a3a', 0.6);
+    }
+    p.circ(11, 11, 5, '#9cc07a', 0.8);
+    p.circ(10, 10, 2.4, '#bcd898');
+  });
+  add('vegLettuce', 16, 16, (p) => {
+    for (let k = 0; k < 7; k++) {
+      const a = ar() * 6.28;
+      p.circ(8 + Math.cos(a) * 3, 8 + Math.sin(a) * 3, 3, ['#7fb04a', '#94c45a'][k % 2] as string);
+    }
+    p.circ(8, 8, 2.2, '#b8dc7a');
+  });
+  add('vegCarrot', 14, 14, (p) => {
+    for (let k = 0; k < 9; k++) {
+      const a = ar() * 6.28;
+      const l = 4 + ar() * 3;
+      p.line(
+        7,
+        7,
+        7 + Math.cos(a) * l,
+        7 + Math.sin(a) * l,
+        ['#5f9a3a', '#78b04a'][k % 2] as string,
+        1.2,
+      );
+    }
+    p.circ(7, 7, 1.3, '#d8782a');
+  });
+  add('beanpoles', 40, 40, (p) => {
+    shadow(p, 22, 23, 15, 13);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * 6.28 + 0.3;
+      p.line(20, 20, 20 + Math.cos(a) * 15, 20 + Math.sin(a) * 15, '#8a6a44', 1.6);
+    }
+    for (let k = 0; k < 22; k++) {
+      const a = ar() * 6.28;
+      const d = 3 + ar() * 12;
+      p.ell(
+        20 + Math.cos(a) * d,
+        20 + Math.sin(a) * d,
+        2.8,
+        2,
+        ['#4f8a34', '#62a040'][k % 2] as string,
+      );
+    }
+    for (let k = 0; k < 5; k++) p.circ(14 + ar() * 12, 14 + ar() * 12, 1.2, '#e0e0c8');
+    p.circ(20, 20, 2, '#6a4a2e', 0.6);
+  });
+  add('wateringcan', 24, 20, (p) => {
+    c.translate(11, 10);
+    c.rotate(0.4);
+    p.ell(1, 2, 8, 6, 'rgba(20,30,10,.3)');
+    p.ell(0, 0, 6.5, 5, '#4a7a8a', 1);
+    p.line(5, -1, 11, -4, '#4a7a8a', 2);
+    p.circ(11.5, -4.2, 1.6, '#3a6070', 0.6);
+    p.line(-4, -4, 3, -4, '#3a6070', 1.4);
+  });
+  add('gardenfork', 12, 26, (p) => {
+    c.translate(6, 13);
+    c.rotate(-0.2);
+    p.line(0, -11, 0, 5, '#8a6a44', 1.8);
+    p.rect(-3.5, 5, 7, 1.2, '#6a6c6e');
+    for (const x of [-3, -1, 1, 3]) p.line(x, 6, x, 10, '#6a6c6e', 0.8);
+    p.rect(-2.5, -12, 5, 1.6, '#6a4a2e');
+  });
+
+  // Long grass round a walker's knees: a ring of blades with the middle
+  // left open, laid over the hero's feet while he wades through it.
+  add('wade', 52, 52, (p) => {
+    for (let k = 0; k < 70; k++) {
+      const a = ar() * 6.28;
+      const r0 = 9 + ar() * 8;
+      const len = 6 + ar() * 8;
+      const bend = (ar() - 0.5) * 0.7;
+      const x0 = 26 + Math.cos(a) * r0;
+      const y0 = 26 + Math.sin(a) * r0;
+      p.line(
+        x0,
+        y0,
+        x0 + Math.cos(a + bend) * len,
+        y0 + Math.sin(a + bend) * len,
+        ['#4f6e2c', '#5f7f36', '#6f8c3e', '#8a9a4a'][k % 4] as string,
+        1.3,
+      );
+    }
+    for (let k = 0; k < 8; k++) {
+      const a = ar() * 6.28;
+      const d = 16 + ar() * 6;
+      p.ell(26 + Math.cos(a) * d, 26 + Math.sin(a) * d, 1.8, 1, '#c8b874');
     }
   });
   A.refresh();

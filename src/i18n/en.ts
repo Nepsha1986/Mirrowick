@@ -20,6 +20,7 @@ export const en = {
     title: 'Settings',
     language: 'Language',
     music: 'Music',
+    sounds: 'Sounds',
     fullScreen: 'Full screen',
     on: 'On',
     off: 'Off',
@@ -74,6 +75,7 @@ export const en = {
     rounds: 'Rounds',
     roundsAbout: 'For the pistol. There are more in the crate in the Hollow.',
     roundsNote: '{mag} loaded, {spare} spare',
+    read: 'Click to read',
   },
   reader: { prev: 'Previous page (←)', next: 'Next page (→)', done: 'Put down' },
   mailbox: {
@@ -95,7 +97,6 @@ export const en = {
     fridgeNote: 'Read the note on the fridge',
     tvOn: 'Turn on the TV',
     tvOff: 'Turn off the TV',
-    notebook: "Read Victor's notebook",
     coat: "Check Victor's coat",
     nightstand: 'Look in the bedside table',
     wardrobe: 'Look in the wardrobe',
@@ -154,6 +155,13 @@ export const en = {
       plain: 'a pistol',
       taken: 'the pistol',
     },
+    phone: {
+      name: "Victor's phone",
+      about:
+        'An old phone with a cracked screen. Messages with Margaret Hollis, from the bookshop.',
+      plain: 'a phone',
+      taken: "Victor's phone, from the inside pocket",
+    },
   },
   /** What the hero thinks: on learning something, a nudge later, things he looks at. */
   thoughts: {
@@ -181,15 +189,16 @@ export const en = {
         'Milk\nBread\nBatteries, the big ones, for the flashlight!\nRing Pete about the hedge',
       ],
     },
-    notebook: {
-      title: "Victor's notebook",
+    phone: {
+      title: 'Messages · Margaret Hollis',
       pages: [
-        '2 Oct.\n\nCleared out the old shed at the bottom of the garden at last. Under the boards there was a hatch, its padlock rusted solid. Cut it off and put a new one on.\n\nSomething about it I don’t like. I’ll keep it locked.',
-        '9 Oct.\n\nLights again last night. Not in the shed: under it. Cold and blue, like moonlight on water.\n\nWhen I went out with the flashlight they had gone. But where I had walked, my boots left marks that glowed in the beam.',
-        '13 Oct.\n\nThere’s a room down there, bigger than the shed, bigger than the house. Candles that were lit before I came. And a mirror.\n\nTonight I go down again and look properly.',
+        "# 3 Oct.\n\nVictor, it's Margaret from Hollis Books. I've put a letter in the post, but in short: no luck with the book. The only copy I know of was sold from a house out your way, long ago.\n\n> Thank you for trying. Odd question. That house. Did it have a cellar?\n\nWhy do you ask?\n\n> Cleared out the shed. Under the boards there's a hatch. Older than the shed, I'd say. Older than the house.",
+        '# 9 Oct.\n\n> Lights again last night. Not in the shed: under it. Blue, cold. Like moonlight on water.\n\n> I went out with the flashlight and they were gone. But my boot prints glowed where the beam fell.\n\nVictor, please leave that hatch alone. My grandmother used to talk about that house. People went down into its cellar and came back not quite right.\n\n> I put a new padlock on it. Don’t worry.',
+        "# 13 Oct.\n\n> I went down. There's a room under there bigger than the house. Candles burning that were lit before I came.\n\n> And your book, Margaret. Open on a stand. And a mirror.\n\nClose it up and come into town. I mean it.\n\n> I'll read a little more first.",
+        "# 14 Oct.\n\nYou said you'd ring this morning.\n\nVictor?\n\n# 16 Oct.\n\nPete says your door was open and you're not home. Please, ring me.",
       ],
       after:
-        'The shed at the bottom of the garden. Lights after dark… I should look there tonight.',
+        "So that's where he went. The shed at the bottom of the garden. I'd better look there once it's dark.",
     },
     'bookshop-letter': {
       title: 'A letter for Victor',

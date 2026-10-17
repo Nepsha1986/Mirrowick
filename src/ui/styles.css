@@ -978,3 +978,76 @@ nav[hidden] {
   letter-spacing: 0.1em;
   color: rgba(46, 33, 24, 0.6);
 }
+
+/* A phone held up: a dark screen, messages in bubbles, the owner's on the right. */
+.reader-sheet.phone {
+  width: min(360px, 100%);
+  padding: 22px 18px 14px;
+  border-radius: 26px 27px 25px 26px;
+  border: 7px solid #1d1f23;
+  background:
+    linear-gradient(160deg, transparent 72%, rgba(230, 240, 255, 0.07) 73%, transparent 74%),
+    #14181e;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  color: #e8edf3;
+  transform: rotate(-1.2deg);
+}
+
+.phone h2 {
+  color: rgba(232, 237, 243, 0.6);
+  text-align: center;
+}
+
+.phone .reader-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 400 14px/1.4 var(--sans);
+}
+
+.phone .reader-text p {
+  margin: 0;
+}
+
+.sms {
+  align-self: flex-start;
+  max-width: 82%;
+  padding: 7px 11px;
+  border-radius: 14px 14px 14px 4px;
+  background: #2c323b;
+}
+
+.sms.out {
+  align-self: flex-end;
+  border-radius: 14px 14px 4px 14px;
+  background: #2f5f8a;
+}
+
+.sms-date {
+  align-self: center;
+  margin: 6px 0 2px !important;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(232, 237, 243, 0.45);
+}
+
+.phone .reader-foot .set-btn {
+  border-color: rgba(232, 237, 243, 0.25);
+  color: #e8edf3;
+}
+
+.phone .reader-foot .set-btn:disabled {
+  color: rgba(232, 237, 243, 0.25);
+}
+
+.phone .reader-count {
+  color: rgba(232, 237, 243, 0.5);
+}
+
+.bag-items li.bag-read {
+  cursor: pointer;
+}
+
+.bag-items li.bag-read:hover b {
+  text-decoration: underline;
+}

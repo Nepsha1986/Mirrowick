@@ -98,6 +98,134 @@ function walk(
   return out;
 }
 
+/**
+ * A patio of square slabs laid by hand, not by a machine: the whole of it a
+ * little off square, each row shifted a touch, slabs not quite level or the
+ * same shade, a couple cracked or sunk, one gone and grass come up in its
+ * place, moss and grass in the joints, and the edge slabs at a corner never
+ * laid.
+ */
+function paintPaving(
+  c: Ctx,
+  patch: GroundPatch,
+  r: () => number,
+  pickCol: (cols: string[]) => string,
+): void {
+  const centre = patch.pts[0] as Pt;
+  const w = patch.width;
+  const h = patch.height ?? patch.width;
+  const SLAB = 24;
+  const cols = Math.round(w / SLAB);
+  const rows = Math.round(h / SLAB);
+  const j = (a = 1) => (r() - 0.5) * a * 2;
+  c.save();
+  c.translate(centre.x, centre.y);
+  c.rotate(-0.03);
+  c.translate(-(cols * SLAB) / 2, -(rows * SLAB) / 2);
+  for (let row = 0; row < rows; row++) {
+    const shift = j(2);
+    for (let col = 0; col < cols; col++) {
+      // A corner left short, and one slab gone.
+      const corner = row === rows - 1 && col >= cols - 1;
+      if (corner || r() < 0.03) continue;
+      const x = col * SLAB + shift;
+      const y = row * SLAB;
+      c.fillStyle = '#7d7568';
+      c.fillRect(x - 0.5, y - 0.5, SLAB + 1, SLAB + 1);
+      const sunk = r() < 0.07;
+      c.fillStyle = sunk
+        ? '#9e9381'
+        : pickCol(['#c9bfae', '#bdb29f', '#d0c6b4', '#c2b7a3', '#b5aa96']);
+      c.beginPath();
+      c.moveTo(x + 1.2 + j(), y + 1.2 + j());
+      c.lineTo(x + SLAB - 1.2 + j(), y + 1.2 + j());
+      c.lineTo(x + SLAB - 1.2 + j(), y + SLAB - 1.2 + j());
+      c.lineTo(x + 1.2 + j(), y + SLAB - 1.2 + j());
+      c.closePath();
+      c.fill();
+      // Weathering: a lighter worn patch, or a stain.
+      c.fillStyle = r() < 0.5 ? 'rgba(255,255,255,.1)' : 'rgba(70,60,45,.12)';
+      c.beginPath();
+      c.ellipse(x + 5 + r() * 14, y + 5 + r() * 14, 3 + r() * 4, 2 + r() * 3, r() * 3, 0, 6.3);
+      c.fill();
+      if (r() < 0.1) {
+        c.strokeStyle = 'rgba(60,50,40,.5)';
+        c.lineWidth = 0.7;
+        c.beginPath();
+        c.moveTo(x + 2 + r() * 6, y + 2);
+        c.lineTo(x + 8 + r() * 8, y + 10 + r() * 4);
+        c.lineTo(x + SLAB - 2, y + SLAB - 3 - r() * 6);
+        c.stroke();
+      }
+      // Moss or a few blades of grass in the joints.
+      for (let k = 0; k < 2; k++) {
+        if (r() > 0.25) continue;
+        c.fillStyle = r() < 0.5 ? 'rgba(90,120,50,.75)' : 'rgba(110,140,60,.7)';
+        if (r() < 0.5) c.fillRect(x + SLAB - 1.2, y + 2 + r() * 16, 1.8, 3 + r() * 5);
+        else c.fillRect(x + 2 + r() * 16, y + SLAB - 1.2, 3 + r() * 5, 1.8);
+      }
+    }
+  }
+  c.restore();
+}
+
+/**
+ * Long grass: a darker, shaggier green round each point, and clumps of
+ * blades on it, a few gone to seed. Clumps spill past their tile, so the
+ * edge of the meadow is ragged.
+ */
+function paintMeadow(c: Ctx, patch: GroundPatch, r: () => number): void {
+  const rad = patch.width / 2;
+  c.fillStyle = 'rgba(52,78,26,.32)';
+  for (const p of patch.pts) {
+    c.beginPath();
+    c.ellipse(p.x, p.y, rad * (1 + r() * 0.3), rad * (0.9 + r() * 0.3), r() * 3, 0, Math.PI * 2);
+    c.fill();
+  }
+  // Blades and seed heads, gathered into one path per colour: thousands of
+  // strokes, but only a handful of draws.
+  const blades = ['#4a6828', '#577a30', '#66883a', '#7d8f44', '#3f5c22'].map((col) => ({
+    col,
+    path: new Path2D(),
+  }));
+  const seeds = ['#c8b874', '#b8a462', '#d4c88a'].map((col) => ({ col, path: new Path2D() }));
+  for (const p of patch.pts) {
+    for (let k = 0; k < 4; k++) {
+      const x = p.x + (r() - 0.5) * patch.width;
+      const y = p.y + (r() - 0.5) * patch.width;
+      for (let b = 0; b < 9; b++) {
+        const a = r() * Math.PI * 2;
+        const len = 5 + r() * 6;
+        const path = (blades[Math.floor(r() * blades.length)] as (typeof blades)[number]).path;
+        path.moveTo(x, y);
+        path.quadraticCurveTo(
+          x + Math.cos(a) * len * 0.6 + (r() - 0.5) * 3,
+          y + Math.sin(a) * len * 0.6 + (r() - 0.5) * 3,
+          x + Math.cos(a) * len,
+          y + Math.sin(a) * len,
+        );
+      }
+      if (r() < 0.35) {
+        const path = (seeds[Math.floor(r() * seeds.length)] as (typeof seeds)[number]).path;
+        const sx = x + (r() - 0.5) * 10;
+        const sy = y + (r() - 0.5) * 10;
+        path.moveTo(sx + 2, sy);
+        path.ellipse(sx, sy, 2, 1, r() * 3, 0, Math.PI * 2);
+      }
+    }
+  }
+  c.lineCap = 'round';
+  c.lineWidth = 1.2;
+  for (const { col, path } of blades) {
+    c.strokeStyle = col;
+    c.stroke(path);
+  }
+  for (const { col, path } of seeds) {
+    c.fillStyle = col;
+    c.fill(path);
+  }
+}
+
 interface Box {
   x: number;
   y: number;
@@ -105,7 +233,7 @@ interface Box {
   h: number;
 }
 
-const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones']);
+const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones', 'paving']);
 
 /** The area a layer needs, so its texture covers that and not the whole map. */
 function bounds(boxes: Box[], margin: number): Box {
@@ -146,9 +274,9 @@ export function wallsBox(walls: ThinWall[]): Box {
 }
 
 /**
- * Roads, paths, beds and round floors painted onto one texture over the
- * ground: ragged edges, ruts and puddles, gravel worn through to the grass
- * in places, boards and flagstones no two alike.
+ * Roads, paths, beds, round floors and long grass painted onto one texture
+ * over the ground: ragged edges, ruts and puddles, gravel worn through to
+ * the grass in places, boards and flagstones no two alike.
  */
 export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPatch[]): void {
   if (scene.textures.exists(key)) return;
@@ -162,14 +290,21 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
   const pick = (cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
 
   for (const [n, patch] of patches.entries()) {
+    if (patch.kind === 'meadow') {
+      paintMeadow(main, patch, r);
+      continue;
+    }
+    // Each patch is shaped on a scratch canvas of its own size, then laid down.
+    const own = groundBox([patch]);
     const tmp = document.createElement('canvas');
-    tmp.width = box.w;
-    tmp.height = box.h;
+    tmp.width = own.w;
+    tmp.height = own.h;
     const c = tmp.getContext('2d') as Ctx;
-    c.translate(-box.x, -box.y);
+    c.translate(-own.x, -own.y);
     if (ROUND.has(patch.kind)) {
-      paintFloor(c, patch, r, pick);
-      main.drawImage(tmp, box.x, box.y);
+      if (patch.kind === 'paving') paintPaving(c, patch, r, pick);
+      else paintFloor(c, patch, r, pick);
+      main.drawImage(tmp, own.x, own.y);
       continue;
     }
     const line = walk(patch.pts, 2);
@@ -329,7 +464,7 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
       speck(['#3a2a1c', '#5a4430', '#42301f'], 0.1);
     }
     c.globalCompositeOperation = 'source-over';
-    main.drawImage(tmp, box.x, box.y);
+    main.drawImage(tmp, own.x, own.y);
 
     // Grass creeping over the edges.
     if (patch.kind !== 'soil') {

@@ -24,6 +24,7 @@
 - [Герой](characters/hero.md) — Марк
 - [Дядя Виктор](characters/victor.md) — пропал
 - [Пит](characters/pete.md) — сосед дяди
+- [Маргарет Холлис](characters/margaret.md) — книжная лавка, переписка с Виктором
 - [Жители деревни](characters/villagers.md)
 - [Враги](characters/foes.md) — пятеро в Лощине
 
@@ -37,6 +38,7 @@
 - [Память героя](mechanics/memory.md) — «хлам», который становится нужным
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
+- [Звук и музыка](mechanics/sound.md)
 - [Языки](mechanics/languages.md) — перевод игры
 - [Бой](mechanics/combat.md)
 - [Инвентарь](mechanics/inventory.md)

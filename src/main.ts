@@ -32,6 +32,9 @@ async function boot(): Promise<void> {
       maxTextures: 1,
     },
     disableContextMenu: true,
+    // Every sound is ours (src/audio): Phaser's own audio context would only
+    // compete with it for the sound card.
+    audio: { noAudio: true },
     scene: [BootScene, MenuScene, LanternScene],
   });
   // Handy for poking at the game from the console and for browser smoke tests.

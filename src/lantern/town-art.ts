@@ -738,9 +738,10 @@ const PORCH = 20;
 
 /**
  * A small canopy over a front door, its ridge running out from the roof, in
- * green-painted boards that stand out from the tiles, with a lamp hung at
- * the front that is lit day and night. `x` is the door's middle and `y` the
- * wall's outer face.
+ * green-painted boards that stand out from the tiles. Its lamp hangs
+ * underneath, out of sight from above: only its light shows, on the ground
+ * (a light in the scene). `x` is the door's middle and `y` the wall's outer
+ * face.
  */
 function porch(
   c: CanvasRenderingContext2D,
@@ -767,15 +768,6 @@ function porch(
   // Paint flaking at one corner.
   p.rect(w - 9, bottom - top - 6, 6, 3, 'rgba(160,130,90,.5)');
   p.line(0, 0, 0, bottom - top, INK, 3);
-  // The lamp, and its light on the boards.
-  const ly = bottom - top - 5;
-  const g = c.createRadialGradient(0, ly, 0, 0, ly, 22);
-  g.addColorStop(0, 'rgba(255,236,170,.85)');
-  g.addColorStop(1, 'rgba(255,220,140,0)');
-  c.fillStyle = g;
-  c.fillRect(-24, ly - 24, 48, 48);
-  p.circ(0, ly, 5, '#2c2a26', 1);
-  p.circ(0, ly, 3.2, '#fff4c8');
   c.restore();
 }
 

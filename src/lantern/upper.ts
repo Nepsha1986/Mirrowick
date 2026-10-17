@@ -98,8 +98,11 @@ export function generateUpperWorld(): World {
     }
   }
   // Victor's lawn, front and back, kept clear of trees.
-  keep(5, 11, 40, 38);
+  const LAWN = { x0: 5, y0: 11, x1: 40, y1: 38 };
+  keep(LAWN.x0, LAWN.y0, LAWN.x1, LAWN.y1);
 
+  /** Tiles a path runs over: no long grass there. */
+  const trod = new Uint8Array(N);
   /** Keeps trees off the tiles along a line. */
   const keepAlong = (pts: Pt[]) => {
     for (let i = 0; i + 1 < pts.length; i++) {
@@ -110,26 +113,55 @@ export function generateUpperWorld(): World {
         const x = Math.floor((a.x + ((b.x - a.x) * k) / n) / T);
         const y = Math.floor((a.y + ((b.y - a.y) * k) / n) / T);
         keep(x, y, x, y);
+        if (inb(x, y)) trod[I(x, y)] = 1;
       }
     }
   };
 
-  // A country road of packed earth and gravel along the south edge, a gravel
-  // walk and drive, and a footpath out the back, across the garden to the
-  // shed. They are painted over the grass, so their edges wander.
+  // A country road of packed earth and gravel along the south edge; a gravel
+  // drive that turns in off it through the gate and swings up to the house,
+  // widening where the cars stand; a walk from the front door to the road,
+  // with a branch to the drive; and a footpath out the back, across the
+  // garden to the shed. They are painted over the grass, so their edges wander.
   keep(0, 40, UW - 1, 41);
-  patches.push({
-    kind: 'gravel',
-    width: 2.7 * T,
-    pts: [P(31, 40.3), P(31.1, 35), P(30.9, 29.5), P(31, 24)],
-  });
-  keep(30, 23, 32, 39);
+  const drive = [
+    P(36.6, 40.3),
+    P(36.5, 38.6),
+    P(35.9, 36.7),
+    P(34.6, 35.1),
+    P(32.8, 33.6),
+    P(31.6, 31.6),
+    P(31.2, 28.5),
+    P(31.1, 24.4),
+  ];
+  patches.push({ kind: 'gravel', width: 2.6 * T, pts: drive });
+  patches.push({ kind: 'gravel', width: 3.3 * T, pts: [P(31.15, 25), P(31.3, 31.4)] });
+  keepAlong(drive);
+  keep(30, 23, 32, 33);
   patches.push({
     kind: 'gravel',
     width: 1.5 * T,
     pts: [P(23, 33.3), P(22.95, 36.5), P(23.05, 40.3)],
   });
   keep(22, 33, 23, 39);
+  const branch = [P(23.4, 34.9), P(26.4, 35.4), P(29.4, 35.2), P(31.9, 34.5)];
+  patches.push({ kind: 'gravel', width: 1.1 * T, pts: branch });
+  keepAlong(branch);
+  // And a narrow one round the house's west end, past the barbecue, to the
+  // back door and the garden.
+  const round = [
+    P(22.6, 34.9),
+    P(18.5, 35.15),
+    P(14.6, 34.8),
+    P(13.15, 33.4),
+    P(12.95, 29.8),
+    P(13.05, 24.5),
+    P(13.7, 21.6),
+    P(15.6, 21.05),
+    P(17.4, 21.3),
+  ];
+  patches.push({ kind: 'gravel', width: 1 * T, pts: round });
+  keepAlong(round);
   const footpath = [
     P(17.5, 21.9),
     P(17.6, 19.6),
@@ -334,8 +366,7 @@ export function generateUpperWorld(): World {
   solid(17, 25);
   lamp(C(17, 24.5), 110);
 
-  // Living room: sofa facing the telly, a rug, the computer in the corner,
-  // and Victor's notebook left on the desk.
+  // Living room: sofa facing the telly, a rug, the computer in the corner.
   decal('rugBlue', 24, 24.6);
   obj('sofa', 24, 26);
   for (const x of [23, 24, 25]) solid(x, 26);
@@ -352,16 +383,6 @@ export function generateUpperWorld(): World {
   solid(27, 24);
   solid(27, 25);
   obj('chair', 26, 24.5, { y: 25 * T, depth: 25 * T - 4 });
-  things.push({
-    id: 'notebook',
-    key: 'ln-up',
-    frame: 'notebook',
-    x: 27.35 * T,
-    y: 25.9 * T,
-    depth: 26 * T,
-    label: t().use.notebook,
-    read: 'notebook',
-  });
   obj('plant', 21, 23);
   solid(21, 23);
   obj('floorlamp', 27, 27);
@@ -371,7 +392,8 @@ export function generateUpperWorld(): World {
   lamp(C(26.6, 24.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, Victor's coat still on the stand, a plant.
-  // The front door stands ajar, as Pete found it.
+  // The front door stands ajar, as Pete found it. His phone is still in the
+  // coat's inside pocket, where the police never looked.
   decal('doormat', 22.5, 31);
   obj('frontdoor', 22, 32, { x: 22 * T + 15, y: 32.5 * T - 24, angle: -62 });
   things.push({
@@ -382,7 +404,7 @@ export function generateUpperWorld(): World {
     label: t().use.coat,
     hoard: {
       place: t().hoard.coat,
-      items: [],
+      items: ['phone'],
       junk: [junk.ticket, junk.hanky, junk.change],
     },
   });
@@ -468,11 +490,12 @@ export function generateUpperWorld(): World {
         : { kind: 'window', x: cx - OUTER / 2, y: cy - 11, w: OUTER, h: 22 },
     );
   }
-  // The front door: a step, a lamp on a green porch canopy (painted with the
-  // roof) and a mat on the gravel, so you can tell the way in from the road.
+  // The front door: a step, a green porch canopy (painted with the roof) with
+  // a lamp under it that lights the step, and a mat on the gravel, so you can
+  // tell the way in from the road.
   decal('step', 22.5, 32.9);
   decal('porchmat', 22.5, 33.7, { angle: 3, alpha: 1 });
-  light({ x: 23 * T, y: 33.9 * T }, 60, LAMP);
+  light({ x: 23 * T, y: 33.7 * T }, 72, LAMP);
 
   // --- The front yard ------------------------------------------------------------------
   // Victor's car at the top of the drive, where it has stood for days; yours
@@ -489,14 +512,21 @@ export function generateUpperWorld(): World {
     says: t().thoughts.car,
   });
   for (let y = 24; y <= 28; y++) for (const x of [30, 31]) solid(x, y);
-  objects.push({ key: 'ln-up', frame: 'car', x: 31.15 * T, y: 33 * T, angle: -6, depth: 34.8 * T });
-  for (let y = 31; y <= 34; y++) for (const x of [30, 31]) solid(x, y);
+  objects.push({
+    key: 'ln-up',
+    frame: 'car',
+    x: 31.3 * T,
+    y: 31.7 * T,
+    angle: -4,
+    depth: 33.5 * T,
+  });
+  for (let y = 30; y <= 33; y++) for (const x of [30, 31]) solid(x, y);
 
-  // A picket fence along the road, with gaps for the walk and the drive.
+  // A picket fence along the road, with gaps for the walk and the drive's gate.
   for (const [a, b] of [
     [3, 21],
-    [24, 29],
-    [33, 44],
+    [24, 34],
+    [39, 44],
   ] as const) {
     const y = 38.5 * T;
     walls.push({ kind: 'fence', x: a * T + 4, y: y - 3, w: (b - a + 1) * T - 8, h: 6 });
@@ -515,11 +545,46 @@ export function generateUpperWorld(): World {
     label: t().use.mailbox,
   });
   solid(24, 39);
-  for (const x of [18, 35]) {
+  for (const x of [18, 40]) {
     obj('streetlamp', x, 39);
     solid(x, 39);
     light(C(x, 39), 140, LAMP, { flicker: 0.01 });
   }
+
+  // Flowering shrubs along the inside of the fence, a few, not a hedge:
+  // lilac, hydrangea, an old rose either side of the gate.
+  for (const [frame, x, y] of [
+    ['shrubLilac', 4.6, 37.3],
+    ['shrubHydrangea', 9.2, 37.5],
+    ['shrubRose', 13.8, 37.4],
+    ['shrubLilac', 20.6, 37.2],
+    ['shrubHydrangea', 25.2, 37.4],
+    ['shrubRose', 33.6, 37.5],
+    ['shrubRose', 39.6, 37.4],
+    ['shrubLilac', 43.3, 37.2],
+  ] as const) {
+    obj(frame, x, y, { angle: R() * 360, scale: 0.9 + R() * 0.25 });
+    solid(Math.floor(x), Math.floor(y));
+  }
+
+  // The barbecue corner beside the house, off the kitchen's end: a patio of
+  // slabs laid by hand, a brick grill against its back edge, a round table
+  // with four chairs, one pushed back as someone got up.
+  patches.push({ kind: 'paving', pts: [P(10.1, 27.3)], width: 4.5 * T, height: 3.75 * T });
+  obj('grill', 8.3, 25.5, { angle: -1.5 });
+  solid(8, 25);
+  solid(9, 25);
+  obj('bbqtable', 9.6, 26.8);
+  solid(10, 27);
+  for (const [x, y, a] of [
+    [9.5, 25.85, -9],
+    [10.7, 26.95, 112],
+    [9.85, 27.95, 158],
+    [8.6, 26.7, -71],
+  ] as const) {
+    obj('gardenchair', x, y, { angle: a });
+  }
+  light(C(8.3, 25.5), 30, 0xff8a40, { flicker: 0.1 });
 
   // Flowers under the front windows.
   for (const x of [15, 16, 17, 18, 19, 25, 26, 27]) {
@@ -535,49 +600,90 @@ export function generateUpperWorld(): World {
   // Vegetable beds and a bench by the path, logs stacked under the eaves, a
   // chopping block, washing on the line, the compost heap and a wheelbarrow
   // left where Victor last used it.
-  for (const [a, b] of [
-    [9.4, 11.5],
-    [13.5, 15.3],
-  ] as const) {
-    patches.push({ kind: 'soil', width: 2.6 * T, pts: [P(a, 18.5), P(b, 18.4 + R() * 0.2)] });
-  }
-  for (let x = 8; x <= 15; x++) {
-    for (let y = 17; y <= 19; y++) {
-      if (x === 12 || R() < 0.12) continue;
-      decals.push({
-        key: 'ln-town',
-        frame: 'cabbage',
-        x: (x + 0.5) * T + (R() - 0.5) * 7,
-        y: (y + 0.5) * T + (R() - 0.5) * 7,
-        scale: 0.8 + R() * 0.4,
-        angle: R() * 360,
-        depth: -45,
-      });
+  // Six beds in two columns, none quite square to the others, each with
+  // its own crop in rows: cabbages, lettuces, carrots, beans up their poles;
+  // one bed half picked, one dug over and empty with the fork left in it.
+  // A crop is the frame of each plant in its rows; beans grow up poles
+  // instead, and the dug bed has no rows at all.
+  type Crop = 'vegCabbage' | 'vegLettuce' | 'vegCarrot' | 'beans' | 'dug';
+  const beds: [x0: number, x1: number, y: number, crop: Crop, rows: number, gaps: number][] = [
+    [7.5, 11.3, 16.9, 'vegCabbage', 2, 0.08],
+    [12.4, 16.1, 16.95, 'vegLettuce', 3, 0.1],
+    [7.45, 11.25, 18.55, 'vegCarrot', 3, 0.05],
+    [12.35, 16.05, 18.5, 'beans', 0, 0],
+    [7.55, 11.35, 20.15, 'dug', 0, 0],
+    [12.45, 16.1, 20.1, 'vegCabbage', 2, 0.45],
+  ];
+  for (const [x0, x1, y, crop, rows, gaps] of beds) {
+    const tilt = (R() - 0.5) * 0.12;
+    patches.push({ kind: 'soil', width: 1.25 * T, pts: [P(x0, y - tilt), P(x1, y + tilt)] });
+    const step = crop === 'vegCabbage' ? 0.62 : crop === 'vegCarrot' ? 0.32 : 0.45;
+    for (let row = 0; row < rows; row++) {
+      const dy = rows === 1 ? 0 : (row / (rows - 1) - 0.5) * 0.62;
+      for (let x = x0 + 0.35; x < x1 - 0.25; x += step) {
+        if (R() < gaps) continue;
+        const along = (x - x0) / (x1 - x0);
+        decals.push({
+          key: 'ln-up',
+          frame: crop,
+          x: x * T + (R() - 0.5) * 3,
+          y: (y + dy - tilt + along * tilt * 2) * T + (R() - 0.5) * 3,
+          scale: 0.85 + R() * 0.3,
+          angle: R() * 360,
+          depth: -44,
+          alpha: 1,
+        });
+      }
+    }
+    if (crop === 'beans') {
+      for (const x of [x0 + 0.7, (x0 + x1) / 2, x1 - 0.7]) {
+        objects.push({ key: 'ln-up', frame: 'beanpoles', x: x * T, y: y * T, angle: R() * 360 });
+        solid(Math.floor(x), Math.floor(y));
+      }
     }
   }
+  decals.push({
+    key: 'ln-up',
+    frame: 'gardenfork',
+    ...P(10.4, 19.9),
+    angle: 8,
+    depth: -43,
+    alpha: 1,
+  });
+  obj('wateringcan', 11.6, 19.1, { angle: -20 });
+
   objects.push({ key: 'ln-town', frame: 'bench', ...C(20, 18.6), angle: 2 });
   solid(20, 19);
   obj('woodpile', 24, 21, { x: 24.5 * T, angle: -1.5 });
   for (const x of [23, 24, 25]) solid(x, 21);
   obj('chopblock', 22, 20, { angle: 20 });
   solid(22, 20);
-  for (const x of [21.5, 28.6]) {
-    walls.push({ kind: 'post', x: x * T - 5, y: 13.2 * T - 5, w: 10, h: 10 });
-    solid(Math.floor(x), 13);
+  // Three washing lines side by side, not quite parallel.
+  for (const [frame, x0, x1, y0, y1] of [
+    ['clothesline2', 22.1, 28.3, 11.9, 11.8],
+    ['clothesline', 21.5, 28.6, 13.2, 13.2],
+    ['clothesline3', 21.7, 28.5, 14.5, 14.65],
+  ] as const) {
+    walls.push({ kind: 'post', x: x0 * T - 5, y: y0 * T - 5, w: 10, h: 10 });
+    walls.push({ kind: 'post', x: x1 * T - 5, y: y1 * T - 5, w: 10, h: 10 });
+    solid(Math.floor(x0), Math.floor(y0));
+    solid(Math.floor(x1), Math.floor(y1));
+    objects.push({
+      key: 'ln-up',
+      frame,
+      x: ((x0 + x1) / 2) * T,
+      y: ((y0 + y1) / 2) * T + 15,
+      angle: (Math.atan2((y1 - y0) * T, (x1 - x0) * T) * 180) / Math.PI,
+      depth: 40_000,
+    });
   }
-  objects.push({
-    key: 'ln-up',
-    frame: 'clothesline',
-    x: 25.05 * T,
-    y: 13.2 * T + 12,
-    depth: 40_000,
-  });
+
   obj('compost', 9, 12, { angle: 4 });
   solid(9, 12);
   obj('wheelbarrow', 12, 13, { x: 12.3 * T });
   solid(12, 13);
   for (const [x, y] of [
-    [8, 15],
+    [6, 13],
     [33, 19],
     [37, 11],
     [13, 9],
@@ -714,6 +820,27 @@ export function generateUpperWorld(): World {
     }
   }
 
+  // Long grass, knee-high, where nobody mows: round the edges of the lawn
+  // and on into the trees, in drifts rather than a band, spilling a little
+  // over the lawn's edge here and there.
+  const tall = new Uint8Array(N);
+  const meadow: Pt[] = [];
+  for (let y = 0; y < 38; y++) {
+    for (let x = 0; x < UW; x++) {
+      const i = I(x, y);
+      if (block[i]) continue;
+      const v = n1(x * 0.35 + 40, y * 0.35);
+      const inLawn = x >= LAWN.x0 && x <= LAWN.x1 && y >= LAWN.y0;
+      const rim = inLawn && !trod[i] && (x === LAWN.x0 || x === LAWN.x1 || y === LAWN.y0);
+      const wild = !clear[i] && v > 0.22;
+      if (!wild && !(rim && v > 0.55)) continue;
+      tall[i] = 1;
+      meadow.push({ x: (x + 0.5) * T + (R() - 0.5) * 8, y: (y + 0.5) * T + (R() - 0.5) * 8 });
+    }
+  }
+  // Under everything else on the ground.
+  patches.unshift({ kind: 'meadow', width: T * 1.2, pts: meadow });
+
   return {
     realm: 'upper',
     w: UW,
@@ -725,7 +852,7 @@ export function generateUpperWorld(): World {
     decals,
     lights,
     // A new game starts by the car: you've just driven up.
-    spawn: C(32.4, 33),
+    spawn: C(32.8, 31.8),
     life: { buildings: [house, shed], festoons: [], spots: [] },
     walls,
     patches,
@@ -747,5 +874,6 @@ export function generateUpperWorld(): World {
     sails: [],
     trail,
     crowns,
+    tall,
   };
 }

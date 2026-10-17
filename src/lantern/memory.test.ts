@@ -68,9 +68,9 @@ describe("the hero's memory", () => {
 
   it('remembers what he has read', () => {
     const m = new Memory();
-    expect(m.hasRead('notebook')).toBe(false);
-    expect(m.read('notebook')).toBe(true);
-    expect(m.read('notebook')).toBe(false);
-    expect(new Memory(m.list).hasRead('notebook')).toBe(true);
+    expect(m.hasRead('phone')).toBe(false);
+    expect(m.read('phone')).toBe(true);
+    expect(m.read('phone')).toBe(false);
+    expect(new Memory(m.list).hasRead('phone')).toBe(true);
   });
 });

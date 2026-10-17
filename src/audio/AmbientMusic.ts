@@ -1,10 +1,13 @@
 import { storage } from '../ui/dom';
 
 const VOLUME_KEY = 'mirrowick.volume';
-/** Master gain at full volume. */
+const SOUNDS_KEY = 'mirrowick.sounds';
+/** Gain of the sounds at full volume. */
 const FULL = 0.5;
+/** Gain of the music at full volume: kept well under the sounds, just a backdrop. */
+const MUSIC_FULL = 0.2;
 
-/** The sounds of a fight. */
+/** The sounds of a fight, and of using things and going between places. */
 export type Sfx =
   | 'shot'
   | 'boom'
@@ -21,7 +24,15 @@ export type Sfx =
   | 'hurt'
   | 'thud'
   | 'drum'
-  | 'ring';
+  | 'ring'
+  | 'pickup'
+  | 'drawer'
+  | 'paper'
+  | 'switch'
+  | 'locked'
+  | 'steps'
+  | 'mirror'
+  | 'rustle';
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -39,21 +50,21 @@ interface MoodScore {
 }
 
 const SCORES: Record<Mood, MoodScore> = {
-  // D minor, slow and low: Dm – B♭ – Gm – A.
+  // D minor, slow and quiet, with no leading tone to pull at you: Dm – B♭ – F – C.
   lower: {
     chords: [
-      [50, 53, 57],
-      [46, 50, 53],
-      [43, 46, 50],
-      [45, 49, 52],
+      [50, 57, 62],
+      [46, 53, 62],
+      [45, 53, 60],
+      [43, 52, 60],
     ],
-    bells: [62, 65, 67, 69, 72, 74],
-    drone: 1,
-    cutoff: 700,
-    bellGap: [3500, 6000],
-    bellDecay: 3.2,
+    bells: [62, 65, 69, 72],
+    drone: 0.35,
+    cutoff: 600,
+    bellGap: [9000, 9000],
+    bellDecay: 3,
   },
-  // F major, warm and open: F – C – Dm – B♭, with a music box on top.
+  // F major, warm and open: F – C – Dm – B♭, with a rare music-box note.
   upper: {
     chords: [
       [53, 57, 60],
@@ -61,24 +72,28 @@ const SCORES: Record<Mood, MoodScore> = {
       [50, 53, 57],
       [50, 53, 58],
     ],
-    bells: [72, 74, 76, 77, 79, 81, 84],
-    drone: 0.15,
-    cutoff: 1700,
-    bellGap: [900, 2400],
-    bellDecay: 1.4,
+    bells: [72, 74, 77, 79, 81],
+    drone: 0,
+    cutoff: 1400,
+    bellGap: [5000, 6000],
+    bellDecay: 1.6,
   },
 };
-const CHORD_SECONDS = 9;
+const CHORD_SECONDS = 12;
 
 const midiToHz = (m: number) => 440 * 2 ** ((m - 69) / 12);
 
 /**
- * Procedural ambient score: a low drone, a slow pad progression and the odd
- * distant bell, all through a synthetic reverb. No audio files needed.
+ * Procedural ambient score, kept faint: a slow pad progression, a soft drone
+ * below and the odd distant bell, all through a synthetic reverb. The sounds
+ * of the game share the reverb but have their own volume. No audio files
+ * needed.
  */
 export class AmbientMusic {
   private ctx?: AudioContext;
   private master?: GainNode;
+  /** The music's own level, under the master. */
+  private musicBus?: GainNode;
   private pad?: GainNode;
   private reverb?: ConvolverNode;
   private lowpass?: BiquadFilterNode;
@@ -90,7 +105,9 @@ export class AmbientMusic {
   private chordIndex = 0;
   private mood: Mood = 'lower';
   /** Music volume, 0…1, as set in Settings. */
-  volume = readVolume();
+  volume = readLevel(VOLUME_KEY, 0.5);
+  /** Volume of the sounds, 0…1, as set in Settings. */
+  sounds = readLevel(SOUNDS_KEY, 0.8);
 
   /** Must be called from a user gesture the first time (autoplay policy). */
   start(): void {
@@ -105,16 +122,33 @@ export class AmbientMusic {
     const ctx = new AC();
     this.ctx = ctx;
 
-    this.master = ctx.createGain();
-    this.master.gain.value = 0;
-    this.master.connect(ctx.destination);
-    this.applyVolume(4);
+    // A limiter last of all, so a loud moment squeezes instead of clipping
+    // (clipping is what crackles in the speakers).
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    limiter.connect(ctx.destination);
 
+    // One echo for everything (a long reverb is the costliest node here),
+    // fed by two buses: the sounds, and the faint music.
     this.reverb = ctx.createConvolver();
     this.reverb.buffer = this.impulse(3.8);
     const wet = ctx.createGain();
-    wet.gain.value = 0.55;
-    this.reverb.connect(wet).connect(this.master);
+    wet.gain.value = 0.45;
+    this.reverb.connect(wet).connect(limiter);
+    const bus = (level: number) => {
+      const g = ctx.createGain();
+      g.gain.value = level;
+      g.connect(limiter);
+      g.connect(this.reverb as ConvolverNode);
+      return g;
+    };
+    this.master = bus(this.sounds * FULL);
+    this.musicBus = bus(0);
+    this.applyVolume(6);
 
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = 'lowpass';
@@ -131,14 +165,12 @@ export class AmbientMusic {
     this.pad = ctx.createGain();
     this.pad.gain.value = 0.9;
     this.pad.connect(lowpass);
-    lowpass.connect(this.master);
-    lowpass.connect(this.reverb);
+    lowpass.connect(this.musicBus);
 
     this.droneBus = ctx.createGain();
     this.droneBus.gain.value = SCORES[this.mood].drone;
     this.droneBus.connect(this.pad);
-    this.drone(38, 0.16);
-    this.drone(45, 0.07);
+    this.drone(38, 0.1);
 
     this.restartChords();
     this.scheduleBell();
@@ -176,12 +208,22 @@ export class AmbientMusic {
     this.applyVolume(0.3);
   }
 
+  setSounds(volume: number): void {
+    this.sounds = Math.min(1, Math.max(0, volume));
+    storage.set(SOUNDS_KEY, String(this.sounds));
+    this.ramp(this.master, this.sounds * FULL, 0.3);
+  }
+
   private applyVolume(seconds: number): void {
-    if (!this.ctx || !this.master) return;
+    this.ramp(this.musicBus, this.volume * MUSIC_FULL, seconds);
+  }
+
+  private ramp(node: GainNode | undefined, value: number, seconds: number): void {
+    if (!this.ctx || !node) return;
     const t = this.ctx.currentTime;
-    this.master.gain.cancelScheduledValues(t);
-    this.master.gain.setValueAtTime(this.master.gain.value, t);
-    this.master.gain.linearRampToValueAtTime(this.volume * FULL, t + seconds);
+    node.gain.cancelScheduledValues(t);
+    node.gain.setValueAtTime(node.gain.value, t);
+    node.gain.linearRampToValueAtTime(value, t + seconds);
   }
 
   private drone(midi: number, level: number): void {
@@ -245,8 +287,7 @@ export class AmbientMusic {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(0.05, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + bellDecay);
-    g.connect(this.reverb as ConvolverNode);
-    g.connect(this.master as GainNode);
+    g.connect(this.musicBus as GainNode);
     for (const [ratio, level] of [
       [1, 1],
       [2.76, 0.25],
@@ -262,9 +303,9 @@ export class AmbientMusic {
   }
 
   /**
-   * A short sound of the fight, through the same reverb, made from noise
-   * and a tone or two: shots, blows, beasts, and a low drum while something
-   * hunts you.
+   * A short sound, through the same reverb, made from noise and a tone or
+   * two: shots, blows, beasts, a low drum while something hunts you, and the
+   * small sounds of using things and going between places.
    */
   sfx(kind: Sfx): void {
     const ctx = this.ctx;
@@ -277,7 +318,6 @@ export class AmbientMusic {
       if (swell) g.gain.exponentialRampToValueAtTime(gain, at + swell);
       g.gain.exponentialRampToValueAtTime(0.0001, at + len);
       g.connect(this.master as GainNode);
-      g.connect(this.reverb as ConvolverNode);
       return g;
     };
     const noise = (
@@ -392,6 +432,59 @@ export class AmbientMusic {
           tone('square', f, f, 0.025, 0.055, { delay: i * 0.06, cutoff: 2600 });
         }
         break;
+      case 'pickup':
+        // Into a pocket: a rustle of cloth and a small, soft tick.
+        noise('bandpass', 1400, 0.12, 0.18, { q: 1.2, swell: 0.04 });
+        tone('sine', 880, 860, 0.035, 0.18, { delay: 0.12 });
+        break;
+      case 'drawer':
+        // Wood sliding out, a little unevenly, and a knock as it stops.
+        noise('bandpass', 420, 0.22, 0.32, { q: 3, swell: 0.08 });
+        noise('bandpass', 560, 0.1, 0.18, { q: 4, delay: 0.14 });
+        noise('lowpass', 300, 0.25, 0.1, { delay: 0.34 });
+        break;
+      case 'paper':
+        noise('highpass', 2600, 0.1, 0.12, { swell: 0.03 });
+        noise('highpass', 3400, 0.07, 0.16, { swell: 0.05, delay: 0.1 });
+        break;
+      case 'switch':
+        tone('square', 2200, 1800, 0.04, 0.025, { cutoff: 3000 });
+        noise('lowpass', 900, 0.12, 0.05);
+        break;
+      case 'locked':
+        // A handle tried twice: it rattles and holds.
+        for (const d of [0, 0.16]) {
+          noise('bandpass', 1500, 0.18, 0.07, { q: 5, delay: d });
+          noise('lowpass', 350, 0.18, 0.08, { delay: d + 0.02 });
+        }
+        break;
+      case 'steps':
+        // Four footfalls on wooden stairs, not quite in time.
+        for (const [d, f] of [
+          [0, 240],
+          [0.31, 210],
+          [0.6, 250],
+          [0.93, 200],
+        ] as const) {
+          noise('lowpass', f, 0.3, 0.12, { delay: d });
+          noise('bandpass', 900, 0.04, 0.05, { q: 2, delay: d });
+        }
+        break;
+      case 'rustle':
+        // Long grass brushing past the legs.
+        noise('bandpass', 2400 + Math.random() * 800, 0.05, 0.22, { q: 0.8, swell: 0.08 });
+        break;
+      case 'mirror':
+        // Glass that hums and rises, and lets you through.
+        noise('bandpass', 2800, 0.05, 1, { q: 10, swell: 0.6 });
+        for (const [f, d] of [
+          [660, 0],
+          [990, 0.15],
+          [1320, 0.3],
+        ] as const) {
+          tone('sine', f, f * 1.5, 0.03, 0.9, { delay: d });
+        }
+        break;
     }
   }
 
@@ -407,9 +500,9 @@ export class AmbientMusic {
   }
 }
 
-function readVolume(): number {
-  const v = Number(storage.get(VOLUME_KEY));
-  return storage.get(VOLUME_KEY) !== null && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8;
+function readLevel(key: string, fallback: number): number {
+  const v = Number(storage.get(key));
+  return storage.get(key) !== null && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;
 }
 
 /** One score for the whole game, shared across scenes. */
