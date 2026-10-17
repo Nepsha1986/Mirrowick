@@ -77,14 +77,11 @@ export interface Light extends Pt {
   slow?: boolean;
   /** Lights a room: shines only while that building's roof is lifted. */
   room?: number;
-  /** Shines only while this thing is switched on. */
-  thing?: string;
   color: number;
 }
 
 /**
- * Something in the world you can walk up to and use. It switches on and off,
- * or you pick it up, or the scene does something of its own with it, found
+ * Something in the world you can walk up to and use. You pick it up, or the scene does something of its own with it, found
  * by `id`.
  */
 export interface Thing extends Pt {
@@ -96,8 +93,6 @@ export interface Thing extends Pt {
   angle?: number;
   /** The prompt. */
   label: string;
-  /** Switches on and off: how it looks while on, and the prompt then. */
-  on?: { frame: string; label: string };
   /** You pick it up: it goes into your pockets and is gone from the world. */
   take?: boolean;
   /** You look in: a drawer of odds and ends, see `Memory`. */

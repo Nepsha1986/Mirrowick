@@ -81,8 +81,6 @@ export interface LanternData {
   at?: Pt;
   tod?: number;
   day?: number;
-  /** Things that are switched on. */
-  things?: string[];
   /** What you carry. */
   items?: string[];
   /** What the hero knows and has seen. */
@@ -97,7 +95,7 @@ export interface LanternData {
 
 const chunkOf = (p: Pt) => `${Math.floor(p.x / CHUNK)},${Math.floor(p.y / CHUNK)}`;
 
-/** Something you can use where you stand: a mirror, a switch. */
+/** Something you can use where you stand: a mirror, a drawer. */
 interface Target extends Pt {
   /** Its picture, outlined by the halo; without one the halo is a pool of light. */
   img?: Phaser.GameObjects.Image;
@@ -137,8 +135,7 @@ export class LanternScene extends Phaser.Scene {
   private nav!: Nav;
   private hero!: Hero;
   private heroImg!: Phaser.GameObjects.Image;
-  /** Long grass round the hero's knees, while he wades through it. */
-  private wadeImg?: Phaser.GameObjects.Image;
+  /** How deep in long grass the hero is, 0…1, easing in and out. */
   private wading = 0;
   /** Which foot was last forward, for the rustle of each step through grass. */
   private lastFoot = 0;
@@ -171,6 +168,10 @@ export class LanternScene extends Phaser.Scene {
   private using: Target | null = null;
   /** What E sent you walking to, to use once you're there. */
   private pending: Target | null = null;
+  /** What the mouse is over: its prompt shows, and clicking the prompt uses it. */
+  private pointed: Target | null = null;
+  /** When the mouse last left it: the prompt lingers a moment, so you can reach it. */
+  private pointedLeft = 0;
   /** Glints on drawers that still hold something worth a look, and on papers not yet read. */
   private glints: { img: Phaser.GameObjects.Image; worth: () => boolean }[] = [];
   /** Glowing footprints, and how much of each a roof hides (the shed's). */
@@ -195,7 +196,6 @@ export class LanternScene extends Phaser.Scene {
       this.combat?.refill();
     },
   };
-  private thingsOn = new Set<string>();
   /** What you carry: the flashlight, once you've found it. */
   private items = new Set<string>();
   /** The flashlight is out: he carries it in his pocket by day and takes it out in the dark. */
@@ -261,11 +261,11 @@ export class LanternScene extends Phaser.Scene {
     this.haloGlow = undefined;
     this.using = null;
     this.pending = null;
+    this.pointed = null;
     this.glints = [];
     this.trail = [];
     this.stuck.clear();
     this.moving = false;
-    this.thingsOn = new Set(this.start.things ?? []);
     // The menu's backdrop wanders with a light; a new game starts empty-handed.
     // Only what is still a thing (Victor's phone used to go in the bag).
     const items = this.start.items ?? (this.demo ? ['flashlight'] : []);
@@ -294,9 +294,6 @@ export class LanternScene extends Phaser.Scene {
     this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
     this.wading = 0;
-    this.wadeImg = this.world.tall
-      ? this.add.image(this.hero.x, this.hero.y, 'ln-up', 'wade').setAlpha(0)
-      : undefined;
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
     this.buildTrail();
@@ -329,6 +326,7 @@ export class LanternScene extends Phaser.Scene {
         t().places[this.realm],
         () => this.bag?.toggle(),
         (p) => ({ x: (p.x - cam.worldView.x) * cam.zoom, y: (p.y - cam.worldView.y) * cam.zoom }),
+        () => this.pointed && this.reach(this.pointed),
       );
       // Once the camera has caught up with the hero, the words go where they belong.
       cam.on(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, this.placeHud, this);
@@ -615,7 +613,9 @@ export class LanternScene extends Phaser.Scene {
         .setFlipY(p.left)
         .setTint(TRAIL_GLOW)
         .setBlendMode(Phaser.BlendModes.ADD)
-        .setDepth(DEPTH_ABOVE_DARK)
+        // On the ground, under whoever walks over them: they only show in
+        // the beam, where the dark is already lifted.
+        .setDepth(-35)
         .setAlpha(0);
       // Inside the shed they hide under its roof until you walk in.
       const room = this.roofs.findIndex((r) => r.area.contains(p.x, p.y));
@@ -827,11 +827,9 @@ export class LanternScene extends Phaser.Scene {
     }));
     for (const t of this.world.things) {
       if (t.take && this.items.has(t.id)) continue;
-      // How it looks and what it says now: switched on, or as it is.
-      const now = () => (t.on && this.thingsOn.has(t.id) ? t.on : t);
       const img = this.chunked(
         this.add
-          .image(t.x, t.y, t.key, now().frame)
+          .image(t.x, t.y, t.key, t.frame)
           .setDepth(t.depth ?? t.y + 4)
           .setScale(t.scale ?? 1)
           .setAngle(t.angle ?? 0),
@@ -854,19 +852,17 @@ export class LanternScene extends Phaser.Scene {
         x: t.x,
         y: t.y,
         img,
-        label: () => now().label,
+        label: () => t.label,
         use: () =>
-          t.on
-            ? this.toggle(t.id, () => img.setFrame(now().frame))
-            : t.take
-              ? this.take(t.id, img)
-              : hoard
-                ? this.look(hoard, target)
-                : read
-                  ? this.readPaper(read)
-                  : says
-                    ? this.think(says, target)
-                    : this.useThing(t.id),
+          t.take
+            ? this.take(t.id, img)
+            : hoard
+              ? this.look(hoard, target)
+              : read
+                ? this.readPaper(read)
+                : says
+                  ? this.think(says, target)
+                  : this.useThing(t.id),
       };
       this.targets.push(target);
     }
@@ -876,14 +872,6 @@ export class LanternScene extends Phaser.Scene {
       .setTint(HALO)
       .setScale(90 / 256)
       .setVisible(false);
-  }
-
-  private toggle(id: string, redraw: () => void): void {
-    if (this.thingsOn.has(id)) this.thingsOn.delete(id);
-    else this.thingsOn.add(id);
-    music.sfx('switch');
-    redraw();
-    this.save();
   }
 
   /** Into your pockets: gone from the world, and the hero carries it. */
@@ -1120,13 +1108,57 @@ export class LanternScene extends Phaser.Scene {
 
   /** E: uses what is haloed, walking over to it first if it is a few steps away. */
   private act(): void {
-    if (this.reader?.open) return;
     const t = this.noticed();
-    if (!t) return;
+    if (t) this.reach(t);
+  }
+
+  /** Uses a thing, walking over to it first if it is out of reach. */
+  private reach(t: Target): void {
+    if (this.reader?.open || this.leaving) return;
     if (this.inReach(t)) return t.use();
     this.combat?.release();
     this.hero.path = this.nav.route(this.hero, t, HERO_R);
     this.pending = t;
+  }
+
+  /**
+   * What the mouse is over, if you can see it from here: in reach, or with
+   * no wall between and no roof over it. While the mouse is on the prompt,
+   * or has only just left the thing, it stays the same.
+   */
+  private pointAt(): Target | null {
+    if (this.demo || this.leaving) return null;
+    if (this.hud?.pointing && this.pointed && this.targets.includes(this.pointed))
+      return this.pointed;
+    const ptr = this.input.activePointer;
+    const wp = this.cameras.main.getWorldPoint(ptr.x, ptr.y);
+    const h = this.hero;
+    let best: Target | null = null;
+    let bd = Infinity;
+    for (const t of this.targets) {
+      if (t.img && !t.img.visible) continue;
+      // Its picture, a little taller so the mouse can go up to the prompt; or a spot.
+      const b = t.img?.getBounds();
+      const over = b
+        ? wp.x > b.x && wp.x < b.right && wp.y > b.y - 10 && wp.y < b.bottom
+        : Math.hypot(wp.x - t.x, wp.y - t.y) < 18;
+      if (!over) continue;
+      if (!this.inReach(t)) {
+        if (this.nav.wallBetween(h, t)) continue;
+        if (this.roofs.some((r) => r.img.alpha > 0.5 && r.area.contains(t.x, t.y))) continue;
+      }
+      const d = Math.hypot(wp.x - t.x, wp.y - t.y);
+      if (d < bd) {
+        bd = d;
+        best = t;
+      }
+    }
+    const now = this.time.now;
+    if (best || !this.pointed || !this.targets.includes(this.pointed)) {
+      this.pointedLeft = now;
+      return best;
+    }
+    return now - this.pointedLeft < 400 ? this.pointed : null;
   }
 
   private checkTargets(): void {
@@ -1144,9 +1176,16 @@ export class LanternScene extends Phaser.Scene {
     const pulse = Math.sin(this.time.now / 260);
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
+    // The prompt shows only for what the mouse is over; E works on what glows.
+    const over = (this.pointed = this.pointAt());
+    const what = over?.label();
     this.hud?.prompt(
-      near && !this.reader?.open ? fill(t().hud.use, { what: near.label() }) : null,
-      near && topOf(near),
+      over && what && !this.reader?.open
+        ? over === near
+          ? fill(t().hud.use, { what })
+          : what
+        : null,
+      over && topOf(over),
     );
     // A twinkle on a drawer with something in it still worth having.
     const sec = this.time.now / 1000;
@@ -1170,7 +1209,6 @@ export class LanternScene extends Phaser.Scene {
       y: Math.round(this.hero.y),
       tod: this.tod,
       day: this.day,
-      things: [...this.thingsOn],
       items: [...this.items],
       known: this.memory.list,
       ammo: [this.ammo.mag, this.ammo.spare],
@@ -1195,7 +1233,6 @@ export class LanternScene extends Phaser.Scene {
         at: p.exit,
         tod: this.tod,
         day: this.day,
-        things: [...this.thingsOn],
         // What he is done with he leaves behind.
         items: [...this.items].filter((id) => !this.memory.spent(id)),
         known: this.memory.list,
@@ -1226,7 +1263,6 @@ export class LanternScene extends Phaser.Scene {
         at: this.world.spawn,
         tod: this.tod,
         day: this.day,
-        things: [...this.thingsOn],
         items: [...this.items],
         known: this.memory.list,
         ammo: [this.ammo.mag, this.ammo.spare],
@@ -1291,9 +1327,8 @@ export class LanternScene extends Phaser.Scene {
     // Mid-stride on one foot, then the other; a little lift on each step.
     const stride = mx || my ? Math.sin(h.walk) : 0;
     const bob = Math.abs(stride) * 0.03;
-    const deep = this.wade(h, dt, stride);
-    // In long grass the feet don't show.
-    const step = deep ? '' : stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
+    this.wade(h, dt, stride);
+    const step = stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
     const frame = this.heroFrame() + step;
     if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
     // A shot kicks you back a little; a wound flushes you red.
@@ -1308,29 +1343,15 @@ export class LanternScene extends Phaser.Scene {
     else this.heroImg.clearTint();
   }
 
-  /**
-   * Knee-deep in long grass: tufts hide his feet, sway, and rustle at each
-   * step. Returns whether he is in it.
-   */
-  private wade(h: Hero, dt: number, stride: number): boolean {
-    const img = this.wadeImg;
+  /** Knee-deep in long grass: it slows him a little and rustles at each step. */
+  private wade(h: Hero, dt: number, stride: number): void {
     const tall = this.world.tall;
-    if (!img || !tall) return false;
+    if (!tall) return;
     const deep = tall[Math.floor(h.y / T) * this.world.w + Math.floor(h.x / T)] === 1;
     this.wading = Phaser.Math.Clamp(this.wading + (deep ? dt : -dt) * 6, 0, 1);
     const foot = stride > 0.45 ? 1 : stride < -0.45 ? -1 : 0;
     if (deep && foot && foot !== this.lastFoot) music.sfx('rustle');
     if (foot) this.lastFoot = foot;
-    // The blades turn with him and lean a little into each step.
-    const sway = Math.sin(this.time.now / 700) * 0.04 + stride * 0.06;
-    img
-      .setVisible(this.wading > 0)
-      .setAlpha(this.wading)
-      .setPosition(h.x, h.y)
-      .setDepth(h.y + 7)
-      .setRotation(h.facing + sway)
-      .setScale(0.9 + this.wading * 0.1);
-    return deep;
   }
 
   private drawMarker(dt: number): void {
@@ -1386,7 +1407,7 @@ export class LanternScene extends Phaser.Scene {
     const h = this.hero;
     if (this.inBeam(p) || Math.hypot(p.x - h.x, p.y - h.y) < LIGHT_R * 0.35) return 0;
     for (const l of this.world.lights) {
-      if (l.room !== undefined || l.thing) continue;
+      if (l.room !== undefined) continue;
       if (Math.hypot(l.x - p.x, l.y - p.y) < l.radius * 0.7) return 0;
     }
     return Math.round(30 * clamp(this.darkness / 0.92, 0, 1));
@@ -1467,7 +1488,6 @@ export class LanternScene extends Phaser.Scene {
       const f = l.slow
         ? 1 + Math.sin(t * 1.6 + l.x) * l.flicker
         : 1 + (Math.sin(t * 11 + l.x) * 0.5 + Math.sin(t * 23 + l.y) * 0.5) * l.flicker;
-      if (l.thing && !this.thingsOn.has(l.thing)) continue;
       const room = l.room === undefined ? 1 : 1 - (this.roofs[l.room]?.img.alpha ?? 1);
       if (room > 0.02) cut(l.x, l.y, l.radius * f, 0.95 * room);
     }

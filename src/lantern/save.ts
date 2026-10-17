@@ -11,8 +11,6 @@ export interface SaveData {
   /** Time of day, 0…1 from 06:00, and the day number. */
   tod: number;
   day: number;
-  /** Things that are switched on. */
-  things: string[];
   /** What you carry. */
   items: string[];
   /** What the hero knows and has seen; older saves have none. */
@@ -32,7 +30,6 @@ export function loadSave(): SaveData | null {
     if (!num(d.x) || !num(d.y) || !num(d.tod) || !num(d.day)) return null;
     const strings = (v: unknown) =>
       Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : null;
-    const things = strings(d.things) ?? [];
     // Saves from before you had to find the flashlight already carry it.
     const items = strings(d.items) ?? ['flashlight'];
     const known = strings(d.known) ?? undefined;
@@ -40,7 +37,7 @@ export function loadSave(): SaveData | null {
       Array.isArray(d.ammo) && d.ammo.length === 2 && d.ammo.every((n) => num(n) && n >= 0)
         ? d.ammo
         : undefined;
-    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items, known, ammo };
+    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, items, known, ammo };
   } catch {
     return null;
   }

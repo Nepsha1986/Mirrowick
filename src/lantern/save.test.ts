@@ -18,7 +18,6 @@ describe('saved game', () => {
       y: 352,
       tod: 0.4,
       day: 3,
-      things: ['tv'],
       items: ['flashlight', 'pistol'],
       known: ['dark', 'seen:cellar-key'],
       ammo: [5, 24] as [number, number],

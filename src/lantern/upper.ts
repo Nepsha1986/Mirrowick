@@ -370,14 +370,7 @@ export function generateUpperWorld(): World {
   decal('rugBlue', 24, 24.6);
   obj('sofa', 24, 26);
   for (const x of [23, 24, 25]) solid(x, 26);
-  things.push({
-    id: 'tv',
-    key: 'ln-up',
-    frame: 'tv',
-    ...C(24, 23),
-    label: t().use.tvOn,
-    on: { frame: 'tvOn', label: t().use.tvOff },
-  });
+  obj('tv', 24, 23);
   for (const x of [23, 24, 25]) solid(x, 23);
   obj('desk', 27, 24.5, { y: 25 * T });
   solid(27, 24);
@@ -388,7 +381,6 @@ export function generateUpperWorld(): World {
   obj('floorlamp', 27, 27);
   solid(27, 27);
   lamp(C(24, 25), 150);
-  light(C(24, 23.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
   lamp(C(26.6, 24.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, Victor's coat still on the stand, a plant.

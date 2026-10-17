@@ -111,7 +111,7 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it.each(['tv', 'mailbox', 'nightstand', 'coat', 'fridge-note', 'victor-car'])(
+  it.each(['mailbox', 'nightstand', 'coat', 'fridge-note', 'victor-car'])(
     'put the %s within reach',
     (id) => {
       const thing = upper.things.find((t) => t.id === id) as Pt;
