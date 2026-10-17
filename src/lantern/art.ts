@@ -522,6 +522,35 @@ function paintAtlas(scene: Phaser.Scene): void {
     add(`${name}Step2`, 36, 36, (p) => hero(p, lit, gun, -1));
   }
   add('dot', 8, 8, (p) => p.circ(4, 4, 3.5, '#ffffff'));
+  // Prints left on the ground, toes to the right; flipped for the other
+  // foot. A shoe's sole and heel with a worn tread, a wolf's pad and toes,
+  // a boar's split hoof, the three scratches of a crawler's glass foot.
+  const PRINT = 'rgba(18,12,8,.85)';
+  add('printShoe', 12, 6, (p) => {
+    p.ell(7.6, 3, 3.6, 2.2, PRINT);
+    p.ell(1.9, 3.1, 1.7, 1.8, PRINT);
+    p.line(6, 1.6, 6, 4.4, 'rgba(18,12,8,.4)', 0.6);
+    p.line(8.4, 1.4, 8.4, 4.6, 'rgba(18,12,8,.4)', 0.6);
+  });
+  add('printPaw', 8, 7, (p) => {
+    p.ell(2.6, 3.5, 1.8, 2, PRINT);
+    for (const [x, y] of [
+      [5.4, 1.2],
+      [6.6, 2.8],
+      [6.6, 4.3],
+      [5.4, 5.8],
+    ] as const)
+      p.circ(x, y, 0.85, PRINT);
+  });
+  add('printHoof', 8, 7, (p) => {
+    p.ell(4.3, 2.1, 2.9, 1.25, PRINT);
+    p.ell(4, 4.9, 2.7, 1.25, PRINT);
+  });
+  add('printClaw', 8, 7, (p) => {
+    p.line(1, 1.4, 6.6, 2.2, PRINT, 0.8);
+    p.line(1.4, 3.6, 7, 3.5, PRINT, 0.8);
+    p.line(1, 5.8, 6, 5, PRINT, 0.7);
+  });
   A.refresh();
 }
 

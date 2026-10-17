@@ -8,16 +8,27 @@ import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
 import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
-import { DAY_LEN, T, clamp, lerp, rnd, type Pt } from '../lantern/util';
+import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
 import { Combat } from './Combat';
+import { Tracks } from './Tracks';
 import { openMailbox } from '../ui/mailbox';
 
 const DEPTH_DARK = 100_000;
 const DEPTH_ABOVE_DARK = 100_001;
 const HERO_R = 10;
+/** Ground tiles that are floors. */
+const FLOORS = new Set<number>([
+  TL.FLOOR,
+  TL.PLANK,
+  TL.PLANK2,
+  TL.PARQUET,
+  TL.CHECKER,
+  TL.CARPET,
+  TL.TILEW,
+]);
 const SPEED = 140;
 const LIGHT_R = 150;
 /** How much faster time runs while T is held. */
@@ -121,6 +132,8 @@ export class LanternScene extends Phaser.Scene {
   private markerAt: (Pt & { t: number }) | null = null;
   private motes: (Phaser.GameObjects.Image & { vx: number; vy: number; ph: number; ba: number })[] =
     [];
+  /** Footprints behind the hero and the enemies; none in the cellar. */
+  private tracks?: Tracks;
   private roofs: { img: Phaser.GameObjects.Image; area: Phaser.Geom.Rectangle }[] = [];
   private sails: { img: Phaser.GameObjects.Image; room: number }[] = [];
   /** Glows under the outdoor lights; in the Upper World they only show after dark. */
@@ -217,6 +230,7 @@ export class LanternScene extends Phaser.Scene {
     if (!this.demo) music.setMood(this.realm === 'upper' ? 'upper' : 'lower');
 
     this.buildGround();
+    this.tracks = this.realm === 'cellar' ? undefined : new Tracks(this, (p) => this.indoors(p));
     this.buildObjects();
     this.buildTargets();
     // A saved spot that is no longer free (the world changed) falls back to the start.
@@ -520,6 +534,7 @@ export class LanternScene extends Phaser.Scene {
         safe: (p) =>
           this.world.town[Math.floor(p.y / T) * this.world.w + Math.floor(p.x / T)] === 1,
         fall: () => this.fall(),
+        tracks: this.tracks,
       },
       foes,
       true,
@@ -643,6 +658,7 @@ export class LanternScene extends Phaser.Scene {
 
     this.moveHero(dt);
     this.combat?.update(dt);
+    this.tracks?.update(dt);
     this.checkTargets();
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE) this.save();
@@ -708,6 +724,13 @@ export class LanternScene extends Phaser.Scene {
     img.destroy();
     this.heroImg.setFrame(this.heroFrame());
     this.save();
+  }
+
+  /** Under a roof or on a floor, where feet leave no prints. */
+  private indoors(p: Pt): boolean {
+    if (this.roofs.some((r) => r.area.contains(p.x, p.y))) return true;
+    const g = this.world.ground[Math.floor(p.y / T) * this.world.w + Math.floor(p.x / T)];
+    return g !== undefined && FLOORS.has(g);
   }
 
   private heroFrame(): string {
@@ -905,6 +928,7 @@ export class LanternScene extends Phaser.Scene {
       this.nav.move(h, mx, my, HERO_R);
       h.walk += dt * 10;
     }
+    this.tracks?.follow(h, 'hero');
     // Turn smoothly towards the walking direction, or the enemy.
     const face = steer?.face ?? (mx || my ? Math.atan2(my, mx) : null);
     if (face !== null) h.facing += Phaser.Math.Angle.Wrap(face - h.facing) * Math.min(1, dt * 12);

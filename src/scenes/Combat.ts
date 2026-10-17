@@ -25,6 +25,7 @@ import type { FoeSpawn } from '../lantern/hollow';
 import type { Nav } from '../lantern/nav';
 import { T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { CombatPanel, type Stance } from '../ui/CombatPanel';
+import type { Tracks } from './Tracks';
 
 /** Backing away, still facing them; and backing away from one at your throat. */
 const BACK = 58;
@@ -106,6 +107,8 @@ export interface CombatHost {
   safe(p: Pt): boolean;
   /** Down: the scene takes it from here. */
   fall(): void;
+  /** Prints on the ground behind whoever walks. */
+  tracks?: Tracks;
 }
 
 const VERB: Record<FoeId, string> = {
@@ -1061,6 +1064,7 @@ export class Combat {
       f.img.setPosition(x, y).setRotation(f.facing);
       f.img.setDepth(f.y + 4).setScale(1 + bob, 1 - bob);
       if (f.glow) this.drawCrawler(f, now, bob);
+      if (f.kind.id !== 'shade') this.host.tracks?.follow(f, f.kind.id);
       if (f.hurt > 0) f.img.setTint(0xff8070);
       else if (f.charge === 'blown') f.img.setTint(0xb8a898);
       else f.img.clearTint();
