@@ -4,6 +4,8 @@ import { generateUpperWorld } from './upper';
 import { T, TOWN, type Pt } from './util';
 import { generateCellar } from './cellar';
 import { ITEMS } from './items';
+import { PAPERS } from './papers';
+import { upperHatch } from './mill';
 import { generateWorld, type Portal, type World } from './world';
 
 describe('lantern world', () => {
@@ -91,16 +93,16 @@ describe('thin walls', () => {
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
   it('block on the wall line but not beside it', () => {
-    // The wall between the kitchen and the living room runs down column 14.
-    const x = 14.5 * T;
-    const y = 11.5 * T;
+    // The wall between the kitchen and the living room runs down column 20.
+    const x = 20.5 * T;
+    const y = 25.5 * T;
     expect(nav.solidAt(x, y)).toBe(true);
     expect(nav.solidAt(x - 10, y)).toBe(false);
     expect(nav.solidAt(x + 10, y)).toBe(false);
   });
 
   it('let the hero walk from the living room out to the road', () => {
-    const route = nav.route(upper.spawn, { x: 17 * T, y: 26.5 * T }, 10);
+    const route = nav.route(upper.spawn, { x: 23 * T, y: 40.5 * T }, 10);
     expect(route.length).toBeGreaterThan(0);
   });
 });
@@ -109,12 +111,55 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it.each(['tv', 'mailbox', 'nightstand'])('put the %s within reach', (id) => {
-    const thing = upper.things.find((t) => t.id === id) as Pt;
-    expect(thing).toBeDefined();
-    const route = nav.route(upper.spawn, thing, 10);
-    const end = route[route.length - 1] as Pt;
-    expect(Math.hypot(end.x - thing.x, end.y - thing.y)).toBeLessThan(1.4 * T);
+  it.each(['tv', 'mailbox', 'nightstand', 'notebook', 'fridge-note', 'victor-car'])(
+    'put the %s within reach',
+    (id) => {
+      const thing = upper.things.find((t) => t.id === id) as Pt;
+      expect(thing).toBeDefined();
+      const route = nav.route(upper.spawn, thing, 10);
+      const end = route[route.length - 1] as Pt;
+      expect(Math.hypot(end.x - thing.x, end.y - thing.y)).toBeLessThan(1.4 * T);
+    },
+  );
+
+  it('put the tome in the cellar within reach', () => {
+    const cellar = generateCellar();
+    const tome = cellar.things.find((t) => t.id === 'tome') as Pt;
+    const route = new Nav(cellar.block, cellar.w, cellar.h, cellar.walls).route(
+      cellar.spawn,
+      tome,
+      10,
+    );
+    const end = route[route.length - 1] ?? cellar.spawn;
+    expect(Math.hypot(end.x - tome.x, end.y - tome.y)).toBeLessThan(1.4 * T);
+  });
+
+  it('give everything you can read something to read', () => {
+    for (const w of [upper, generateCellar()]) {
+      for (const t of w.things) if (t.read) expect(PAPERS[t.read], t.id).toBeDefined();
+    }
+    expect(PAPERS['bookshop-letter']).toBeDefined();
+  });
+});
+
+describe("Victor's glowing footprints", () => {
+  const upper = generateUpperWorld();
+  const trail = upper.trail ?? [];
+  const hatch = upperHatch();
+
+  it('run from the back door all the way to the hatch in the shed', () => {
+    expect(trail.length).toBeGreaterThan(40);
+    const first = trail[0] as Pt;
+    const last = trail[trail.length - 1] as Pt;
+    expect(Math.hypot(first.x - 17.5 * T, first.y - 22 * T)).toBeLessThan(T);
+    expect(Math.hypot(last.x - hatch.x, last.y - hatch.y)).toBeLessThan(1.5 * T);
+  });
+
+  it('follow a way the hero can walk', () => {
+    const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
+    const route = nav.route(upper.spawn, hatch, 10);
+    const end = route[route.length - 1] ?? upper.spawn;
+    expect(Math.hypot(end.x - hatch.x, end.y - hatch.y)).toBeLessThan(T);
   });
 });
 

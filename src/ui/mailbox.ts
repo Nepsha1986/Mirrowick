@@ -4,14 +4,28 @@ import { h } from './dom';
 /** Letters to the developer go by email, from the player's own mail app. */
 const POST = 'nepsha1986@gmail.com';
 
-/** The mailbox by the gate: look for letters, or write one to the developer. */
-export function openMailbox(d: Dialog, onClose: () => void): void {
+/**
+ * The mailbox by the gate: the one letter waiting for Victor, which `read`
+ * holds up to read, or a letter of your own to the developer.
+ */
+export function openMailbox(d: Dialog, onClose: () => void, read: () => void): void {
+  const mail = () =>
+    d.show('Mailbox', 'One letter, addressed to Victor. Nobody has collected it.', [
+      [
+        'Read it',
+        () => {
+          d.close();
+          read();
+        },
+      ],
+      ['Back', menu],
+    ]);
   const menu = () =>
     d.show(
       'Mailbox',
       null,
       [
-        ['Check the mail', () => d.show('Mailbox', 'It is empty.', [['Back', menu]])],
+        ['Check the mail', mail],
         ['Write to the developer', write],
         ['Close', () => d.close()],
       ],

@@ -1,7 +1,7 @@
 import { T, TL, TOWN, mulberry32, type Pt } from './util';
 import type { Light, WorldObject } from './world';
 
-export type RoofKind = 'tiles' | 'slate' | 'thatch' | 'shingle' | 'mill';
+export type RoofKind = 'tiles' | 'slate' | 'thatch' | 'shingle' | 'tin' | 'mill';
 
 /** A building you can walk into: its roof fades while you're inside. */
 export interface Building {

@@ -1,6 +1,13 @@
 import { cellarMirror, cellarStairs, lowerMirror, upperHatch, wallTiles } from './mill';
 import { CH, CW, T, TL, mulberry32, type Pt } from './util';
-import { GLASS, type Light, type ThinWall, type World, type WorldObject } from './world';
+import {
+  GLASS,
+  type Light,
+  type Thing,
+  type ThinWall,
+  type World,
+  type WorldObject,
+} from './world';
 
 const CANDLE = 0xffb050;
 /** The hall: an ellipse round the mirror, its wall's middle line (tiles). */
@@ -8,10 +15,11 @@ const RX = 13.6;
 const RY = 9;
 
 /**
- * The cellar under the Upper World's mill: a great vaulted hall dug far
- * wider than the tower above, where someone once kept a mirror in a chalk
- * circle. Shelves of old books, an alchemist's table, a cauldron, candles,
- * sigils on the floor — and stairs back up to the hatch in the mill.
+ * The cellar under Victor's shed: a great vaulted hall dug far wider than
+ * the shed above, where someone once kept a mirror in a chalk circle.
+ * Shelves of old books, a lectern with a tome you can read, an alchemist's
+ * table, a cauldron, candles, sigils on the floor — and stairs back up to
+ * the hatch in the shed.
  */
 export function generateCellar(): World {
   const R = mulberry32(6660);
@@ -108,7 +116,17 @@ export function generateCellar(): World {
     block[I(x - 1, 5)] = 1;
     block[I(x, 5)] = 1;
   }
-  up('lectern', P(19, 6.6));
+  // The tome lies open on the lectern, with a slip of paper in it.
+  const things: Thing[] = [
+    {
+      id: 'tome',
+      key: 'ln-cellar',
+      frame: 'lectern',
+      ...P(19, 6.6),
+      label: 'Read the open book',
+      read: 'tome',
+    },
+  ];
   solidAt(P(19, 6.6));
   light(P(19, 6.2), 46, CANDLE);
 
@@ -185,7 +203,7 @@ export function generateCellar(): World {
         ...P(5.5, 13),
         to: 'upper',
         exit: upperHatch(),
-        label: 'Climb up to the mill',
+        label: 'Climb up to the shed',
         fade: 'dark',
       },
       {
@@ -199,6 +217,6 @@ export function generateCellar(): World {
     sails: [],
     walls,
     patches,
-    things: [],
+    things,
   };
 }

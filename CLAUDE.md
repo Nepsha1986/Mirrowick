@@ -2,7 +2,8 @@
 
 A top-down web game about two parallel worlds that share one name: the dark,
 solitary **Lower World** and the ordinary, sunlit **Upper World**, joined by a
-mirror in a cellar under the windmill. Phaser 4 (WebGL), TypeScript, Vite.
+mirror in a cellar under Victor's shed (it comes out in the Lower World's
+windmill). Phaser 4 (WebGL), TypeScript, Vite.
 
 ## Docs
 
@@ -66,11 +67,13 @@ a merge commit or rebase.
 - `src/lantern/world.ts`: the Lower World, generated from a fixed seed.
   Also defines `World`, `Portal`, `Light` and `Realm`. `town.ts` lays out the
   village by hand.
-- `src/lantern/upper.ts`: the Upper World homestead, laid out by hand.
-- `src/lantern/cellar.ts`: the cellar under the Upper World's mill (realm
-  `'cellar'`): stairs up to the mill's hatch, a mirror down to the Lower World.
-- `src/lantern/mill.ts`: the round windmill, shared by both worlds, and where
-  each way between the places comes out.
+- `src/lantern/upper.ts`: the Upper World homestead, laid out by hand: Victor's
+  house, front yard, back garden and the shed with the hatch, and his glowing
+  footprints (`World.trail`).
+- `src/lantern/cellar.ts`: the cellar under Victor's shed (realm `'cellar'`):
+  stairs up to the shed's hatch, a mirror down to the Lower World.
+- `src/lantern/mill.ts`: the Lower World's round windmill, and where each way
+  between the places comes out.
 - `src/lantern/ground-art.ts`: roads, paths and beds painted over the ground
   with ragged edges (`World.patches`), and thin walls, posts and fences
   (`World.walls`). Thin walls have their own collision in `Nav`.
@@ -81,7 +84,9 @@ a merge commit or rebase.
   grid. Pass the map size: `new Nav(block, w, h)`.
 - `src/lantern/items.ts`, `memory.ts`: what the hero can carry, and his
   memory: he leaves things until he learns he needs them (`Thing.hoard`,
-  `Portal.lock`).
+  `Portal.lock`), and what he has read.
+- `src/lantern/papers.ts`: notes, letters and books to read (`Thing.read`);
+  `src/ui/Reader.ts` shows them.
 - `src/lantern/util.ts`: tile size (`T = 32`), map sizes, tile ids (`TL`),
   landmark positions, seeded PRNG and noise.
 - `src/audio/AmbientMusic.ts`: procedural Web Audio score, with

@@ -49,7 +49,7 @@ export function paintUpperTiles(at: At, r: () => number): void {
 
 // --- Objects -----------------------------------------------------------------------------
 
-/** The Upper World's things, and both windmills' insides, in one atlas. */
+/** The Upper World's things, and the Lower World windmill's insides, in one atlas. */
 export function paintUpperAtlas(scene: Phaser.Scene): void {
   const A = scene.textures.createCanvas('ln-up', 1024, 1024);
   if (!A) return;
@@ -267,6 +267,16 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(50, 2, 4, 6, '#5a7a58');
     p.circ(46, 5, 1.5, '#d8b860');
   });
+  // A footprint that glows: a pale sole in a soft halo, tinted cold when drawn.
+  add('printGlow', 20, 14, (p) => {
+    const g = c.createRadialGradient(10, 7, 0, 10, 7, 9);
+    g.addColorStop(0, 'rgba(255,255,255,.35)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 20, 14);
+    p.ell(12, 7, 3.8, 2.3, 'rgba(255,255,255,.9)');
+    p.ell(5.6, 7.1, 1.8, 1.9, 'rgba(255,255,255,.85)');
+  });
   // A four-point glint on something worth a look.
   add('glint', 24, 24, (p) => {
     const g = c.createRadialGradient(12, 12, 0, 12, 12, 11);
@@ -425,7 +435,7 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.ell(40, 30, 28, 20, '#e8d8b8');
   });
 
-  // The windmill's insides: the whole mill below, the ruin above.
+  // The Lower World windmill's insides.
   const stone = (p: Painter, cx: number, cy: number, r: number) => {
     p.circ(cx, cy, r, '#8f877a', 1.6);
     for (let k = 0; k < 12; k++) {
@@ -448,31 +458,8 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.line(32, 2, 32, 62, WOOD_DARK, 4);
     p.rect(26, 26, 12, 12, '#6a4a2e', 1);
   });
-  add('millstoneBroken', 64, 64, (p) => {
-    shadow(p, 35, 36, 26, 24);
-    c.save();
-    c.beginPath();
-    c.moveTo(32, 32);
-    c.arc(32, 32, 30, 0.4, 4.4);
-    c.closePath();
-    c.clip();
-    stone(p, 32, 32, 24);
-    c.restore();
-    p.poly(
-      [
-        [40, 34],
-        [56, 30],
-        [54, 44],
-        [42, 46],
-      ],
-      '#8f877a',
-      1.2,
-    );
-    p.line(18, 14, 30, 30, 'rgba(30,20,12,.7)', 1.2);
-    for (let k = 0; k < 6; k++) p.circ(10 + ar() * 44, 8 + ar() * 48, 2.5, '#6f685c', 0.6);
-  });
   // The mirror set in the floor: the same black glass as the Lower World's lake.
-  const glass = (p: Painter, cracked: boolean) => {
+  add('mirror', 56, 56, (p) => {
     p.circ(28, 28, 26, '#5d5549', 1.6);
     p.circ(28, 28, 21, '#121619', 1.2);
     c.save();
@@ -481,23 +468,8 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.line(18, 16, 26, 12, 'rgba(159,216,230,.7)', 1.4);
     c.restore();
     p.ell(22, 20, 8, 4, 'rgba(207,238,244,.22)');
-    if (cracked) {
-      for (const [a, l] of [
-        [0.3, 19],
-        [1.9, 17],
-        [3.4, 20],
-        [4.6, 15],
-      ] as const) {
-        p.line(31, 31, 31 + Math.cos(a) * l, 31 + Math.sin(a) * l, 'rgba(207,238,244,.65)', 1);
-      }
-      for (let k = 0; k < 8; k++) p.circ(8 + ar() * 40, 8 + ar() * 40, 1.6, 'rgba(120,110,95,.6)');
-    } else {
-      p.circ(28, 28, 21, 'rgba(0,0,0,0)', 0);
-      for (let k = 0; k < 5; k++) p.rect(10 + ar() * 34, 10 + ar() * 34, 2, 2, '#9fd8e6');
-    }
-  };
-  add('mirror', 56, 56, (p) => glass(p, false));
-  add('mirrorCracked', 56, 56, (p) => glass(p, true));
+    for (let k = 0; k < 5; k++) p.rect(10 + ar() * 34, 10 + ar() * 34, 2, 2, '#9fd8e6');
+  });
   add('sacks', 32, 32, (p) => {
     shadow(p, 17, 18, 13, 11);
     for (const [x, y] of [
@@ -508,43 +480,309 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
       p.circ(x - 2, y - 3, 2, 'rgba(255,250,235,.4)');
     }
   });
-  add('rubble', 30, 26, (p) => {
-    shadow(p, 16, 15, 12, 8);
-    for (const [x, y, r] of [
-      [10, 12, 7],
-      [19, 10, 6],
-      [16, 18, 6],
-    ] as const) {
-      p.circ(x, y, r, '#7f776a', 1.1);
-      p.circ(x - 2, y - 2, r / 2.5, '#9a9284');
-    }
-  });
-  // Sails: four lattice blades round a hub; and one blade, fallen and broken.
-  const blade = (p: Painter, len: number, broken: boolean) => {
+  // Sails: four lattice blades round a hub.
+  const blade = (p: Painter, len: number) => {
     p.rect(-2, 0, 4, len, '#5e4330', 1);
     for (let y = 10; y < len; y += 9) {
-      if (broken && ar() < 0.3) continue;
       p.rect(2, y, 14, 2, '#6a4a2e');
     }
     p.rect(16, 8, 2, len - 8, '#5e4330', 0.6);
-    if (!broken) p.rect(3, 10, 13, len - 14, 'rgba(232,222,196,.55)');
+    p.rect(3, 10, 13, len - 14, 'rgba(232,222,196,.55)');
   };
   add('sails', 240, 240, (p) => {
     for (let k = 0; k < 4; k++) {
       c.save();
       c.translate(120, 120);
       c.rotate((k * Math.PI) / 2);
-      blade(p, 112, false);
+      blade(p, 112);
       c.restore();
     }
     p.circ(120, 120, 9, '#3e2c1f', 1.4);
     p.circ(120, 120, 3, '#8a8a8a');
   });
-  add('sailBroken', 30, 96, (p) => {
+
+  // --- Victor's place ------------------------------------------------------------------
+  // Victor's old estate car from above, nose to the south: boxy, maroon, its
+  // paint gone dull on the roof. Dust on the glass and leaves on the roof and
+  // bonnet: it hasn't moved in days. A dent in the rear wing, one hubcap gone.
+  add('carVictor', 64, 128, (p) => {
+    shadow(p, 35, 67, 29, 58);
+    rrect(5, 5, 54, 118, 9);
+    fillInk('#6a2a28', 1.6);
+    // Bonnet, a long flat roof with rails, and the tailgate.
+    rrect(8, 92, 48, 27, 7);
+    fillInk('#7a3330', 0);
+    rrect(9, 16, 46, 72, 5);
+    fillInk('#2b2422', 1);
+    rrect(12, 24, 40, 60, 3);
+    fillInk('#5e2725', 0);
+    p.rect(13, 26, 38, 4, 'rgba(255,230,220,.1)');
+    for (const x of [14, 49]) p.rect(x, 22, 1.6, 64, '#9a9692');
+    // Windscreen and rear window, filmed with dust.
+    p.poly(
+      [
+        [10, 88],
+        [54, 88],
+        [50, 97],
+        [14, 97],
+      ],
+      '#93a9b1',
+      1,
+    );
+    p.poly(
+      [
+        [12, 9],
+        [52, 9],
+        [53, 16],
+        [11, 16],
+      ],
+      '#7f949c',
+      1,
+    );
+    p.rect(11, 89, 42, 7, 'rgba(200,185,160,.45)');
+    p.rect(12, 10, 40, 5, 'rgba(200,185,160,.4)');
+    // A dent in the rear wing.
+    p.ell(55, 22, 2.5, 5, 'rgba(30,10,10,.45)');
+    // Fallen leaves on the roof and the bonnet.
+    for (let k = 0; k < 11; k++) {
+      const x = 14 + ar() * 36;
+      const y = (k < 7 ? 28 : 98) + ar() * (k < 7 ? 50 : 16);
+      c.save();
+      c.translate(x, y);
+      c.rotate(ar() * 6.28);
+      p.ell(0, 0, 3, 1.7, ['#c88a2a', '#a8582a', '#d8b040', '#8a6a2a'][k % 4] as string);
+      c.restore();
+    }
+    // Mirrors, lights, wheels; the front right one bare without its hubcap.
+    p.rect(1, 84, 5, 7, '#2a2422', 1);
+    p.rect(58, 84, 5, 7, '#2a2422', 1);
+    p.rect(9, 118, 11, 4, '#e8dcb0', 0.8);
+    p.rect(44, 118, 11, 4, '#e8dcb0', 0.8);
+    p.rect(9, 6, 10, 3, '#a8322a', 0.8);
+    p.rect(45, 6, 10, 3, '#a8322a', 0.8);
+    for (const [x, y, bare] of [
+      [3, 20, false],
+      [57, 20, false],
+      [3, 96, false],
+      [57, 96, true],
+    ] as const) {
+      p.rect(x, y, 4, 16, '#1d1f22');
+      if (!bare) p.rect(x + 1, y + 5, 2, 6, '#8a8c8e');
+    }
+  });
+
+  // A shopping list held to the fridge by a magnet, one corner curling.
+  add('note', 16, 18, (p) => {
+    c.translate(8, 9);
+    c.rotate(0.12);
+    p.poly(
+      [
+        [-6, -7],
+        [6, -7],
+        [6, 5],
+        [3.5, 7.5],
+        [-6, 7],
+      ],
+      '#f4efe0',
+      0.8,
+    );
+    for (let y = -4; y <= 4; y += 2.2) p.line(-4, y, 2 + ar() * 3, y, 'rgba(40,50,110,.55)', 0.6);
+    p.circ(0, -6.5, 1.8, '#c8362c', 0.5);
+  });
+
+  // Victor's notebook on the desk: a worn brown cover, a pencil across it.
+  add('notebook', 22, 24, (p) => {
+    c.translate(11, 12);
+    c.rotate(-0.18);
+    p.rect(-7, -9, 14, 18, '#6a4428', 1);
+    p.rect(-7, -9, 2, 18, '#4a2e1a');
+    p.rect(-4.5, -9, 1.2, 18, '#222');
+    p.rect(-6.5, 7, 13, 1.4, '#ece4d0');
+    p.line(-8, 5, 8, -3, '#d8a83a', 1.6);
+    p.line(7, -2.5, 8.6, -3.3, '#2a2a2a', 1.2);
+  });
+
+  // The shed's things: a workbench with a vice and tools left out, tins of
+  // paint on a shelf, an old bike against the wall, a push mower, garden
+  // tools on hooks.
+  add('workbench', 72, 30, (p) => {
+    shadow(p, 37, 17, 34, 11);
+    p.rect(2, 3, 68, 24, '#8a6644', 1.4);
+    for (let y = 6; y < 26; y += 6) p.line(3, y, 69, y + (ar() - 0.5), 'rgba(60,40,20,.35)', 0.8);
+    // A vice at one end, a saw and a hammer, a mug's ring, sawdust.
+    p.rect(4, 10, 10, 10, '#4a5a6a', 1);
+    p.rect(6, 8, 6, 3, '#7a8a9a', 0.6);
+    p.poly(
+      [
+        [22, 8],
+        [44, 11],
+        [44, 15],
+        [22, 13],
+      ],
+      '#b8bcc0',
+      0.8,
+    );
+    p.rect(44, 10, 7, 6, '#7a4a2a', 0.8);
+    p.line(54, 20, 64, 15, '#6a4a2a', 2);
+    p.rect(62, 12, 5, 6, '#4a4c50', 0.6);
+    c.strokeStyle = 'rgba(70,40,20,.4)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.arc(30, 21, 3.5, 0, 6);
+    c.stroke();
+    for (let k = 0; k < 14; k++) p.rect(16 + ar() * 30, 16 + ar() * 9, 1, 1, '#d8b88a');
+  });
+  add('tins', 32, 30, (p) => {
+    shadow(p, 17, 16, 14, 12);
+    p.rect(2, 2, 28, 26, '#6e5a44', 1.2);
+    for (const [x, y, lid, drip] of [
+      [9, 9, '#e8e4d8', '#e8e4d8'],
+      [21, 8, '#4a6a8a', '#4a6a8a'],
+      [9, 21, '#a8a49a', ''],
+      [22, 20, '#8a3a2a', '#8a3a2a'],
+    ] as const) {
+      p.circ(x, y, 5.5, '#9a9c9e', 1);
+      p.circ(x, y, 4.2, lid);
+      if (drip) p.rect(x + 3, y - 1, 1.4, 4, drip);
+    }
+  });
+  add('bike', 28, 64, (p) => {
+    c.translate(14, 32);
+    c.rotate(0.08);
+    p.ell(1, 2, 7, 28, 'rgba(20,30,10,.25)');
+    p.rect(-1.5, -29, 3, 20, '#1d1f22');
+    p.rect(-1.5, 9, 3, 20, '#1d1f22');
+    p.line(0, -18, 0, 16, '#2a6a4a', 2.4);
+    p.line(-9, -20, 9, -21, '#5a5c5e', 2);
+    p.ell(0, 10, 3, 5, '#2a2422', 0.8);
+    p.rect(-5, 18, 10, 6, '#4a4c4e', 0.6);
+  });
+  add('mower', 32, 44, (p) => {
+    shadow(p, 17, 16, 13, 12);
+    rrect(4, 2, 24, 24, 6);
+    fillInk('#3e6a32', 1.2);
+    p.circ(16, 14, 6, '#2a4a24', 0.8);
+    p.rect(2, 4, 3, 6, '#1d1f22');
+    p.rect(27, 4, 3, 6, '#1d1f22');
+    p.rect(2, 18, 3, 6, '#1d1f22');
+    p.rect(27, 18, 3, 6, '#1d1f22');
+    p.line(8, 26, 7, 42, '#5a5c5e', 1.6);
+    p.line(24, 26, 25, 42, '#5a5c5e', 1.6);
+    p.line(6, 41, 26, 42, '#1d1f22', 2.4);
+  });
+  add('tools', 18, 64, (p) => {
+    p.rect(7, 2, 4, 60, '#5e4330', 0.8);
+    // A rake, a spade, a fork; the fork hangs crooked.
+    p.line(4, 8, 4, 22, '#8a6a44', 1.4);
+    p.line(1, 8, 7, 8, '#7a7c7e', 1.6);
+    p.line(14, 24, 14, 38, '#8a6a44', 1.4);
+    p.rect(11.5, 36, 5, 7, '#8a8c8e', 0.6);
     c.save();
-    c.translate(6, 2);
-    blade(p, 90, true);
+    c.translate(4, 46);
+    c.rotate(0.25);
+    p.line(0, -6, 0, 8, '#8a6a44', 1.4);
+    for (const x of [-2, 0, 2]) p.line(x, 8, x, 13, '#7a7c7e', 0.8);
     c.restore();
+  });
+
+  // The back garden: a log pile under the eaves, a chopping block with an
+  // axe left in it, a compost heap, a wheelbarrow left askew, washing on a line.
+  add('woodpile', 72, 30, (p) => {
+    shadow(p, 37, 17, 34, 11);
+    for (let row = 0; row < 3; row++) {
+      for (let x = 4 + (row % 2) * 4; x < 66; x += 8) {
+        const y = 7 + row * 8 + (ar() - 0.5) * 1.5;
+        p.circ(x, y, 4.4, '#6a4a2e', 0.9);
+        p.circ(x, y, 3, ['#c8a070', '#b8905e', '#d4ae7c'][Math.floor(ar() * 3)] as string);
+        p.circ(x, y, 1, 'rgba(90,60,30,.6)');
+      }
+    }
+  });
+  add('chopblock', 30, 30, (p) => {
+    shadow(p, 16, 17, 11, 9);
+    p.circ(14, 14, 10, '#6a4a2e', 1.2);
+    p.circ(14, 14, 7.5, '#c49a68');
+    for (const r of [2.5, 5]) {
+      c.strokeStyle = 'rgba(110,70,35,.45)';
+      c.lineWidth = 0.7;
+      c.beginPath();
+      c.arc(14, 14, r, 0, 6.28);
+      c.stroke();
+    }
+    p.line(14, 14, 27, 6, '#7a5a3a', 2.2);
+    p.rect(10, 11.5, 7, 5, '#5a5c5e', 0.8);
+  });
+  add('compost', 44, 44, (p) => {
+    shadow(p, 23, 24, 20, 19);
+    p.rect(3, 3, 38, 38, '#7a5e40', 1.4);
+    p.rect(7, 7, 30, 30, '#3a2a1a');
+    for (let k = 0; k < 16; k++) {
+      p.ell(
+        9 + ar() * 26,
+        9 + ar() * 26,
+        2 + ar() * 2,
+        1.2,
+        ['#6a8a3a', '#a8782a', '#5a4a2a', '#c8a050'][k % 4] as string,
+      );
+    }
+    for (const y of [3, 15, 27]) p.line(3, y + 0.5, 41, y + 0.5 + (ar() - 0.5), INK, 0.6);
+  });
+  add('wheelbarrow', 34, 50, (p) => {
+    c.translate(17, 25);
+    c.rotate(-0.35);
+    p.ell(1, 2, 12, 18, 'rgba(20,30,10,.25)');
+    p.line(-6, 10, -7, 22, '#6a4a2e', 2);
+    p.line(6, 10, 7, 22, '#6a4a2e', 2);
+    p.poly(
+      [
+        [-11, -12],
+        [11, -12],
+        [8, 11],
+        [-8, 11],
+      ],
+      '#4a7a5a',
+      1.2,
+    );
+    p.poly(
+      [
+        [-8, -9],
+        [8, -9],
+        [6, 8],
+        [-6, 8],
+      ],
+      '#3a5e46',
+    );
+    p.rect(-2, -18, 4, 7, '#1d1f22', 0.6);
+    p.ell(3, 0, 3, 2, 'rgba(160,110,60,.6)');
+  });
+  // The washing line, sagging between its poles: a shirt, a towel, two socks.
+  add('clothesline', 230, 34, (p) => {
+    const at = (x: number) => 6 + Math.sin((x / 230) * Math.PI) * 7;
+    c.strokeStyle = '#d8d4c8';
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let x = 0; x <= 230; x += 5) {
+      if (x) c.lineTo(x, at(x));
+      else c.moveTo(x, at(x));
+    }
+    c.stroke();
+    for (const [x, w, h, col] of [
+      [40, 26, 22, '#c8d4e4'],
+      [92, 30, 18, '#e0a8a0'],
+      [138, 8, 12, '#3a3a40'],
+      [150, 8, 11, '#4a4a52'],
+      [180, 22, 20, '#e8e0c8'],
+    ] as const) {
+      const y = at(x + w / 2) - 1;
+      c.save();
+      c.translate(x + w / 2, y);
+      c.rotate((ar() - 0.5) * 0.12);
+      p.rect(-w / 2, 0, w, h, col, 0.9);
+      p.rect(-w / 2, 0, w, 2, 'rgba(255,255,255,.3)');
+      p.rect(-w / 2 + 3, -1.5, 2, 3, '#b8905e');
+      p.rect(w / 2 - 5, -1.5, 2, 3, '#b8905e');
+      c.restore();
+    }
   });
   A.refresh();
 }

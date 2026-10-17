@@ -17,6 +17,7 @@ export interface Search {
 }
 
 const seen = (item: string) => `seen:${item}`;
+const read = (paper: string) => `read:${paper}`;
 const the = (plain: string) => plain.replace(/^an? /, 'the ');
 
 /**
@@ -38,6 +39,17 @@ export class Memory {
 
   knows(fact: Fact): boolean {
     return this.known.has(fact);
+  }
+
+  /** Reads a paper: true the first time. */
+  read(paper: string): boolean {
+    if (this.known.has(read(paper))) return false;
+    this.known.add(read(paper));
+    return true;
+  }
+
+  hasRead(paper: string): boolean {
+    return this.known.has(read(paper));
   }
 
   /**

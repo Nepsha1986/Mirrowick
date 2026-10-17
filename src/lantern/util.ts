@@ -12,13 +12,14 @@ export const DAY_LEN = 360;
 export const TOWN = { x0: 38, y0: 31, x1: 61, y1: 48, cx: 50, cy: 40 };
 /** Where the worlds touch. */
 export const MIRROR = { x: 84, y: 14 };
-/** The windmill: whole in the Lower World, a ruin in the Upper. Centre tile. */
+/** The windmill in the Lower World, where the mirror comes out. Centre tile. */
 export const LOWER_MILL = { x: 64, y: 23 };
-export const UPPER_MILL = { x: 31, y: 8 };
 /** The Upper World map, in tiles. */
-export const UW = 40;
-export const UH = 30;
-/** The cellar under the Upper World's mill: map size, the foot of its stairs, its mirror (tiles). */
+export const UW = 60;
+export const UH = 44;
+/** The hatch in the floor of Victor's shed, down to the cellar (tiles). */
+export const SHED_HATCH = { x: 47.5, y: 8.7 };
+/** The cellar under Victor's shed: map size, the foot of its stairs, its mirror (tiles). */
 export const CW = 36;
 export const CH = 26;
 export const CELLAR_STAIRS = { x: 6.4, y: 13 };
