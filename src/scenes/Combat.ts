@@ -25,6 +25,7 @@ import type { FoeSpawn } from '../lantern/hollow';
 import type { Nav } from '../lantern/nav';
 import { T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { CombatPanel, type Stance } from '../ui/CombatPanel';
+import type { Tracks } from './Tracks';
 
 /** Backing away, still facing them; and backing away from one at your throat. */
 const BACK = 58;
@@ -52,6 +53,8 @@ interface Foe extends Pt {
   state: FoeState;
   img: Phaser.GameObjects.Image;
   eyes: Phaser.GameObjects.Image[];
+  /** The crawler's inner light, laid over its shell. */
+  glow: Phaser.GameObjects.Image | null;
   facing: number;
   /** Attack cooldown, or aim for the brigand. */
   cd: number;
@@ -104,6 +107,8 @@ export interface CombatHost {
   safe(p: Pt): boolean;
   /** Down: the scene takes it from here. */
   fall(): void;
+  /** Prints on the ground behind whoever walks. */
+  tracks?: Tracks;
 }
 
 const VERB: Record<FoeId, string> = {
@@ -215,6 +220,10 @@ export class Combat {
               .setDepth(host.above),
           )
         : [];
+      const glow =
+        kind.id === 'crawler'
+          ? scene.add.image(s.x, s.y, 'ln-foes', 'crawlerGlow').setBlendMode(Phaser.BlendModes.ADD)
+          : null;
       this.foes.push({
         ...s,
         kind,
@@ -223,6 +232,7 @@ export class Combat {
         state: 'idle',
         img,
         eyes,
+        glow,
         facing: rnd(0, Math.PI * 2),
         cd: 0,
         t: rnd(0, 4),
@@ -285,7 +295,12 @@ export class Combat {
 
   /** The muzzle flashes, which light the dark for a moment. */
   lights(): (Pt & { radius: number; a: number })[] {
-    return this.flashes.map((f) => ({ x: f.x, y: f.y, radius: 120, a: f.t / 0.08 }));
+    const lit = this.flashes.map((f) => ({ x: f.x, y: f.y, radius: 120, a: f.t / 0.08 }));
+    // The crawler's cold glow lights the ground around it.
+    for (const f of this.foes) {
+      if (f.glow?.visible) lit.push({ x: f.x, y: f.y, radius: 46, a: f.glow.alpha * 0.45 });
+    }
+    return lit;
   }
 
   /** A living enemy under a click. */
@@ -652,6 +667,16 @@ export class Combat {
     f.t = 0;
     f.hp = 0;
     for (const e of f.eyes) e.setVisible(false);
+    if (f.glow) {
+      const glow = f.glow;
+      this.host.scene.tweens.add({
+        targets: glow,
+        alpha: 0,
+        duration: 700,
+        onComplete: () => glow.setVisible(false),
+      });
+    }
+    if (f.kind.id === 'crawler') f.img.setFrame('crawler');
     this.say(DEATH[f.kind.id], 'good');
     if (this.target === f) this.target = null;
     const { scene } = this.host;
@@ -663,7 +688,7 @@ export class Combat {
     // It goes down: rolls onto its side and sinks a little.
     f.img.setTint(0x6a6a6a).setDepth(f.y - 6);
     scene.tweens.add({
-      targets: f.img,
+      targets: f.glow ? [f.img, f.glow] : f.img,
       rotation: f.facing + (Math.random() < 0.5 ? -1.3 : 1.3),
       scaleX: 0.9,
       scaleY: 0.9,
@@ -695,6 +720,7 @@ export class Combat {
     (f.img.getData('blood') as Phaser.GameObjects.Image | undefined)?.destroy();
     f.img.clearTint().setAlpha(1).setScale(1).setPosition(f.x, f.y);
     for (const e of f.eyes) e.setVisible(true);
+    f.glow?.setVisible(true).setAlpha(1);
   }
 
   /** An enemy's blow or shot at you: a roll like yours. */
@@ -944,6 +970,34 @@ export class Combat {
 
   // --- Drawing ---------------------------------------------------------------------
 
+  /**
+   * The crawler steps three legs at a time and rears to strike; its glow
+   * breathes slowly at rest, quickens on the hunt and flares on a blow.
+   */
+  private drawCrawler(f: Foe, now: number, bob: number): void {
+    const stride = f.state === 'idle' ? 0 : Math.sin(f.walk * 1.5);
+    const frame =
+      f.lunge > 0
+        ? 'crawlerStrike'
+        : stride > 0.4
+          ? 'crawlerStep1'
+          : stride < -0.4
+            ? 'crawlerStep2'
+            : 'crawler';
+    if (f.img.frame.name !== frame) f.img.setFrame(frame);
+    const glow = f.glow;
+    if (!glow) return;
+    const hunt = f.state === 'hunt';
+    const pulse = Math.sin(now / (hunt ? 140 : 520) + f.home.x);
+    const flare = f.lunge > 0 || f.hurt > 0 ? 0.35 : 0;
+    glow
+      .setPosition(f.img.x, f.img.y)
+      .setRotation(f.facing)
+      .setScale(1 + bob, 1 - bob)
+      .setDepth(f.y + 4.5)
+      .setAlpha(Math.min(1, (hunt ? 0.8 : 0.55) + pulse * 0.2 + flare));
+  }
+
   private muzzle(p: Pt, facing: number, fwd: number, side: number): Pt {
     const c = Math.cos(facing);
     const s = Math.sin(facing);
@@ -1009,6 +1063,8 @@ export class Combat {
       const bob = f.state !== 'idle' ? Math.sin(f.walk) * 0.04 : 0;
       f.img.setPosition(x, y).setRotation(f.facing);
       f.img.setDepth(f.y + 4).setScale(1 + bob, 1 - bob);
+      if (f.glow) this.drawCrawler(f, now, bob);
+      if (f.kind.id !== 'shade') this.host.tracks?.follow(f, f.kind.id);
       if (f.hurt > 0) f.img.setTint(0xff8070);
       else if (f.charge === 'blown') f.img.setTint(0xb8a898);
       else f.img.clearTint();

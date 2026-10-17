@@ -142,30 +142,79 @@ export function paintFoeAtlas(scene: Phaser.Scene): void {
     );
     p.line(5, 16, 2, 17.5, '#2a1d15', 1.4);
   });
-  // A crawler of black glass: a cracked carapace on six jointed legs.
-  add('crawler', 48, 48, (p) => {
+  // A crawler of black glass: a cracked carapace on six jointed legs, lit
+  // from inside by a cold glow that leaks through the cracks. It walks in a
+  // tripod, three legs at a time; to strike it rears its front legs, two
+  // glass blades, and opens its mandibles. One hind leg is snapped short,
+  // and a flake is missing from the shell's rear edge.
+  type Pose = 'stand' | 'step1' | 'step2' | 'strike';
+  const crawler = (p: Painter, pose: Pose) => {
+    const st = pose === 'step1' ? 1 : pose === 'step2' ? -1 : 0;
+    const strike = pose === 'strike';
     shadow(p, 25, 27, 17, 14);
     c.shadowColor = '#9fd8e6';
-    c.shadowBlur = 6;
-    for (const [side, dx] of [
-      [-1, -8],
-      [-1, 0],
-      [-1, 8],
-      [1, -8],
-      [1, 0],
-      [1, 9],
+    c.shadowBlur = 3;
+    for (const [side, dx, tri] of [
+      [-1, -8, 1],
+      [-1, 0, -1],
+      [-1, 8, 1],
+      [1, -8, -1],
+      [1, 0, 1],
+      [1, 9, -1],
     ] as const) {
-      const kx = 24 + dx + 3;
+      const front = dx > 5;
+      if (strike && front) {
+        // Reared up and forward: a blade of glass held out at you.
+        const kx = 37;
+        const ky = 24 + side * 12;
+        p.line(31, 24 + side * 5, kx, ky, INK, 3.6);
+        p.line(31, 24 + side * 5, kx, ky, '#3a474d', 2.2);
+        p.poly(
+          [
+            [kx - 1, ky - 1.4],
+            [47, 24 + side * 4.5],
+            [kx + 1, ky + 1.4],
+          ],
+          '#7fa3ad',
+          1,
+        );
+        p.line(kx, ky, 46, 24 + side * 4.8, '#dff6fa', 0.6);
+        continue;
+      }
+      const sh = st * tri * 5;
+      const kx = 24 + dx + 3 + sh * 0.5;
       const ky = 24 + side * 15;
-      const fx = 24 + dx * 1.6 + 6;
-      const fy = 24 + side * 21;
+      let fx = 24 + dx * 1.6 + 6 + sh;
+      let fy = 24 + side * 21;
+      if (side === 1 && dx < 0) {
+        // The snapped hind leg ends in a jagged stub.
+        fx = kx + (fx - kx) * 0.55;
+        fy = ky + (fy - ky) * 0.55;
+      }
       p.line(24 + dx * 0.6, 24 + side * 5, kx, ky, INK, 3.4);
-      p.line(24 + dx * 0.6, 24 + side * 5, kx, ky, '#2a3337', 2);
-      p.line(kx, ky, fx, fy, '#1d2427', 1.6);
+      p.line(24 + dx * 0.6, 24 + side * 5, kx, ky, '#3a474d', 2);
+      p.line(kx, ky, fx, fy, INK, 2.6);
+      p.line(kx, ky, fx, fy, '#33403f', 1.3);
+    }
+    // Mandibles, wider apart when it strikes.
+    const jaw = strike ? 4.2 : 2.4;
+    for (const side of [-1, 1]) {
+      p.poly(
+        [
+          [39, 24 + side * 2.2],
+          [45, 24 + side * (jaw + 1.6)],
+          [46.5, 24 + side * (jaw - 0.8)],
+          [41, 24 + side * 0.6],
+        ],
+        '#4a5d64',
+        1,
+      );
     }
     p.poly(
       [
         [9, 24],
+        [12, 18],
+        [14.5, 17.5],
         [16, 13],
         [30, 12],
         [40, 20],
@@ -193,10 +242,44 @@ export function paintFoeAtlas(scene: Phaser.Scene): void {
       ],
       '#2f3c42',
     );
-    p.line(14, 30, 24, 23, 'rgba(159,216,230,.55)', 0.8);
-    p.line(24, 23, 33, 31, 'rgba(159,216,230,.4)', 0.8);
+    p.poly(
+      [
+        [17, 33],
+        [27, 33.5],
+        [23, 27],
+      ],
+      '#28343a',
+    );
+    p.line(14, 30, 24, 23, 'rgba(159,216,230,.35)', 0.8);
+    p.line(24, 23, 33, 31, 'rgba(159,216,230,.25)', 0.8);
+    p.line(24, 23, 27, 15, 'rgba(159,216,230,.2)', 0.7);
     p.circ(40, 22, 1.4, '#cfeef4');
     p.circ(40, 26.5, 1.1, '#cfeef4');
+  };
+  add('crawler', 48, 48, (p) => crawler(p, 'stand'));
+  add('crawlerStep1', 48, 48, (p) => crawler(p, 'step1'));
+  add('crawlerStep2', 48, 48, (p) => crawler(p, 'step2'));
+  add('crawlerStrike', 48, 48, (p) => crawler(p, 'strike'));
+  // What glows inside the crawler, laid over it additively and pulsed: the
+  // cracks, a hot core under the shell's middle, and the eyes.
+  add('crawlerGlow', 48, 48, () => {
+    c.shadowColor = '#9fd8e6';
+    c.shadowBlur = 5;
+    const g = c.createRadialGradient(24, 24, 0, 24, 24, 11);
+    g.addColorStop(0, 'rgba(159,216,230,.55)');
+    g.addColorStop(1, 'rgba(159,216,230,0)');
+    c.fillStyle = g;
+    c.fillRect(10, 10, 28, 28);
+    const p = painter(c);
+    p.line(14, 30, 19.5, 26, '#bfeaf4', 1.1);
+    p.line(19.5, 26, 24, 23, '#dff6fa', 1.2);
+    p.line(24, 23, 28, 26.5, '#dff6fa', 1.1);
+    p.line(28, 26.5, 33, 31, '#bfeaf4', 0.9);
+    p.line(24, 23, 27, 15, '#bfeaf4', 0.8);
+    p.line(28, 26.5, 30.5, 24.5, '#bfeaf4', 0.6);
+    p.circ(40, 22, 1.5, '#e8fbff');
+    p.circ(40, 26.5, 1.2, '#e8fbff');
+    c.shadowBlur = 0;
   });
   // A shade: a smudge of the dark, frayed at the edges, two pale eyes.
   add('shade', 46, 46, (_p, w, h) => {
