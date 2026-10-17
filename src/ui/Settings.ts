@@ -3,7 +3,7 @@ import { LANGS, isLang, lang, setLang, t } from '../i18n';
 import { clearSave, loadSave } from '../lantern/save';
 import { h } from './dom';
 
-/** Language, music volume, full screen, and a way to delete the saved game. */
+/** Language, music and sound volume, full screen, and a way to delete the saved game. */
 export class SettingsPanel {
   readonly el: HTMLElement;
   private readonly offKeys: () => void;
@@ -24,23 +24,37 @@ export class SettingsPanel {
       if (isLang(langs.value)) void setLang(langs.value).then(langChanged);
     });
 
-    // Volume.
-    const level = h('span', { class: 'set-value' });
-    const slider = h('input', {
-      type: 'range',
-      min: '0',
-      max: '100',
-      step: '5',
-      value: String(Math.round(music.volume * 100)),
-    });
-    const showLevel = () => (level.textContent = `${slider.value}%`);
-    showLevel();
-    slider.addEventListener('input', () => {
-      // Moving the slider is a gesture, so the music may start: you hear the level you pick.
-      music.start();
-      music.setVolume(Number(slider.value) / 100);
+    // Volumes: the music, and the sounds.
+    const volume = (get: () => number, set: (v: number) => void) => {
+      const level = h('span', { class: 'set-value' });
+      const slider = h('input', {
+        type: 'range',
+        min: '0',
+        max: '100',
+        step: '5',
+        value: String(Math.round(get() * 100)),
+      });
+      const showLevel = () => (level.textContent = `${slider.value}%`);
       showLevel();
-    });
+      slider.addEventListener('input', () => {
+        // Moving the slider is a gesture, so the sound may start: you hear the level you pick.
+        music.start();
+        set(Number(slider.value) / 100);
+        showLevel();
+      });
+      return [slider, level];
+    };
+    const musicLevel = volume(
+      () => music.volume,
+      (v) => music.setVolume(v),
+    );
+    const soundsLevel = volume(
+      () => music.sounds,
+      (v) => {
+        music.setSounds(v);
+        music.sfx('pickup');
+      },
+    );
 
     // Full screen.
     const full = h('button', { class: 'set-btn' });
@@ -92,7 +106,8 @@ export class SettingsPanel {
       { class: 'settings interactive' },
       h('h2', {}, w.title),
       row(w.language, langs),
-      row(w.music, slider, level),
+      row(w.music, ...musicLevel),
+      row(w.sounds, ...soundsLevel),
       row(w.fullScreen, full),
       row(w.save, del),
       back,

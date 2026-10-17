@@ -20,6 +20,7 @@ export const en = {
     title: 'Settings',
     language: 'Language',
     music: 'Music',
+    sounds: 'Sounds',
     fullScreen: 'Full screen',
     on: 'On',
     off: 'Off',

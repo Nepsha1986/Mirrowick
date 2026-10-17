@@ -844,6 +844,7 @@ export class LanternScene extends Phaser.Scene {
   private toggle(id: string, redraw: () => void): void {
     if (this.thingsOn.has(id)) this.thingsOn.delete(id);
     else this.thingsOn.add(id);
+    music.sfx('switch');
     redraw();
     this.save();
   }
@@ -851,6 +852,7 @@ export class LanternScene extends Phaser.Scene {
   /** Into your pockets: gone from the world, and the hero carries it. */
   private take(id: string, img: Phaser.GameObjects.Image): void {
     this.items.add(id);
+    music.sfx('pickup');
     this.gained([id]);
     this.setHalo(null);
     this.targets = this.targets.filter((t) => t.img !== img);
@@ -865,6 +867,8 @@ export class LanternScene extends Phaser.Scene {
   private look(hoard: Hoard): void {
     const { take, says } = this.memory.search(hoard, this.items);
     for (const id of take) this.items.add(id);
+    music.sfx('drawer');
+    if (take.length) this.time.delayedCall(380, () => music.sfx('pickup'));
     this.hud?.think(says);
     this.gained(take);
     this.heroImg.setFrame(this.heroFrame());
@@ -882,6 +886,7 @@ export class LanternScene extends Phaser.Scene {
     this.pending = null;
     this.input.keyboard?.resetKeys();
     const first = this.memory.read(id);
+    music.sfx('paper');
     this.save();
     this.reader.show(paper, () => {
       this.input.keyboard?.resetKeys();
@@ -930,6 +935,7 @@ export class LanternScene extends Phaser.Scene {
   private tryWay(p: Portal): void {
     const lock = p.lock;
     if (!lock || this.items.has(lock.key)) return this.travel(p);
+    music.sfx('locked');
     if (!this.memory.knows(lock.fact)) this.learn(lock.fact);
     else this.hud?.think(lock.says);
   }
@@ -1087,6 +1093,7 @@ export class LanternScene extends Phaser.Scene {
     this.hero.path = [];
     this.setHalo(null);
     this.hud?.prompt(null);
+    music.sfx(p.fade === 'glint' ? 'mirror' : 'steps');
     const cam = this.cameras.main;
     cam.fadeOut(700, ...(p.fade === 'glint' ? GLINT : DUSK));
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {

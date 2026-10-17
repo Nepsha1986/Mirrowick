@@ -22,6 +22,7 @@ export const ru: Messages = {
     title: 'Настройки',
     language: 'Язык',
     music: 'Музыка',
+    sounds: 'Звуки',
     fullScreen: 'Полный экран',
     on: 'Вкл.',
     off: 'Выкл.',
