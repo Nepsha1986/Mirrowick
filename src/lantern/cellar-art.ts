@@ -194,6 +194,15 @@ export function paintCellarAtlas(scene: Phaser.Scene): void {
     p.line(20, 8, 20, 25, '#7a5a3a', 1);
     p.line(14, 25, 16, 33, '#7c2f28', 1.4);
   });
+  // The same lectern with the book gone: a clean square in the dust, a tag.
+  add('lecternBare', 40, 34, (p) => {
+    shadow(p, 22, 20, 16, 12);
+    p.rect(6, 6, 28, 22, WOOD, 1.3);
+    p.rect(8, 8, 24, 17, 'rgba(120,96,70,.55)');
+    p.rect(9, 9, 22, 15, 'rgba(70,50,36,.6)');
+    p.rect(22, 15, 9, 6, '#d8a92e', 0.6);
+    p.line(23.5, 18, 29, 18, '#1a1a18', 0.8);
+  });
   add('longtable', 48, 124, (p) => {
     shadow(p, 27, 64, 22, 58);
     p.rect(4, 4, 40, 116, WOOD, 1.6);

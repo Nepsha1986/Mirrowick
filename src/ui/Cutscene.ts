@@ -41,14 +41,16 @@ const DESCENT: Line<keyof Messages['descent']>[] = [
   ['mark', 'what'],
 ];
 
-/** The first time through the mirror: a cold floor, and a place nobody has left. */
+/** The first time through the mirror: the same circle, and a place built round it that nobody has left. */
 const ARRIVAL: Line<keyof Messages['arrival']>[] = [
   [null, 'through', 'mirror'],
   [null, 'floor', 'thud'],
   ['mark', 'cold'],
   [null, 'hum', 'hum'],
+  [null, 'wrong'],
   ['mark', 'notCellar'],
   [null, 'lamp'],
+  [null, 'built'],
   [null, 'drip', 'drip'],
   ['mark', 'hello'],
   [null, 'nobody'],

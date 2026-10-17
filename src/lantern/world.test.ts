@@ -29,7 +29,7 @@ describe('the Facility', () => {
     expect(generateLab().objects).toEqual(lab.objects);
   });
 
-  it('starts the hero on free ground in Chamber 7, under the roof', () => {
+  it('starts the hero on free ground in Chamber 7, underground', () => {
     const { x, y } = lab.spawn;
     expect(nav(false).circleFree(x, y, 10)).toBe(true);
     expect(lab.indoors?.[Math.floor(y / T) * lab.w + Math.floor(x / T)]).toBe(1);
@@ -44,7 +44,17 @@ describe('the Facility', () => {
 
   it('leads, once the door is open, past the vivarium and the checkpoint out to the yard', () => {
     const open = nav(true);
-    for (const id of ['gun-locker', 'ammo', 'plaque-1', 'plaque-5', 'sealed-41']) {
+    for (const id of [
+      'gun-locker',
+      'ammo',
+      'plaque-1',
+      'plaque-5',
+      'feed-chart',
+      'sealed-27',
+      'shutter',
+      'lift',
+      'level0-door',
+    ]) {
       expect(reach(open, lab.spawn, thing(id)), id).toBeLessThan(1.4 * T);
     }
     const marauder = lab.foes?.find((f) => f.kind === 'marauder') as Pt;
@@ -52,10 +62,25 @@ describe('the Facility', () => {
     expect(lab.indoors?.[Math.floor(marauder.y / T) * lab.w + Math.floor(marauder.x / T)]).toBe(0);
   });
 
+  it('has the cellar’s hall in Chamber 7, stone for stone, looking-glass wise', () => {
+    const cellar = generateCellar();
+    const laid = (w: World, flip: boolean) => {
+      const mid = w.portals.find((p) => p.fade === 'glint') as Pt;
+      return [...w.objects, ...w.decals]
+        .filter((o) => o.key === 'ln-cellar')
+        .map((o) => {
+          const x = Math.round((flip ? mid.x - o.x : o.x - mid.x) / 4);
+          return `${o.frame} ${x} ${Math.round((o.y - mid.y) / 4)}`;
+        })
+        .sort();
+    };
+    expect(laid(lab, true)).toEqual(laid(cellar, false));
+  });
+
   it('keeps every beast in its own cage, out of the hero’s reach', () => {
     const open = nav(true);
     const caged = (lab.foes ?? []).filter((f) => f.caged);
-    expect(caged.map((f) => f.kind).sort()).toEqual(['boar', 'crawler', 'shade', 'wolf']);
+    expect(caged.map((f) => f.kind).sort()).toEqual(['crawler', 'shade']);
     for (const f of caged) {
       expect(open.circleFree(f.x, f.y, 14), f.kind).toBe(true);
       expect(reach(open, f, lab.spawn, 10), f.kind).toBeGreaterThan(3 * T);
