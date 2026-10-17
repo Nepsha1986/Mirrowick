@@ -656,7 +656,7 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: st
     const key = roofKey(realm, i);
     if (scene.textures.exists(key)) return;
     const w = b.w * T + ROOF_PAD * 2 + 10;
-    const h = b.h * T + ROOF_PAD * 2 + 10;
+    const h = b.h * T + ROOF_PAD * 2 + 10 + (b.porch === undefined ? 0 : PORCH);
     const tex = scene.textures.createCanvas(key, w, h);
     if (!tex) return;
     const c = tex.getContext();
@@ -727,8 +727,55 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: st
       p.rect(cx - 4, cy - 4, 8, 8, '#0f0c0a');
     }
     if (b.roof === 'slate') bellTower(c, p, x0 + rw - 2 * T, y0);
+    if (b.porch !== undefined) porch(c, p, r, ROOF_PAD + b.porch * T, ROOF_PAD + b.h * T);
     tex.refresh();
   });
+}
+
+/** How far a porch canopy reaches past the eaves, in pixels. */
+const PORCH = 20;
+
+/**
+ * A small canopy over a front door, its ridge running out from the roof, in
+ * green-painted boards that stand out from the tiles, with a lamp hung at
+ * the front that is lit day and night. `x` is the door's middle and `y` the
+ * wall's outer face.
+ */
+function porch(
+  c: CanvasRenderingContext2D,
+  p: Painter,
+  r: () => number,
+  x: number,
+  y: number,
+): void {
+  const w = 30;
+  const top = y - 18;
+  const bottom = y + ROOF_PAD + PORCH - 2;
+  c.save();
+  // Not quite square to the house.
+  c.translate(x, top);
+  c.rotate(0.025);
+  p.rect(-w + 6, 6, w * 2, bottom - top, 'rgba(10,6,4,.35)');
+  p.rect(-w, 0, w, bottom - top, '#35543a', 2);
+  p.rect(0, 0, w, bottom - top, '#4c7450', 2);
+  for (let k = 5; k < w; k += 5) {
+    const o = (r() - 0.5) * 0.8;
+    p.line(-k + o, 2, -k, bottom - top - 2, 'rgba(10,20,10,.35)', 0.8);
+    p.line(k + o, 2, k, bottom - top - 2, 'rgba(10,20,10,.3)', 0.8);
+  }
+  // Paint flaking at one corner.
+  p.rect(w - 9, bottom - top - 6, 6, 3, 'rgba(160,130,90,.5)');
+  p.line(0, 0, 0, bottom - top, INK, 3);
+  // The lamp, and its light on the boards.
+  const ly = bottom - top - 5;
+  const g = c.createRadialGradient(0, ly, 0, 0, ly, 22);
+  g.addColorStop(0, 'rgba(255,236,170,.85)');
+  g.addColorStop(1, 'rgba(255,220,140,0)');
+  c.fillStyle = g;
+  c.fillRect(-24, ly - 24, 48, 48);
+  p.circ(0, ly, 5, '#2c2a26', 1);
+  p.circ(0, ly, 3.2, '#fff4c8');
+  c.restore();
 }
 
 function texture(

@@ -251,6 +251,33 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(2, 2, 40, 10, '#a39a8a', 1);
     p.rect(3, 3, 38, 2, 'rgba(255,255,255,.25)');
   });
+  // A coir mat outside the front door, a corner frayed and the middle worn pale.
+  add('porchmat', 50, 28, (p) => {
+    p.rect(3, 3, 44, 22, '#7a3a26', 1);
+    p.rect(7, 7, 36, 14, '#a5603a');
+    p.ell(25, 14, 12, 5, 'rgba(230,200,150,.25)');
+    for (let x = 9; x < 42; x += 3) p.line(x, 8, x + 0.5, 20, 'rgba(60,24,12,.3)', 1);
+    p.line(44, 3, 47, 1, '#7a3a26', 1);
+    p.line(46, 6, 49, 5, '#7a3a26', 1);
+  });
+  // The front door from above: a green-painted leaf, its paint worn at the edge.
+  add('frontdoor', 56, 10, (p) => {
+    p.rect(2, 2, 52, 6, '#3f6a44', 1);
+    p.rect(3, 2.5, 50, 1.4, 'rgba(255,255,255,.18)');
+    p.rect(50, 2, 4, 6, '#5a7a58');
+    p.circ(46, 5, 1.5, '#d8b860');
+  });
+  // A four-point glint on something worth a look.
+  add('glint', 24, 24, (p) => {
+    const g = c.createRadialGradient(12, 12, 0, 12, 12, 11);
+    g.addColorStop(0, 'rgba(255,250,220,.9)');
+    g.addColorStop(1, 'rgba(255,240,180,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 24, 24);
+    p.line(12, 1, 12, 23, 'rgba(255,255,240,.9)', 1.4);
+    p.line(1, 12, 23, 12, 'rgba(255,255,240,.9)', 1.4);
+    p.circ(12, 12, 2.2, '#ffffff');
+  });
 
   // Indoors.
   add('sofa', 100, 40, (p) => {

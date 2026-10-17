@@ -49,11 +49,16 @@ export class Nav {
   }
 
   solidAt(px: number, py: number): boolean {
+    return this.thinAt(px, py) ?? !this.walkable(Math.floor(px / T), Math.floor(py / T));
+  }
+
+  /** On a tile with thin walls, whether the point is in one; elsewhere undefined. */
+  private thinAt(px: number, py: number): boolean | undefined {
     const x = Math.floor(px / T);
     const y = Math.floor(py / T);
     const rects = x >= 0 && y >= 0 && x < this.w && y < this.h && this.thin.get(y * this.w + x);
     if (rects) return rects.some((r) => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h);
-    return !this.walkable(x, y);
+    return undefined;
   }
 
   circleFree(x: number, y: number, r: number): boolean {
@@ -85,6 +90,15 @@ export class Nav {
       if (!this.circleFree(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r)) return false;
     }
     return true;
+  }
+
+  /** Whether a thin wall, post or fence stands between two points. */
+  wallBetween(a: Pt, b: Pt): boolean {
+    const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4);
+    for (let i = 1; i < n; i++) {
+      if (this.thinAt(a.x + ((b.x - a.x) * i) / n, a.y + ((b.y - a.y) * i) / n)) return true;
+    }
+    return false;
   }
 
   /** A* between tiles; snaps an unwalkable goal to the nearest free tile. */

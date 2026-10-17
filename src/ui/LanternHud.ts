@@ -11,6 +11,8 @@ export class LanternHud {
   private readonly action: HTMLElement;
   private readonly thought: HTMLElement;
   private thoughtTimer = 0;
+  private readonly satchel: HTMLElement;
+  private readonly timers: number[] = [];
 
   constructor(mainMenu: () => void, place: string, bag: () => void) {
     const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
@@ -22,7 +24,11 @@ export class LanternHud {
       'stroke-width="1.6" stroke-linejoin="round"><path d="M7 6V4.5a3 3 0 0 1 6 0V6"/>' +
       '<path d="M3.5 7.2c0-.7.5-1.2 1.2-1.2h10.6c.7 0 1.2.5 1.2 1.2l-.8 9.1c0 .7-.6 1.2-1.3 ' +
       '1.2H5.6c-.7 0-1.2-.5-1.3-1.2z"/><path d="M3.8 10.5h12.4M9 10.5v2h2v-2"/></svg>';
-    satchel.addEventListener('click', bag);
+    satchel.addEventListener('click', () => {
+      satchel.classList.remove('fresh');
+      bag();
+    });
+    this.satchel = satchel;
     this.clock = h('div', { class: 'title' });
     this.phase = h('div', { class: 'sub' });
     this.action = h('div', { class: 'action-pill', hidden: true });
@@ -74,6 +80,56 @@ export class LanternHud {
     this.thoughtTimer = window.setTimeout(() => (this.thought.hidden = true), ms);
   }
 
+  /** How to play, for a few seconds at the start of a new game. */
+  controls(): void {
+    const keys: [string, string][] = [
+      ['Click', 'walk there'],
+      ['WASD', 'walk'],
+      ['E', 'use what glows'],
+      ['I', 'inventory'],
+      ['Hold T', 'pass time'],
+      ['Esc', 'menu'],
+    ];
+    const el = h(
+      'div',
+      { class: 'controls' },
+      ...keys.map(([k, what]) => h('span', {}, h('kbd', {}, k), ` ${what}`)),
+    );
+    this.el.append(el);
+    this.timers.push(window.setTimeout(() => el.classList.add('leaving'), 9000));
+    this.timers.push(window.setTimeout(() => el.remove(), 10_000));
+  }
+
+  /**
+   * Something went into the bag: its picture and name pop up mid-screen and
+   * fly to the bag button, which keeps a dot until you open it.
+   */
+  gained(items: { name: string; icon?: string }[]): void {
+    const card = h(
+      'div',
+      { class: 'gain' },
+      ...items.map((it) =>
+        h('div', {}, it.icon ? h('img', { src: it.icon, alt: '' }) : null, h('b', {}, it.name)),
+      ),
+    );
+    this.el.append(card);
+    const to = this.satchel.getBoundingClientRect();
+    const from = card.getBoundingClientRect();
+    card.style.setProperty('--dx', `${to.x + to.width / 2 - (from.x + from.width / 2)}px`);
+    card.style.setProperty('--dy', `${to.y + to.height / 2 - (from.y + from.height / 2)}px`);
+    this.timers.push(
+      window.setTimeout(() => {
+        card.remove();
+        this.satchel.classList.add('fresh');
+      }, 2600),
+    );
+  }
+
+  /** The bag was opened: nothing new in it any more. */
+  seenBag(): void {
+    this.satchel.classList.remove('fresh');
+  }
+
   update(day: number, hour: number, night: number): void {
     const hr = Math.floor(hour);
     const mn = Math.floor(((hour - hr) * 60) / 10) * 10;
@@ -85,6 +141,7 @@ export class LanternHud {
 
   destroy(): void {
     window.clearTimeout(this.thoughtTimer);
+    for (const t of this.timers) window.clearTimeout(t);
     this.el.remove();
   }
 }

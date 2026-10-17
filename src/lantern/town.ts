@@ -13,6 +13,8 @@ export interface Building {
   roof: RoofKind;
   /** Chimney positions in tiles, relative to the building (for smoke). */
   chimneys: Pt[];
+  /** A lit porch canopy over the front door: the door's middle, in tiles from x0, on the south wall. */
+  porch?: number;
 }
 
 /** A string of little lights hung between two points (world pixels). */

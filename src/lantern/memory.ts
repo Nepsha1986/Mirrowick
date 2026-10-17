@@ -54,6 +54,23 @@ export class Memory {
     return recall ?? FACTS[fact];
   }
 
+  /** Whether something the fact calls for is still out of his pockets. */
+  lacks(fact: Fact, carried: ReadonlySet<string>): boolean {
+    return Object.entries(ITEMS).some(([id, it]) => it.needs === fact && !carried.has(id));
+  }
+
+  /**
+   * Whether a hoard is still worth a look: it holds something he hasn't
+   * seen yet, or something he has seen and now knows he needs.
+   */
+  worthLooking(hoard: Hoard, carried: ReadonlySet<string>): boolean {
+    return hoard.items.some((id) => {
+      if (carried.has(id)) return false;
+      const need = ITEMS[id]?.needs;
+      return !this.known.has(seen(id)) || !need || this.known.has(need);
+    });
+  }
+
   /** Looks through a hoard: takes what seems worth it, remembers the rest. */
   search(hoard: Hoard, carried: ReadonlySet<string>): Search {
     const take: string[] = [];

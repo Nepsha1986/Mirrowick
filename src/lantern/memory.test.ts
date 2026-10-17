@@ -43,6 +43,19 @@ describe("the hero's memory", () => {
     expect(m.learn('dark', new Set())).toBeNull();
   });
 
+  it('finds a drawer worth a look until he has seen it, and again once he needs what is in it', () => {
+    const m = new Memory();
+    expect(m.worthLooking(drawer, new Set())).toBe(true);
+    m.search(drawer, new Set());
+    expect(m.worthLooking(drawer, new Set())).toBe(false);
+    m.learn('cellar-lock', new Set());
+    expect(m.lacks('cellar-lock', new Set())).toBe(true);
+    expect(m.worthLooking(drawer, new Set())).toBe(true);
+    const carried = new Set(m.search(drawer, new Set()).take);
+    expect(m.lacks('cellar-lock', carried)).toBe(false);
+    expect(m.worthLooking(drawer, carried)).toBe(false);
+  });
+
   it('carries over in the save', () => {
     const m = new Memory();
     m.search(drawer, new Set());
