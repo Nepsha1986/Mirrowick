@@ -131,6 +131,11 @@ export class LanternScene extends Phaser.Scene {
   private nav!: Nav;
   private hero!: Hero;
   private heroImg!: Phaser.GameObjects.Image;
+  /** Long grass round the hero's knees, while he wades through it. */
+  private wadeImg?: Phaser.GameObjects.Image;
+  private wading = 0;
+  /** Which foot was last forward, for the rustle of each step through grass. */
+  private lastFoot = 0;
   private hud?: LanternHud;
   /** Backdrop for the main menu: no hero control, the camera drifts at dusk. */
   private demo = false;
@@ -274,6 +279,10 @@ export class LanternScene extends Phaser.Scene {
     const at = want && this.nav.circleFree(want.x, want.y, HERO_R) ? want : this.world.spawn;
     this.hero = { ...at, facing: Math.PI / 2, path: [], walk: 0 };
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
+    this.wading = 0;
+    this.wadeImg = this.world.tall
+      ? this.add.image(this.hero.x, this.hero.y, 'ln-up', 'wade').setAlpha(0)
+      : undefined;
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
     this.buildTrail();
@@ -1198,7 +1207,9 @@ export class LanternScene extends Phaser.Scene {
     // Mid-stride on one foot, then the other; a little lift on each step.
     const stride = mx || my ? Math.sin(h.walk) : 0;
     const bob = Math.abs(stride) * 0.03;
-    const step = stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
+    const deep = this.wade(h, dt, stride);
+    // In long grass the feet don't show.
+    const step = deep ? '' : stride > 0.45 ? 'Step1' : stride < -0.45 ? 'Step2' : '';
     const frame = this.heroFrame() + step;
     if (this.heroImg.frame.name !== frame) this.heroImg.setFrame(frame);
     // A shot kicks you back a little; a wound flushes you red.
@@ -1211,6 +1222,30 @@ export class LanternScene extends Phaser.Scene {
       .setScale(1 + bob, 1 - bob);
     if (look?.hurt) this.heroImg.setTint(0xff8a78);
     else this.heroImg.clearTint();
+  }
+
+  /**
+   * Knee-deep in long grass: the blades close round the hero, sway, and
+   * rustle at each step. Returns whether he is in it.
+   */
+  private wade(h: Hero, dt: number, stride: number): boolean {
+    const img = this.wadeImg;
+    const tall = this.world.tall;
+    if (!img || !tall) return false;
+    const deep = tall[Math.floor(h.y / T) * this.world.w + Math.floor(h.x / T)] === 1;
+    this.wading = Phaser.Math.Clamp(this.wading + (deep ? dt : -dt) * 6, 0, 1);
+    const foot = stride > 0.45 ? 1 : stride < -0.45 ? -1 : 0;
+    if (deep && foot && foot !== this.lastFoot) music.sfx('rustle');
+    if (foot) this.lastFoot = foot;
+    const sway = Math.sin(this.time.now / 700) * 3 + stride * 4;
+    img
+      .setVisible(this.wading > 0)
+      .setAlpha(this.wading)
+      .setPosition(h.x, h.y)
+      .setDepth(h.y + 7)
+      .setAngle(sway)
+      .setScale(0.92 + this.wading * 0.08);
+    return deep;
   }
 
   private drawMarker(dt: number): void {

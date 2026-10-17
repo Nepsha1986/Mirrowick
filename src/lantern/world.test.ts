@@ -143,6 +143,25 @@ describe('things', () => {
   });
 });
 
+describe('the long grass', () => {
+  const upper = generateUpperWorld();
+  const tall = upper.tall ?? new Uint8Array();
+  const at = (p: Pt) => tall[Math.floor(p.y / T) * upper.w + Math.floor(p.x / T)];
+
+  it('grows round the edges, on free ground only', () => {
+    expect(tall.reduce((a, b) => a + b, 0)).toBeGreaterThan(200);
+    tall.forEach((v, i) => v && expect(upper.block[i], `tile ${i}`).toBe(0));
+  });
+
+  it('keeps off the paths, the yard and where you start', () => {
+    expect(at(upper.spawn)).toBe(0);
+    for (const p of upper.patches) {
+      if (p.kind === 'meadow' || p.kind === 'road') continue;
+      for (const q of p.pts) expect(at(q), `${p.kind} at ${q.x},${q.y}`).toBe(0);
+    }
+  });
+});
+
 describe("Victor's glowing footprints", () => {
   const upper = generateUpperWorld();
   const trail = upper.trail ?? [];

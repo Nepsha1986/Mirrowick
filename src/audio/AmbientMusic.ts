@@ -31,7 +31,8 @@ export type Sfx =
   | 'switch'
   | 'locked'
   | 'steps'
-  | 'mirror';
+  | 'mirror'
+  | 'rustle';
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -468,6 +469,10 @@ export class AmbientMusic {
           noise('lowpass', f, 0.3, 0.12, { delay: d });
           noise('bandpass', 900, 0.04, 0.05, { q: 2, delay: d });
         }
+        break;
+      case 'rustle':
+        // Long grass brushing past the legs.
+        noise('bandpass', 2400 + Math.random() * 800, 0.05, 0.22, { q: 0.8, swell: 0.08 });
         break;
       case 'mirror':
         // Glass that hums and rises, and lets you through.
