@@ -1,5 +1,8 @@
-/** Something the hero has learned: that it gets dark, that a hatch is locked. */
-export type Fact = 'dark' | 'cellar-lock';
+/**
+ * Something the hero has learned: that it gets dark, that a hatch is locked,
+ * that someone's footprints glow in the beam.
+ */
+export type Fact = 'dark' | 'cellar-lock' | 'trail';
 
 /** A thing you can carry. */
 export interface Item {
@@ -30,7 +33,7 @@ export const ITEMS: Record<string, Item> = {
   },
   'cellar-key': {
     name: 'Brass key',
-    about: 'A small key from Victor’s bedside table. It fits the padlock on the mill’s hatch.',
+    about: 'A small key from Victor’s bedside table. It fits the padlock on the shed’s hatch.',
     icon: ['ln-up', 'key'],
     plain: 'a little brass key',
     needs: 'cellar-lock',
@@ -48,13 +51,14 @@ export const FACTS: Record<Fact, string> = {
   dark: "It's getting dark. I'll need a light soon.",
   'cellar-lock':
     'A padlock on the hatch. Victor kept everything in the house. Probably in his bedroom.',
+  trail: 'Footprints, glowing where the light falls. Someone walked from the house to the shed.',
 };
 
 /**
  * A second thought, a while after the first, while the hero still hasn't
  * found what the fact calls for.
  */
-export const NUDGES: Record<Fact, string> = {
+export const NUDGES: Partial<Record<Fact, string>> = {
   dark: "Still no light. Victor's bedroom is off the hall, just inside the front door. His bedside table, maybe.",
   'cellar-lock':
     "That key. Victor's bedroom is off the hall, just inside the front door. His bedside table, maybe.",

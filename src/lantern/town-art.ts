@@ -689,6 +689,7 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: st
       slate: ['#3a3a40', '#4d4c52'],
       thatch: ['#7a6236', '#9a7c44'],
       shingle: ['#3e2a1e', '#56392a'],
+      tin: ['#5f5d57', '#76736a'],
     };
     const [dark, light] = pal[b.roof] as [string, string];
     for (const first of [true, false]) {
@@ -715,7 +716,7 @@ export function paintRoofs(scene: Phaser.Scene, buildings: Building[], realm: st
     }
     c.stroke();
     // Moss and wear.
-    if (b.roof !== 'slate') {
+    if (b.roof !== 'slate' && b.roof !== 'tin') {
       for (let k = 0; k < 6; k++) {
         p.ell(x0 + r() * rw, y0 + r() * rh, 4 + r() * 8, 3 + r() * 3, 'rgba(70,85,45,.3)');
       }
@@ -821,6 +822,35 @@ function texture(
       c.strokeRect(rx + 0.5, ry + 0.5, s - 1, s - 1);
       if (r() < 0.2) p.rect(rx + 1, ry + 1, s - 2, s - 2, 'rgba(180,190,210,.08)');
     });
+  } else if (kind === 'tin') {
+    // Corrugated sheets running down from the ridge, overlapping, one a
+    // little out of line; rust bleeding from the nails and the eaves.
+    const across = horizontal ? w : h;
+    const sheet = 22 + Math.floor(r() * 6);
+    for (let a = 0; a < across; a += sheet) {
+      const slip = r() < 0.25 ? (r() - 0.5) * 4 : 0;
+      for (let k = 2; k < sheet; k += 3) {
+        const o = a + k + slip;
+        c.strokeStyle = k % 6 < 3 ? 'rgba(255,255,255,.1)' : 'rgba(20,18,14,.28)';
+        c.lineWidth = 1;
+        c.beginPath();
+        if (horizontal) {
+          c.moveTo(x + o, y);
+          c.lineTo(x + o, y + h);
+        } else {
+          c.moveTo(x, y + o);
+          c.lineTo(x + w, y + o);
+        }
+        c.stroke();
+      }
+      // The seam where one sheet lies over the next.
+      if (horizontal) p.rect(x + a, y, 1.4, h, 'rgba(20,18,14,.5)');
+      else p.rect(x, y + a, w, 1.4, 'rgba(20,18,14,.5)');
+    }
+    for (let k = 0; k < 7; k++) {
+      p.ell(x + r() * w, y + r() * h, 3 + r() * 7, 2 + r() * 4, 'rgba(140,70,30,.35)');
+    }
+    for (let k = 0; k < 4; k++) p.ell(x + r() * w, y + r() * h, 2, 1.4, 'rgba(110,50,20,.55)');
   } else if (kind === 'thatch') {
     for (let k = 0; k < (w * h) / 6; k++) {
       const sx = x + r() * w;

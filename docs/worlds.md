@@ -7,17 +7,17 @@
 - [Деревня Mirrowick](locations/mirrowick.md)
 - [Окрестности](locations/lower-outskirts.md)
 - [Зеркало](locations/mirror.md)
-- [Мельница](locations/windmill.md) — целая
+- [Мельница](locations/windmill.md) — с зеркалом в подвал под сараем Виктора
 - [Лощина](locations/hollow.md) — поляна за рекой, где пробуем бой
 
 ## Верхний мир
 
-Обычный современный мир. Карта 40×30 клеток. Светлая музыка. Здесь начинается
+Обычный современный мир. Карта 60×44 клетки. Светлая музыка. Здесь начинается
 игра.
 
 - [Дом](locations/home.md)
-- [Мельница](locations/windmill.md) — разрушенная
-- [Подвал мельницы](locations/cellar.md) — с зеркалом в нижний мир
+- [Сарай](locations/shed.md) — в конце сада, с люком в подвал
+- [Подвал](locations/cellar.md) — с зеркалом в нижний мир
 
 ## Персонажи
 
@@ -33,9 +33,10 @@
 - [Переход между мирами](mechanics/mirror-travel.md)
 - [Интро](mechanics/intro.md) — звонок и приезд
 - [Взаимодействие](mechanics/interaction.md)
+- [Чтение](mechanics/reading.md) — записки, письма, книги
 - [Память героя](mechanics/memory.md) — «хлам», который становится нужным
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
 - [Бой](mechanics/combat.md)
 - [Инвентарь](mechanics/inventory.md)
-- [Следы](mechanics/tracks.md)
+- [Следы](mechanics/tracks.md) — и светящиеся следы Виктора

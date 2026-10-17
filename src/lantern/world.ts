@@ -51,7 +51,7 @@ export interface ThinWall {
   y: number;
   w: number;
   h: number;
-  kind: 'outer' | 'inner' | 'window' | 'post' | 'fence' | 'stone';
+  kind: 'outer' | 'inner' | 'window' | 'post' | 'fence' | 'stone' | 'boards';
 }
 
 /**
@@ -63,7 +63,7 @@ export interface GroundPatch {
   pts: Pt[];
   width: number;
   height?: number;
-  kind: 'road' | 'gravel' | 'dirt' | 'soil' | 'planks' | 'flagstones' | 'ruin';
+  kind: 'road' | 'gravel' | 'dirt' | 'soil' | 'planks' | 'flagstones';
 }
 
 export interface Light extends Pt {
@@ -90,6 +90,7 @@ export interface Thing extends Pt {
   frame: string;
   depth?: number;
   scale?: number;
+  angle?: number;
   /** The prompt. */
   label: string;
   /** Switches on and off: how it looks while on, and the prompt then. */
@@ -98,6 +99,16 @@ export interface Thing extends Pt {
   take?: boolean;
   /** You look in: a drawer of odds and ends, see `Memory`. */
   hoard?: Hoard;
+  /** You read it: an id in `PAPERS`. */
+  read?: string;
+  /** You look at it, and the hero thinks this. */
+  says?: string;
+}
+
+/** A footprint on the ground (world pixels), facing `angle`, from the left foot or the right. */
+export interface Print extends Pt {
+  angle: number;
+  left: boolean;
 }
 
 /** A way through to the other world (world pixels). */
@@ -141,6 +152,11 @@ export interface World {
   things: Thing[];
   /** Enemies, where they live. */
   foes?: FoeSpawn[];
+  /**
+   * Footprints left by someone who had been to the other side: they carry
+   * its light, so they glow, but only in the flashlight's beam after dark.
+   */
+  trail?: Print[];
 }
 
 export const GLASS = 0x9fd8e6;
@@ -428,7 +444,7 @@ export function generateWorld(): World {
 
   // The windmill on the rise north-east of the village. Here it is whole and
   // its sails still turn; a mirror set in its floor leads to the cellar
-  // under the other Mirrowick's mill, which up there is a ruin.
+  // under Victor's shed, in the other Mirrowick.
   const mc = LOWER_MILL;
   const walls = millWall(mc);
   const patches: GroundPatch[] = [{ kind: 'planks', pts: [millCentre(mc)], width: MILL_FLOOR }];

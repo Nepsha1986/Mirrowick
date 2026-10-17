@@ -12,8 +12,10 @@ import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
 import { ITEMS, NUDGES, type Fact } from '../lantern/items';
 import { Memory, type Hoard } from '../lantern/memory';
+import { PAPERS } from '../lantern/papers';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
+import { Reader } from '../ui/Reader';
 import { Combat } from './Combat';
 import { Tracks } from './Tracks';
 import { openMailbox } from '../ui/mailbox';
@@ -41,6 +43,12 @@ const CHUNK = 10 * T;
 const REACH = 1.4 * T;
 /** How near something must be, in plain sight, to be haloed: E then walks you to it. */
 const NOTICE = 3.2 * T;
+/** Seconds into a new game before the hero notices Victor's car. */
+const FIRST_THOUGHT = 2.5;
+/** The cold light that clings to whoever has been to the other side. */
+const TRAIL_GLOW = 0x7cd4ff;
+/** How bright a glowing footprint must be before the hero takes it in. */
+const TRAIL_SEEN = 0.45;
 /** Seconds after a thought before the hero has a second one, if he's still stuck. */
 const NUDGE_AFTER = 100;
 /** Seconds between autosaves. */
@@ -54,7 +62,7 @@ const DUSK: [number, number, number] = [13, 10, 8];
 const PLACES: Record<Realm, { name: string; bg: string }> = {
   lower: { name: 'The Lower World', bg: '#0d0a08' },
   upper: { name: 'The Upper World', bg: '#2c3a1e' },
-  cellar: { name: 'The Mill Cellar', bg: '#060507' },
+  cellar: { name: 'The Cellar', bg: '#060507' },
 };
 
 /** What the scene is started with: which world, and where and when you arrive. */
@@ -108,7 +116,7 @@ interface Hero extends Pt {
  * a world painted by code, real darkness with a lantern beam and a day–night
  * cycle. It plays either Mirrowick: the Lower World of dusk around the
  * village, or the Upper World — an ordinary sunny homestead — and the
- * mirror in the windmill's floor leads from one to the other.
+ * mirror in the cellar under Victor's shed leads from one to the other.
  */
 export class LanternScene extends Phaser.Scene {
   private realm: Realm = 'lower';
@@ -144,15 +152,25 @@ export class LanternScene extends Phaser.Scene {
   private using: Target | null = null;
   /** What E sent you walking to, to use once you're there. */
   private pending: Target | null = null;
-  /** Glints on drawers that still hold something worth a look. */
-  private glints: { img: Phaser.GameObjects.Image; hoard: Hoard }[] = [];
+  /** Glints on drawers that still hold something worth a look, and on papers not yet read. */
+  private glints: { img: Phaser.GameObjects.Image; worth: () => boolean }[] = [];
+  /** Glowing footprints, and how much of each a roof hides (the shed's). */
+  private trail: { img: Phaser.GameObjects.Image; room: number }[] = [];
+  /** Notes, letters and books, held up to read. */
+  private reader?: Reader;
   /** How long the hero has known each fact this visit without finding what it calls for. */
   private stuck = new Map<Fact, number>();
   /** Whether the hero walked this frame: time only passes while he does. */
   private moving = false;
   /** What the things that don't just switch on and off do, by id. */
   private readonly uses: Record<string, () => void> = {
-    mailbox: () => this.hud && openMailbox(this.hud.dialog, () => (this.using = null)),
+    mailbox: () =>
+      this.hud &&
+      openMailbox(
+        this.hud.dialog,
+        () => (this.using = null),
+        () => this.readPaper('bookshop-letter'),
+      ),
     ammo: () => {
       this.using = null;
       this.combat?.refill();
@@ -220,6 +238,7 @@ export class LanternScene extends Phaser.Scene {
     this.using = null;
     this.pending = null;
     this.glints = [];
+    this.trail = [];
     this.stuck.clear();
     this.moving = false;
     this.thingsOn = new Set(this.start.things ?? []);
@@ -248,6 +267,7 @@ export class LanternScene extends Phaser.Scene {
     this.heroImg = this.add.image(this.hero.x, this.hero.y, 'ln-atlas', this.heroFrame());
     this.marker = this.add.graphics().setDepth(DEPTH_DARK - 1);
     this.buildTownLife();
+    this.buildTrail();
     this.buildFoes();
     this.buildDarkness();
     this.buildMotes();
@@ -278,7 +298,14 @@ export class LanternScene extends Phaser.Scene {
         () => this.bag?.toggle(),
       );
       this.bag = new Inventory();
-      if (this.start.fresh) this.hud.controls();
+      this.reader = new Reader();
+      if (this.start.fresh) {
+        this.hud.controls();
+        // Just out of the car, the first thing he sees: Victor never drove off.
+        this.time.delayedCall(FIRST_THOUGHT * 1000, () =>
+          this.hud?.think("Victor's car is still in the drive. Wherever he went, he didn't drive."),
+        );
+      }
       document.addEventListener('visibilitychange', saveOnHide);
       this.save();
     }
@@ -291,6 +318,8 @@ export class LanternScene extends Phaser.Scene {
       this.hud = undefined;
       this.bag?.destroy();
       this.bag = undefined;
+      this.reader?.destroy();
+      this.reader = undefined;
       this.combat?.destroy();
       this.textures.remove('ln-dark');
     });
@@ -525,6 +554,41 @@ export class LanternScene extends Phaser.Scene {
     }
   }
 
+  /** Victor's glowing footprints: unseen until the beam falls on them after dark. */
+  private buildTrail(): void {
+    for (const p of this.world.trail ?? []) {
+      const img = this.add
+        .image(p.x, p.y, 'ln-up', 'printGlow')
+        .setRotation(p.angle)
+        .setFlipY(p.left)
+        .setTint(TRAIL_GLOW)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(DEPTH_ABOVE_DARK)
+        .setAlpha(0);
+      // Inside the shed they hide under its roof until you walk in.
+      const room = this.roofs.findIndex((r) => r.area.contains(p.x, p.y));
+      this.trail.push({ img, room });
+    }
+  }
+
+  /**
+   * Lights up the footprints the beam falls on, once it is dark enough to
+   * see them glow. The first time, the hero takes them in.
+   */
+  private updateTrail(): void {
+    if (!this.trail.length) return;
+    const dark = clamp((this.darkness - 0.3) / 0.35, 0, 1);
+    const t = this.time.now / 1000;
+    let seen = false;
+    for (const { img, room } of this.trail) {
+      const roof = room < 0 ? 0 : (this.roofs[room]?.img.alpha ?? 0);
+      const b = dark ? dark * this.beam(img) * (1 - roof) : 0;
+      img.setAlpha(b * (0.8 + 0.15 * Math.sin(t * 2.2 + img.x * 0.05)));
+      if (b > TRAIL_SEEN) seen = true;
+    }
+    if (seen && !this.demo && !this.memory.knows('trail')) this.learn('trail');
+  }
+
   /** The enemies, if this world has any; none behind the menu. */
   private buildFoes(): void {
     const foes = this.world.foes;
@@ -687,6 +751,7 @@ export class LanternScene extends Phaser.Scene {
     this.cull();
     this.drawMarker(dt);
     this.updateLighting(dt);
+    this.updateTrail();
     this.hud?.update(this.day, this.hour(), this.night());
     if (this.bag?.open) {
       this.bag.show(this.bagView());
@@ -711,15 +776,22 @@ export class LanternScene extends Phaser.Scene {
         this.add
           .image(t.x, t.y, t.key, now().frame)
           .setDepth(t.depth ?? t.y + 4)
-          .setScale(t.scale ?? 1),
+          .setScale(t.scale ?? 1)
+          .setAngle(t.angle ?? 0),
       );
-      const hoard = t.hoard;
-      if (hoard?.items.length) {
+      const { hoard, read, says } = t;
+      // A twinkle on a drawer worth a look, or a paper you haven't read.
+      const worth = hoard?.items.length
+        ? () => this.memory.worthLooking(hoard, this.items)
+        : read
+          ? () => !this.memory.hasRead(read)
+          : null;
+      if (worth) {
         const glint = this.add
           .image(t.x + 6, t.y - 6, 'ln-up', 'glint')
           .setBlendMode(Phaser.BlendModes.ADD)
           .setDepth((t.depth ?? t.y + 4) + 1);
-        this.glints.push({ img: glint, hoard });
+        this.glints.push({ img: glint, worth });
       }
       this.targets.push({
         x: t.x,
@@ -733,7 +805,11 @@ export class LanternScene extends Phaser.Scene {
               ? this.take(t.id, img)
               : hoard
                 ? this.look(hoard)
-                : this.useThing(t.id),
+                : read
+                  ? this.readPaper(read)
+                  : says
+                    ? this.hud?.think(says)
+                    : this.useThing(t.id),
       });
     }
     this.haloPool = this.add
@@ -774,6 +850,24 @@ export class LanternScene extends Phaser.Scene {
     this.save();
   }
 
+  /**
+   * Holds a paper up to read. The hero stops where he is; once he puts it
+   * down the first time, he may think something of it.
+   */
+  private readPaper(id: string): void {
+    const paper = PAPERS[id];
+    if (!paper || !this.reader) return;
+    this.hero.path = [];
+    this.pending = null;
+    this.input.keyboard?.resetKeys();
+    const first = this.memory.read(id);
+    this.save();
+    this.reader.show(paper, () => {
+      this.input.keyboard?.resetKeys();
+      if (first && paper.after) this.hud?.think(paper.after);
+    });
+  }
+
   /** Learns something; the first time, the hero thinks about it. */
   private learn(fact: Fact): void {
     const thought = this.memory.learn(fact, this.items);
@@ -797,7 +891,7 @@ export class LanternScene extends Phaser.Scene {
    */
   private nudge(dt: number): void {
     if (this.demo || this.leaving || this.realm !== 'upper') return;
-    for (const fact of Object.keys(NUDGES) as Fact[]) {
+    for (const [fact, nudge] of Object.entries(NUDGES) as [Fact, string][]) {
       const waited = this.stuck.get(fact) ?? 0;
       if (waited < 0 || !this.memory.knows(fact) || !this.memory.lacks(fact, this.items)) continue;
       if (waited + dt < NUDGE_AFTER) {
@@ -806,7 +900,7 @@ export class LanternScene extends Phaser.Scene {
       }
       // Once a visit is enough.
       this.stuck.set(fact, -1);
-      this.hud?.think(NUDGES[fact]);
+      this.hud?.think(nudge);
     }
   }
 
@@ -906,6 +1000,7 @@ export class LanternScene extends Phaser.Scene {
 
   /** E: uses what is haloed, walking over to it first if it is a few steps away. */
   private act(): void {
+    if (this.reader?.open) return;
     const t = this.noticed();
     if (!t) return;
     if (this.inReach(t)) return t.use();
@@ -929,11 +1024,11 @@ export class LanternScene extends Phaser.Scene {
     const pulse = Math.sin(this.time.now / 260);
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
-    this.hud?.prompt(near ? `E · ${near.label()}` : null);
+    this.hud?.prompt(near && !this.reader?.open ? `E · ${near.label()}` : null);
     // A twinkle on a drawer with something in it still worth having.
     const t = this.time.now / 1000;
     for (const g of this.glints) {
-      const on = !this.demo && this.memory.worthLooking(g.hoard, this.items);
+      const on = !this.demo && g.worth();
       g.img.setVisible(on);
       if (on)
         g.img
@@ -1113,6 +1208,18 @@ export class LanternScene extends Phaser.Scene {
     if (d < LIGHT_R * 0.6) return true;
     const off = Phaser.Math.Angle.Wrap(Math.atan2(p.y - h.y, p.x - h.x) - h.facing);
     return d < LIGHT_R * 1.7 && Math.abs(off) < 0.42;
+  }
+
+  /** How strongly the flashlight lights a point, 0…1: the pool round you and the beam ahead. */
+  private beam(p: Pt): number {
+    if (!this.items.has('flashlight')) return 0;
+    const h = this.hero;
+    const d = Math.hypot(p.x - h.x, p.y - h.y);
+    const pool = clamp(1.4 - d / (LIGHT_R * 0.5), 0, 1);
+    const off = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(p.y - h.y, p.x - h.x) - h.facing));
+    const cone =
+      clamp((0.45 - off) / 0.15, 0, 1) * clamp((LIGHT_R * 1.8 - d) / (LIGHT_R * 0.5), 0, 1);
+    return Math.max(pool, cone);
   }
 
   /** How much the dark spoils your aim at a point: none where it's lit, up to 30. */

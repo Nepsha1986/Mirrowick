@@ -1,19 +1,11 @@
-import {
-  MILL_FLOOR,
-  MILL_HALF,
-  cellarStairs,
-  millCentre,
-  millTiles,
-  millWall,
-  upperHatch,
-  wallTiles,
-} from './mill';
+import { cellarStairs, upperHatch } from './mill';
 import type { Building } from './town';
-import { T, TL, UH, UPPER_MILL, UW, makeNoise, mulberry32, type Pt } from './util';
+import { T, TL, UH, UW, makeNoise, mulberry32, type Pt } from './util';
 import {
   GLASS,
   type GroundPatch,
   type Light,
+  type Print,
   type Thing,
   type ThinWall,
   type World,
@@ -27,10 +19,10 @@ const OUTER = 11;
 const INNER = 6;
 
 /**
- * The Upper World, for now one homestead on a country road: Uncle Victor's house
- * with a kitchen, a living room, a bedroom, a hall and a bathroom, a car in
- * the drive, a garden — and up the lane the old windmill, long fallen in.
- * In its floor lies a cracked mirror that leads down to the Lower World.
+ * The Upper World, for now one homestead on a country road: Uncle Victor's
+ * house with a kitchen, a living room, a bedroom, a hall and a bathroom; his
+ * car and yours in the drive; a back garden — and at the bottom of it an
+ * ordinary shed, with a hatch in its floor down to the cellar and the mirror.
  */
 export function generateUpperWorld(): World {
   const R = mulberry32(4242);
@@ -77,26 +69,52 @@ export function generateUpperWorld(): World {
       ground[I(x, y)] = v < 0.6 ? TL.UG1 : v < 0.95 ? TL.UG2 : TL.UG3;
     }
   }
+  // Victor's lawn, front and back, kept clear of trees.
+  keep(5, 11, 40, 38);
+
+  /** Keeps trees off the tiles along a line. */
+  const keepAlong = (pts: Pt[]) => {
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i] as Pt;
+      const b = pts[i + 1] as Pt;
+      const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 8);
+      for (let k = 0; k <= n; k++) {
+        const x = Math.floor((a.x + ((b.x - a.x) * k) / n) / T);
+        const y = Math.floor((a.y + ((b.y - a.y) * k) / n) / T);
+        keep(x, y, x, y);
+      }
+    }
+  };
 
   // A country road of packed earth and gravel along the south edge, a gravel
-  // walk and drive, a dirt lane up to the mill and a footpath out the back.
-  // They are painted over the grass, so their edges wander.
-  keep(0, 26, UW - 1, 27);
-  patches.push({ kind: 'gravel', width: 2.7 * T, pts: [P(25, 26.3), P(25.1, 21), P(24.9, 15.5)] });
-  keep(24, 15, 26, 25);
+  // walk and drive, and a footpath out the back, across the garden to the
+  // shed. They are painted over the grass, so their edges wander.
+  keep(0, 40, UW - 1, 41);
+  patches.push({
+    kind: 'gravel',
+    width: 2.7 * T,
+    pts: [P(31, 40.3), P(31.1, 35), P(30.9, 29.5), P(31, 24)],
+  });
+  keep(30, 23, 32, 39);
   patches.push({
     kind: 'gravel',
     width: 1.5 * T,
-    pts: [P(17, 19.3), P(16.95, 22.5), P(17.05, 26.3)],
+    pts: [P(23, 33.3), P(22.95, 36.5), P(23.05, 40.3)],
   });
-  keep(16, 19, 17, 25);
-  patches.push({
-    kind: 'dirt',
-    width: 0.95 * T,
-    pts: [P(26.3, 15.6), P(28.4, 15.4), P(30.5, 14.7), P(31.45, 13.4), P(31.5, 11.8)],
-  });
-  keep(27, 15, UPPER_MILL.x, 15);
-  keep(UPPER_MILL.x, UPPER_MILL.y + MILL_HALF + 1, UPPER_MILL.x, 15);
+  keep(22, 33, 23, 39);
+  const footpath = [
+    P(17.5, 21.9),
+    P(17.6, 19.6),
+    P(18.5, 17.4),
+    P(22, 16.4),
+    P(30, 15.8),
+    P(37, 14.7),
+    P(42, 13.5),
+    P(45.6, 12.7),
+    P(47.5, 12),
+  ];
+  patches.push({ kind: 'dirt', width: 0.85 * T, pts: footpath });
+  keepAlong(footpath);
 
   /**
    * Turns a building's wall tiles into thin walls along their middles, with
@@ -217,8 +235,8 @@ export function generateUpperWorld(): World {
   // --- The house -----------------------------------------------------------------------
   const house: Building = {
     name: 'Home',
-    x0: 8,
-    y0: 8,
+    x0: 14,
+    y0: 22,
     w: 15,
     h: 11,
     roof: 'tiles',
@@ -226,10 +244,10 @@ export function generateUpperWorld(): World {
     porch: 9,
   };
   const floor = (x: number, y: number): number => {
-    if (x <= 13 && y <= 12) return TL.CHECKER; // kitchen
-    if (x <= 13) return TL.PLANK2; // bedroom
-    if (y <= 13) return TL.PARQUET; // living room
-    if (x >= 20) return TL.TILEW; // bathroom
+    if (x <= 19 && y <= 26) return TL.CHECKER; // kitchen
+    if (x <= 19) return TL.PLANK2; // bedroom
+    if (y <= 27) return TL.PARQUET; // living room
+    if (x >= 26) return TL.TILEW; // bathroom
     return TL.PLANK; // hall
   };
   const wallT = new Uint8Array(N);
@@ -239,7 +257,7 @@ export function generateUpperWorld(): World {
     for (let x = house.x0; x <= x1; x++) {
       const rim = x === house.x0 || x === x1 || y === house.y0 || y === y1;
       const inner =
-        x === 14 || (y === 13 && x <= 14) || (y === 14 && x >= 14) || (x === 19 && y >= 14);
+        x === 20 || (y === 27 && x <= 20) || (y === 28 && x >= 20) || (x === 25 && y >= 28);
       const wall = rim || inner;
       if (wall) {
         solid(x, y);
@@ -249,13 +267,13 @@ export function generateUpperWorld(): World {
   }
   // Doors: kitchen–living, bedroom–hall, living–hall, hall–bath, back and front.
   const doors = [
-    [14, 10, TL.PARQUET],
-    [14, 16, TL.PLANK],
-    [17, 14, TL.PLANK],
-    [19, 16, TL.TILEW],
-    [11, 8, TL.CHECKER],
-    [16, 18, TL.PLANK],
-    [17, 18, TL.PLANK],
+    [20, 24, TL.PARQUET],
+    [20, 30, TL.PLANK],
+    [23, 28, TL.PLANK],
+    [25, 30, TL.TILEW],
+    [17, 22, TL.CHECKER],
+    [22, 32, TL.PLANK],
+    [23, 32, TL.PLANK],
   ] as const;
   for (const [x, y, f] of doors) {
     set(x, y, f);
@@ -266,52 +284,73 @@ export function generateUpperWorld(): World {
   const room = 0;
   const lamp = (p: Pt, radius: number, color = WARM) => light(p, radius, color, { room });
 
-  // Kitchen: worktop and sink, cooker, fridge, a table for four.
-  obj('kcounter', 9.5, 9);
-  solid(9, 9);
-  solid(10, 9);
-  obj('stove', 12, 9);
-  solid(12, 9);
-  obj('fridge', 13, 9);
-  solid(13, 9);
-  obj('ktable', 11, 11);
-  solid(11, 11);
-  lamp(C(11, 10.5), 110);
+  // Kitchen: worktop and sink, cooker, fridge with a list on it, a table for four.
+  obj('kcounter', 15.5, 23);
+  solid(15, 23);
+  solid(16, 23);
+  obj('stove', 18, 23);
+  solid(18, 23);
+  obj('fridge', 19, 23);
+  solid(19, 23);
+  things.push({
+    id: 'fridge-note',
+    key: 'ln-up',
+    frame: 'note',
+    ...C(19, 23),
+    x: 19.6 * T,
+    depth: 24 * T,
+    label: 'Read the note on the fridge',
+    read: 'fridge-note',
+  });
+  obj('ktable', 17, 25);
+  solid(17, 25);
+  lamp(C(17, 24.5), 110);
 
-  // Living room: sofa facing the telly, a rug, the computer in the corner.
-  decal('rugBlue', 18, 10.6);
-  obj('sofa', 18, 12);
-  for (const x of [17, 18, 19]) solid(x, 12);
+  // Living room: sofa facing the telly, a rug, the computer in the corner,
+  // and Victor's notebook left on the desk.
+  decal('rugBlue', 24, 24.6);
+  obj('sofa', 24, 26);
+  for (const x of [23, 24, 25]) solid(x, 26);
   things.push({
     id: 'tv',
     key: 'ln-up',
     frame: 'tv',
-    ...C(18, 9),
+    ...C(24, 23),
     label: 'Turn on the TV',
     on: { frame: 'tvOn', label: 'Turn off the TV' },
   });
-  for (const x of [17, 18, 19]) solid(x, 9);
-  obj('desk', 21, 10.5, { y: 11 * T });
-  solid(21, 10);
-  solid(21, 11);
-  obj('chair', 20, 10.5, { y: 11 * T, depth: 11 * T - 4 });
-  obj('plant', 15, 9);
-  solid(15, 9);
-  obj('floorlamp', 21, 13);
-  solid(21, 13);
-  lamp(C(18, 11), 150);
-  light(C(18, 9.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
-  lamp(C(20.6, 10.5), 40, 0xa8d8ff);
+  for (const x of [23, 24, 25]) solid(x, 23);
+  obj('desk', 27, 24.5, { y: 25 * T });
+  solid(27, 24);
+  solid(27, 25);
+  obj('chair', 26, 24.5, { y: 25 * T, depth: 25 * T - 4 });
+  things.push({
+    id: 'notebook',
+    key: 'ln-up',
+    frame: 'notebook',
+    x: 27.35 * T,
+    y: 25.9 * T,
+    depth: 26 * T,
+    label: "Read Victor's notebook",
+    read: 'notebook',
+  });
+  obj('plant', 21, 23);
+  solid(21, 23);
+  obj('floorlamp', 27, 27);
+  solid(27, 27);
+  lamp(C(24, 25), 150);
+  light(C(24, 23.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
+  lamp(C(26.6, 24.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, Victor's coat still on the stand, a plant.
   // The front door stands ajar, as Pete found it.
-  decal('doormat', 16.5, 17);
-  obj('frontdoor', 16, 18, { x: 16 * T + 15, y: 18.5 * T - 24, angle: -62 });
+  decal('doormat', 22.5, 31);
+  obj('frontdoor', 22, 32, { x: 22 * T + 15, y: 32.5 * T - 24, angle: -62 });
   things.push({
     id: 'coat',
     key: 'ln-up',
     frame: 'coatrack',
-    ...C(15, 15),
+    ...C(21, 29),
     label: "Check Victor's coat",
     hoard: {
       place: 'In the coat pockets',
@@ -319,33 +358,33 @@ export function generateUpperWorld(): World {
       junk: ['a bus ticket', 'a handkerchief', 'some loose change'],
     },
   });
-  solid(15, 15);
-  obj('plant', 15, 17);
-  solid(15, 17);
-  lamp(C(16.5, 16), 80);
+  solid(21, 29);
+  obj('plant', 21, 31);
+  solid(21, 31);
+  lamp(C(22.5, 30), 80);
 
   // Bathroom: tub, basin, loo.
-  obj('bathtub', 21, 16);
-  for (const y of [15, 16, 17]) solid(21, y);
-  obj('bsink', 20, 15);
-  solid(20, 15);
-  obj('toilet', 20, 17);
-  solid(20, 17);
-  lamp(C(20.5, 16), 60, 0xf0f4ff);
+  obj('bathtub', 27, 30);
+  for (const y of [29, 30, 31]) solid(27, y);
+  obj('bsink', 26, 29);
+  solid(26, 29);
+  obj('toilet', 26, 31);
+  solid(26, 31);
+  lamp(C(26.5, 30), 60, 0xf0f4ff);
 
   // Bedroom: bed, bedside table, wardrobe, a rug.
-  decal('rugBed', 11.5, 16);
-  objects.push({ key: 'ln-town', frame: 'bed', x: 9.5 * T, y: 16 * T });
-  solid(9, 15);
-  solid(9, 16);
-  solid(9, 14);
+  decal('rugBed', 17.5, 30);
+  objects.push({ key: 'ln-town', frame: 'bed', x: 15.5 * T, y: 30 * T });
+  solid(15, 29);
+  solid(15, 30);
+  solid(15, 28);
   // Victor's bedside table: a drawer of odds and ends, the flashlight and
-  // the key to the mill's hatch among them. You leave them until you need them.
+  // the key to the shed's hatch among them. You leave them until you need them.
   things.push({
     id: 'nightstand',
     key: 'ln-town',
     frame: 'stable',
-    ...C(9, 14),
+    ...C(15, 28),
     scale: 0.7,
     label: 'Look in the bedside table',
     hoard: {
@@ -358,8 +397,8 @@ export function generateUpperWorld(): World {
     id: 'wardrobe',
     key: 'ln-up',
     frame: 'wardrobe',
-    ...C(12, 14),
-    x: 12 * T,
+    ...C(18, 28),
+    x: 18 * T,
     label: 'Look in the wardrobe',
     hoard: {
       place: 'In the wardrobe',
@@ -367,32 +406,32 @@ export function generateUpperWorld(): World {
       junk: ['shirts', 'a moth-eaten jumper', 'a box of old bills'],
     },
   });
-  solid(11, 14);
-  solid(12, 14);
-  lamp(C(11, 15.5), 100);
-  lamp(C(9, 14), 40);
+  solid(17, 28);
+  solid(18, 28);
+  lamp(C(17, 29.5), 100);
+  lamp(C(15, 28), 40);
 
   // Light from the windows at night and a lamp over the front door.
   for (const [x, y] of [
-    [11, 19.5],
-    [20.5, 19.5],
-    [18, 6.5],
-    [6.5, 10.5],
-    [6.5, 15.5],
-    [23.5, 11],
+    [17, 33.5],
+    [26.5, 33.5],
+    [24, 20.5],
+    [12.5, 24.5],
+    [12.5, 29.5],
+    [29.5, 25],
   ] as const) {
     light(C(x, y), 40, WARM);
   }
   for (const [x, y] of [
-    [11, 18],
-    [20, 18],
-    [10, 8],
-    [18, 8],
-    [8, 10],
-    [8, 15],
-    [22, 11],
+    [17, 32],
+    [26, 32],
+    [16, 22],
+    [24, 22],
+    [14, 24],
+    [14, 29],
+    [28, 25],
   ] as const) {
-    const along = y === 8 || y === 18;
+    const along = y === house.y0 || y === y1;
     const cx = (x + 0.5) * T;
     const cy = (y + 0.5) * T;
     walls.push(
@@ -403,24 +442,37 @@ export function generateUpperWorld(): World {
   }
   // The front door: a step, a lamp on a green porch canopy (painted with the
   // roof) and a mat on the gravel, so you can tell the way in from the road.
-  decal('step', 16.5, 18.9);
-  decal('porchmat', 16.5, 19.7, { angle: 3, alpha: 1 });
-  light({ x: 17 * T, y: 19.9 * T }, 60, LAMP);
+  decal('step', 22.5, 32.9);
+  decal('porchmat', 22.5, 33.7, { angle: 3, alpha: 1 });
+  light({ x: 23 * T, y: 33.9 * T }, 60, LAMP);
 
-  // --- The yard ------------------------------------------------------------------------
-  // Your car in the drive, parked a little askew.
-  objects.push({ key: 'ln-up', frame: 'car', x: 25.15 * T, y: 19 * T, angle: -6, depth: 20.8 * T });
-  for (let y = 17; y <= 20; y++) for (const x of [24, 25]) solid(x, y);
+  // --- The front yard ------------------------------------------------------------------
+  // Victor's car at the top of the drive, where it has stood for days; yours
+  // pulled up behind it, both a little askew.
+  things.push({
+    id: 'victor-car',
+    key: 'ln-up',
+    frame: 'carVictor',
+    x: 31.3 * T,
+    y: 26.6 * T,
+    angle: 3,
+    depth: 28.6 * T,
+    label: "Look at Victor's car",
+    says: "Victor's old estate. Dust on the glass, leaves on the roof. It hasn't moved in days.",
+  });
+  for (let y = 24; y <= 28; y++) for (const x of [30, 31]) solid(x, y);
+  objects.push({ key: 'ln-up', frame: 'car', x: 31.15 * T, y: 33 * T, angle: -6, depth: 34.8 * T });
+  for (let y = 31; y <= 34; y++) for (const x of [30, 31]) solid(x, y);
 
   // A picket fence along the road, with gaps for the walk and the drive.
   for (const [a, b] of [
-    [3, 15],
-    [18, 23],
-    [27, 29],
+    [3, 21],
+    [24, 29],
+    [33, 44],
   ] as const) {
-    const y = 24.5 * T;
+    const y = 38.5 * T;
     walls.push({ kind: 'fence', x: a * T + 4, y: y - 3, w: (b - a + 1) * T - 8, h: 6 });
-    for (let x = a; x <= b; x++) solid(x, 24);
+    for (let x = a; x <= b; x++) solid(x, 38);
     for (let x = a; x <= b + 1; x += 3) {
       const px = Math.min(x, b + 1) * T + (x === a ? 4 : x > b ? -4 : 0);
       walls.push({ kind: 'post', x: px - 3.5, y: y - 3.5, w: 7, h: 7 });
@@ -431,33 +483,39 @@ export function generateUpperWorld(): World {
     id: 'mailbox',
     key: 'ln-up',
     frame: 'mailbox',
-    ...C(18, 25),
+    ...C(24, 39),
     label: 'Open the mailbox',
   });
-  solid(18, 25);
-  for (const x of [12, 29]) {
-    obj('streetlamp', x, 25);
-    solid(x, 25);
-    light(C(x, 25), 140, LAMP, { flicker: 0.01 });
+  solid(24, 39);
+  for (const x of [18, 35]) {
+    obj('streetlamp', x, 39);
+    solid(x, 39);
+    light(C(x, 39), 140, LAMP, { flicker: 0.01 });
   }
 
-  // Flowers under the front windows; vegetable beds and a bench out the back.
-  for (const x of [9, 10, 11, 12, 13, 19, 20, 21]) {
-    if (x === 12) continue;
-    obj('flowerbed', x + (R() - 0.5) * 0.15, 19 + (R() - 0.3) * 0.2, {
-      depth: 19 * T,
+  // Flowers under the front windows.
+  for (const x of [15, 16, 17, 18, 19, 25, 26, 27]) {
+    if (x === 18) continue;
+    obj('flowerbed', x + (R() - 0.5) * 0.15, 33 + (R() - 0.3) * 0.2, {
+      depth: 33 * T,
       angle: (R() - 0.5) * 8,
     });
-    solid(x, 19);
+    solid(x, 33);
   }
-  for (const x0 of [8, 12]) {
-    patches.push({ kind: 'soil', width: 3 * T, pts: [P(x0, 4.5), P(x0 + 3, 4.5)] });
+
+  // --- The back garden -----------------------------------------------------------------
+  // Vegetable beds and a bench by the path, logs stacked under the eaves, a
+  // chopping block, washing on the line, the compost heap and a wheelbarrow
+  // left where Victor last used it.
+  for (const [a, b] of [
+    [9.4, 11.5],
+    [13.5, 15.3],
+  ] as const) {
+    patches.push({ kind: 'soil', width: 2.6 * T, pts: [P(a, 18.5), P(b, 18.4 + R() * 0.2)] });
   }
-  patches.push({ kind: 'dirt', width: 0.85 * T, pts: [P(11.5, 7.9), P(11.45, 6.4), P(11.6, 2.6)] });
-  keep(8, 2, 14, 7);
-  for (let x = 8; x <= 14; x++) {
-    for (let y = 3; y <= 5; y++) {
-      if (x === 11 || R() < 0.12) continue;
+  for (let x = 8; x <= 15; x++) {
+    for (let y = 17; y <= 19; y++) {
+      if (x === 12 || R() < 0.12) continue;
       decals.push({
         key: 'ln-town',
         frame: 'cabbage',
@@ -469,68 +527,111 @@ export function generateUpperWorld(): World {
       });
     }
   }
-  objects.push({ key: 'ln-town', frame: 'bench', ...C(16, 4) });
-  solid(16, 4);
+  objects.push({ key: 'ln-town', frame: 'bench', ...C(20, 18.6), angle: 2 });
+  solid(20, 19);
+  obj('woodpile', 24, 21, { x: 24.5 * T, angle: -1.5 });
+  for (const x of [23, 24, 25]) solid(x, 21);
+  obj('chopblock', 22, 20, { angle: 20 });
+  solid(22, 20);
+  for (const x of [21.5, 28.6]) {
+    walls.push({ kind: 'post', x: x * T - 5, y: 13.2 * T - 5, w: 10, h: 10 });
+    solid(Math.floor(x), 13);
+  }
+  objects.push({
+    key: 'ln-up',
+    frame: 'clothesline',
+    x: 25.05 * T,
+    y: 13.2 * T + 12,
+    depth: 40_000,
+  });
+  obj('compost', 9, 12, { angle: 4 });
+  solid(9, 12);
+  obj('wheelbarrow', 12, 13, { x: 12.3 * T });
+  solid(12, 13);
   for (const [x, y] of [
-    [4, 5],
-    [20, 3],
-    [4, 13],
-    [36, 19],
-    [33, 21],
-    [19, 22],
+    [8, 15],
+    [33, 19],
+    [37, 11],
+    [13, 9],
+    [10, 35],
+    [38, 35],
   ] as const) {
     obj('appletree', x, y, { depth: (y + 1) * T, angle: R() * 360 });
     solid(x, y);
   }
 
+  // --- The shed ------------------------------------------------------------------------
+  // Out at the bottom of the garden, past the washing line: an ordinary shed
+  // of weathered boards under a rusty tin roof. Inside, the bench, the mower,
+  // the bike, the tins of paint — and under the boards a padlocked hatch.
+  const shed: Building = { name: 'Shed', x0: 44, y0: 6, w: 7, h: 6, roof: 'tin', chimneys: [] };
+  const shedT = new Uint8Array(N);
+  for (let y = shed.y0; y < shed.y0 + shed.h; y++) {
+    for (let x = shed.x0; x < shed.x0 + shed.w; x++) {
+      const rim =
+        x === shed.x0 || y === shed.y0 || x === shed.x0 + shed.w - 1 || y === shed.y0 + shed.h - 1;
+      if (rim) {
+        solid(x, y);
+        shedT[I(x, y)] = 1;
+      } else set(x, y, TL.PLANK2);
+    }
+  }
+  const shedDoor = [[47, 11, TL.PLANK2]] as const;
+  for (const [x, y, f] of shedDoor) {
+    set(x, y, f);
+    shedT[I(x, y)] = 0;
+  }
+  keep(shed.x0 - 1, shed.y0 - 1, shed.x0 + shed.w, shed.y0 + shed.h);
+  const before = walls.length;
+  thinWalls(shed, shedT, shedDoor);
+  doorFloors(shedDoor, shedT);
+  for (const w of walls.slice(before)) if (w.kind === 'outer') w.kind = 'boards';
+  const shedRoom = 1;
+  obj('workbench', 45.6, 7, { angle: -1 });
+  solid(45, 7);
+  solid(46, 7);
+  obj('tins', 49, 7, { angle: 3 });
+  for (const y of [7, 8, 9, 10]) solid(49, y);
+  obj('bike', 49, 9, { angle: 5 });
+  obj('mower', 45, 10, { angle: -8 });
+  solid(45, 10);
+  obj('tools', 44, 8.3, { x: 44.97 * T });
+  const hatch = upperHatch();
+  decals.push({ key: 'ln-cellar', frame: 'hatch', ...hatch, angle: 2, depth: -44 });
+  // A bare bulb; and at night a cold light seeps up round the hatch.
+  light(C(47, 8.2), 110, WARM, { room: shedRoom });
+  light(hatch, 44, GLASS, { room: shedRoom, flicker: 0.15, slow: true });
+
+  // Victor's footprints, from the back door along the path to the shed and
+  // in, to the hatch. He had been through the mirror before, so they glow:
+  // only the beam shows them, after dark.
+  const trail: Print[] = [];
+  const steps = [...footpath, P(47.45, 11), P(47.5, 9.5)];
+  let left = false;
+  for (let i = 0; i + 1 < steps.length; i++) {
+    const a = steps[i] as Pt;
+    const b = steps[i + 1] as Pt;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    for (let d = 0; d < len; d += 15) {
+      left = !left;
+      // He walks a little to one side of the path, and some prints have worn away.
+      const wander = Math.sin((trail.length + i * 7) * 0.13) * 5;
+      const s = (left ? -4 : 4) + wander;
+      if (R() < 0.08) continue;
+      trail.push({
+        x: a.x + Math.cos(angle) * d - Math.sin(angle) * s,
+        y: a.y + Math.sin(angle) * d + Math.cos(angle) * s,
+        angle: angle + (R() - 0.5) * 0.25,
+        left,
+      });
+    }
+  }
+
   // The road goes on last, over the ends of the walk and the drive.
   const road: Pt[] = [];
-  for (let x = -1; x <= UW + 1; x += 2) road.push(P(x, 27 + Math.sin(x * 0.21) * 0.18));
+  for (let x = -1; x <= UW + 1; x += 2) road.push(P(x, 41 + Math.sin(x * 0.21) * 0.18));
   patches.push({ kind: 'road', width: 2.3 * T, pts: road });
-  keep(0, 26, UW - 1, 27);
-
-  // --- The old mill --------------------------------------------------------------------
-  // A round tower of tumbled stone open to the sky, its flagstones broken
-  // through to the grass; the sails lie broken outside. A hatch in the floor
-  // leads down to the cellar.
-  const mc = UPPER_MILL;
-  millTiles(mc, (x, y) => keep(x, y, x, y));
-  const ruin = millWall(mc, (stretch) => stretch % 5 === 2 || stretch % 7 === 4);
-  walls.push(...ruin);
-  wallTiles(ruin, solid);
-  patches.push({ kind: 'ruin', pts: [millCentre(mc)], width: MILL_FLOOR });
-  for (let k = 0; k < 8; k++) {
-    const a = R() * Math.PI * 2;
-    const d = (2.6 + R() * 0.8) * T;
-    const c = millCentre(mc);
-    decals.push({
-      frame: 'debris',
-      x: c.x + Math.cos(a) * d,
-      y: c.y + Math.sin(a) * d,
-      angle: R() * 360,
-    });
-  }
-  obj('millstoneBroken', mc.x, mc.y);
-  solid(mc.x, mc.y);
-  const hatch = upperHatch();
-  decals.push({ key: 'ln-cellar', frame: 'hatch', ...hatch, depth: -44 });
-  // The mirror's cold light seeps up from below.
-  light(hatch, 50, GLASS, { flicker: 0.15, slow: true });
-  for (const [x, y, a] of [
-    [mc.x + 4.6, mc.y + 3.8, 28],
-    [mc.x - 4.4, mc.y - 4, -112],
-    [mc.x + 4.8, mc.y - 3.4, 196],
-  ] as const) {
-    decal('sailBroken', x, y, { angle: a, depth: -42 });
-  }
-  for (const [x, y] of [
-    [mc.x - 4, mc.y + 2],
-    [mc.x + 4, mc.y],
-    [mc.x - 1, mc.y + 5],
-  ] as const) {
-    obj('rubble', x, y, { angle: R() * 360 });
-    solid(x, y);
-  }
 
   // Trees and bushes everywhere nothing was built, thickest round the edges.
   const near = new Uint8Array(N);
@@ -545,7 +646,7 @@ export function generateUpperWorld(): World {
   for (let y = 0; y < UH; y++) {
     for (let x = 0; x < UW; x++) {
       const i = I(x, y);
-      if (block[i] || near[i] || y >= 25) continue;
+      if (block[i] || near[i] || y >= 39) continue;
       const edge = Math.min(x, y, UW - 1 - x);
       const p = edge < 2 ? 0.55 : n2(x * 0.15 + 9, y * 0.15) > 0.62 ? 0.18 : 0.03;
       const r = R();
@@ -580,8 +681,8 @@ export function generateUpperWorld(): World {
     decals,
     lights,
     // A new game starts by the car: you've just driven up.
-    spawn: C(26.4, 19),
-    life: { buildings: [house], festoons: [], spots: [] },
+    spawn: C(32.4, 33),
+    life: { buildings: [house, shed], festoons: [], spots: [] },
     walls,
     patches,
     things,
@@ -596,5 +697,6 @@ export function generateUpperWorld(): World {
       },
     ],
     sails: [],
+    trail,
   };
 }

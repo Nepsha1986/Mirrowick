@@ -1,4 +1,4 @@
-import { CELLAR_MIRROR, CELLAR_STAIRS, LOWER_MILL, T, UPPER_MILL, type Pt } from './util';
+import { CELLAR_MIRROR, CELLAR_STAIRS, LOWER_MILL, SHED_HATCH, T, type Pt } from './util';
 import type { ThinWall } from './world';
 
 /** Half the side of the windmill's square footprint, in tiles. */
@@ -13,18 +13,15 @@ const DOOR = 0.36;
 export const millDoor = (c: Pt): Pt => ({ x: c.x, y: c.y + MILL_HALF });
 /** Centre of a mill's centre tile, in pixels. */
 export const millCentre = (c: Pt): Pt => ({ x: (c.x + 0.5) * T, y: (c.y + 0.5) * T });
-/** Where the mirror lies in the Lower World mill's floor, and the hatch in the Upper's. */
+/** Where the mirror lies in the Lower World mill's floor, and the hatch in Victor's shed. */
 export const lowerMirror = (): Pt => ({ x: (LOWER_MILL.x + 0.5) * T, y: (LOWER_MILL.y - 1.2) * T });
-export const upperHatch = (): Pt => ({ x: (UPPER_MILL.x + 0.5) * T, y: (UPPER_MILL.y - 1.2) * T });
+export const upperHatch = (): Pt => ({ x: SHED_HATCH.x * T, y: SHED_HATCH.y * T });
 /** The foot of the cellar stairs, and the mirror in the cellar. */
 export const cellarStairs = (): Pt => ({ x: CELLAR_STAIRS.x * T, y: CELLAR_STAIRS.y * T });
 export const cellarMirror = (): Pt => ({ x: CELLAR_MIRROR.x * T, y: CELLAR_MIRROR.y * T });
 
-/**
- * The tower's round stone wall as a chain of small blocks, leaving the
- * doorway open. `gone` can knock stretches out of it, for a ruin.
- */
-export function millWall(c: Pt, gone: (stretch: number) => boolean = () => false): ThinWall[] {
+/** The tower's round stone wall as a chain of small blocks, leaving the doorway open. */
+export function millWall(c: Pt): ThinWall[] {
   const { x: cx, y: cy } = millCentre(c);
   const out: ThinWall[] = [];
   const n = Math.ceil((2 * Math.PI * RADIUS) / 5);
@@ -32,7 +29,6 @@ export function millWall(c: Pt, gone: (stretch: number) => boolean = () => false
     const a = (i / n) * Math.PI * 2;
     // The doorway faces south (a = π/2).
     if (Math.abs(a - Math.PI / 2) < DOOR) continue;
-    if (gone(Math.floor(i / 9))) continue;
     out.push({
       kind: 'stone',
       x: cx + Math.cos(a) * RADIUS - THICK / 2,

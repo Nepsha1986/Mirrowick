@@ -9,10 +9,7 @@ const GRASS = ['#5d7d36', '#668740', '#517030', '#6b8c44'];
 
 const pick = (r: () => number, cols: string[]) => cols[Math.floor(r() * cols.length)] as string;
 
-/**
- * A round floor: boards that don't quite match, or flagstones; a ruin's
- * flagstones are cracked and broken through to the grass.
- */
+/** A round floor: boards that don't quite match, or flagstones. */
 function paintFloor(
   c: Ctx,
   patch: GroundPatch,
@@ -58,14 +55,7 @@ function paintFloor(
         const w = 18 + r() * 14;
         const h = 18 + (r() - 0.5) * 4;
         const j = () => (r() - 0.5) * 3;
-        const missing = patch.kind === 'ruin' && r() < 0.14;
-        c.fillStyle = missing
-          ? pickCol(GRASS)
-          : pickCol(
-              patch.kind === 'ruin'
-                ? ['#7a7468', '#857e71', '#6c665c', '#8f887a']
-                : ['#4e4a46', '#57524c', '#47433f', '#5d5852'],
-            );
+        c.fillStyle = pickCol(['#4e4a46', '#57524c', '#47433f', '#5d5852']);
         c.beginPath();
         c.moveTo(x + 1 + j(), y + 1 + j());
         c.lineTo(x + w - 1 + j(), y + 1 + j());
@@ -73,17 +63,13 @@ function paintFloor(
         c.lineTo(x + 1 + j(), y + h - 1 + j());
         c.closePath();
         c.fill();
-        if (!missing && r() < 0.25) {
+        if (r() < 0.25) {
           c.strokeStyle = 'rgba(20,15,10,.5)';
           c.lineWidth = 0.7;
           c.beginPath();
           c.moveTo(x + r() * w, y + 2);
           c.lineTo(x + r() * w, y + h - 2);
           c.stroke();
-        }
-        if (patch.kind === 'ruin' && r() < 0.2) {
-          c.fillStyle = 'rgba(90,120,50,.5)';
-          c.fillRect(x + r() * w, y + r() * h, 3, 2);
         }
         x += w;
       }
@@ -119,7 +105,7 @@ interface Box {
   h: number;
 }
 
-const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones', 'ruin']);
+const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones']);
 
 /** The area a layer needs, so its texture covers that and not the whole map. */
 function bounds(boxes: Box[], margin: number): Box {
@@ -413,6 +399,25 @@ export function paintWalls(scene: Phaser.Scene, key: string, walls: ThinWall[]):
     if (r() < 0.12) {
       c.fillStyle = 'rgba(80,100,50,.45)';
       c.fillRect(m.x + r() * m.w * 0.6, m.y + r() * m.h * 0.6, 4, 3);
+    }
+  }
+
+  // Weathered boards: a shed's walls, grey-brown, the odd plank darker or split.
+  const boards = walls.filter((m) => m.kind === 'boards');
+  for (const m of boards) rough(m.x, m.y, m.w, m.h, 1.3, INK);
+  for (const m of boards) {
+    rough(m.x, m.y, m.w, m.h, 0, '#6b5a47');
+    const along = m.w > m.h;
+    const len = along ? m.w : m.h;
+    for (let t = 0; t < len; t += 6 + r() * 3) {
+      c.fillStyle = pick(r, ['#5d4d3c', '#77654f', '#655441', '#4f4133']);
+      if (along) c.fillRect(m.x + t, m.y + 1, 5, m.h - 2);
+      else c.fillRect(m.x + 1, m.y + t, m.w - 2, 5);
+    }
+    if (r() < 0.3) {
+      c.fillStyle = 'rgba(20,14,8,.6)';
+      if (along) c.fillRect(m.x + r() * m.w, m.y + m.h / 2 - 0.4, 6, 0.8);
+      else c.fillRect(m.x + m.w / 2 - 0.4, m.y + r() * m.h, 0.8, 6);
     }
   }
 

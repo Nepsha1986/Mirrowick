@@ -8,7 +8,7 @@ type Line = [who: string | null, text: string];
 const CALL: Line[] = [
   [null, 'A phone buzzes on the table. An unknown number.'],
   ['Mark', 'Hello?'],
-  ['Pete', "Mark? It's Pete. Victor's neighbour, out by the old mill."],
+  ['Pete', "Mark? It's Pete. Victor's neighbour, from down the lane."],
   ['Mark', 'Pete… Has something happened?'],
   ['Pete', "It's your uncle. Nobody's seen him for three days."],
   ['Pete', "The door was open, his coat still on the hook. But he's gone."],
