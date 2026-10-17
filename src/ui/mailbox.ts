@@ -1,4 +1,4 @@
-import { tr } from '../i18n';
+import { t } from '../i18n';
 import type { Dialog } from './Dialog';
 import { h } from './dom';
 
@@ -10,32 +10,26 @@ const POST = 'nepsha1986@gmail.com';
  * holds up to read, or a letter of your own to the developer.
  */
 export function openMailbox(d: Dialog, onClose: () => void, read: () => void): void {
+  const w = t().mailbox;
   const mail = () =>
-    d.show(
-      tr('Mailbox', 'Почтовый ящик'),
-      tr(
-        'One letter, addressed to Victor. Nobody has collected it.',
-        'Одно письмо, на имя Виктора. Его никто не забрал.',
-      ),
+    d.show(w.title, w.letter, [
       [
-        [
-          tr('Read it', 'Прочесть'),
-          () => {
-            d.close();
-            read();
-          },
-        ],
-        [tr('Back', 'Назад'), menu],
+        w.read,
+        () => {
+          d.close();
+          read();
+        },
       ],
-    );
+      [w.back, menu],
+    ]);
   const menu = () =>
     d.show(
-      tr('Mailbox', 'Почтовый ящик'),
+      w.title,
       null,
       [
-        [tr('Check the mail', 'Проверить почту'), mail],
-        [tr('Write to the developer', 'Написать разработчику'), write],
-        [tr('Close', 'Закрыть'), () => d.close()],
+        [w.check, mail],
+        [w.write, write],
+        [w.close, () => d.close()],
       ],
       onClose,
     );
@@ -45,25 +39,18 @@ export function openMailbox(d: Dialog, onClose: () => void, read: () => void): v
       class: 'letter',
       rows: 5,
       maxLength: 4000,
-      placeholder: tr('Dear developer…', 'Дорогой разработчик…'),
+      placeholder: w.dear,
     });
     const send = () => {
       const letter = text.value.trim();
       if (!letter) return text.focus();
-      const subject = encodeURIComponent(tr('A letter from Mirrowick', 'Письмо из Мирровика'));
+      const subject = encodeURIComponent(w.subject);
       window.location.href = `mailto:${POST}?subject=${subject}&body=${encodeURIComponent(letter)}`;
-      d.show(
-        tr('Mailbox', 'Почтовый ящик'),
-        tr(
-          'Your letter is ready: send it from your mail app.',
-          'Письмо готово: отправьте его из своей почтовой программы.',
-        ),
-        [[tr('Close', 'Закрыть'), () => d.close()]],
-      );
+      d.show(w.title, w.ready, [[w.close, () => d.close()]]);
     };
-    d.show(tr('A letter to the developer', 'Письмо разработчику'), text, [
-      [tr('Send', 'Отправить'), send],
-      [tr('Back', 'Назад'), menu],
+    d.show(w.toDeveloper, text, [
+      [w.send, send],
+      [w.back, menu],
     ]);
   };
 

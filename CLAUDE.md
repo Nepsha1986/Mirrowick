@@ -38,7 +38,8 @@ so. When a task is done, in the same PR:
 
 Write docs and tasks for a human reader first: short and plain, no filler.
 
-Code, comments, commit messages and in-game UI text are in English.
+Code, comments and commit messages are in English; in-game text lives in
+`src/i18n/`, in every language.
 
 ## Commands
 
@@ -89,6 +90,10 @@ a merge commit or rebase.
   `src/ui/Reader.ts` shows them.
 - `src/lantern/util.ts`: tile size (`T = 32`), map sizes, tile ids (`TL`),
   landmark positions, seeded PRNG and noise.
+- `src/i18n/`: every word the game shows, one catalog per language (`en.ts`
+  is the source and the shape the others must match). Code reads
+  `t().menu.play` and `fill(line, { slot })`; never put text in code, and add
+  any new line to every language.
 - `src/audio/AmbientMusic.ts`: procedural Web Audio score, with
   `setMood('lower' | 'upper')`.
 - `src/ui/`: DOM overlay (menu, the intro call, HUD with an action prompt and

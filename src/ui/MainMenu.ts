@@ -1,4 +1,4 @@
-import { tr } from '../i18n';
+import { t } from '../i18n';
 import { loadSave } from '../lantern/save';
 import { h, uiRoot } from './dom';
 import { SettingsPanel } from './Settings';
@@ -25,31 +25,13 @@ export class MainMenu {
 
   /** Everything in the current language; again when it changes. */
   private render(): void {
+    const w = t().menu;
     this.el.replaceChildren(
-      h('div', { class: 'eyebrow' }, tr('Chapter I · The Lower World', 'Глава I · Нижний мир')),
+      h('div', { class: 'eyebrow' }, w.eyebrow),
       h('h1', {}, 'Mirrowick'),
-      h(
-        'p',
-        { class: 'tagline' },
-        tr(
-          'Two villages, one name. Only one of them is still on the maps.',
-          'Две деревни, одно имя. На картах осталась только одна.',
-        ),
-      ),
+      h('p', { class: 'tagline' }, w.tagline),
       this.nav,
-      h(
-        'footer',
-        {},
-        h('span', {}, tr('v0.1 · prototype', 'v0.1 · прототип')),
-        h(
-          'span',
-          {},
-          tr(
-            'Art painted in code · Music: procedural',
-            'Графика нарисована кодом · Музыка: процедурная',
-          ),
-        ),
-      ),
+      h('footer', {}, h('span', {}, w.version), h('span', {}, w.credits)),
     );
     this.renderNav();
   }
@@ -62,21 +44,19 @@ export class MainMenu {
         { class: `menu-btn${opts.primary ? ' primary' : ''}`, disabled: !opts.onClick },
         h('span', { class: 'dot' }),
         label,
-        !opts.onClick && h('span', { class: 'soon' }, tr('soon', 'скоро')),
+        !opts.onClick && h('span', { class: 'soon' }, t().menu.soon),
       );
       if (opts.onClick) b.addEventListener('click', opts.onClick);
       return b;
     };
+    const w = t().menu;
     const saved = !!loadSave();
     const first = saved
-      ? button(tr('Continue', 'Продолжить'), { primary: true, onClick: this.actions.resume })
-      : button(tr('Play', 'Играть'), { primary: true, onClick: this.actions.play });
+      ? button(w.continue, { primary: true, onClick: this.actions.resume })
+      : button(w.play, { primary: true, onClick: this.actions.play });
     const items = [first];
-    if (saved) items.push(button(tr('New game', 'Новая игра'), { onClick: this.actions.play }));
-    items.push(
-      button(tr('Settings', 'Настройки'), { onClick: () => this.openSettings() }),
-      button(tr('Credits', 'Авторы')),
-    );
+    if (saved) items.push(button(w.newGame, { onClick: this.actions.play }));
+    items.push(button(w.settings, { onClick: () => this.openSettings() }), button(w.authors));
     this.nav.replaceChildren(...items);
     first.focus();
   }

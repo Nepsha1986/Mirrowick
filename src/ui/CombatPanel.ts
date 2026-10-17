@@ -1,4 +1,4 @@
-import { tr } from '../i18n';
+import { t } from '../i18n';
 import { h, uiRoot } from './dom';
 
 export type Stance = 'fight' | 'fallback';
@@ -39,15 +39,11 @@ export class CombatPanel {
     this.hpText = h('b', {});
     this.weapon = h('div', { class: 'fight-gun' });
     this.target = h('div', { class: 'fight-target' });
-    this.fight = h(
-      'button',
-      { class: 'fight-btn', title: tr('Fight (F)', 'Драться (F)') },
-      tr('F · Fight', 'F · Драться'),
-    );
+    this.fight = h('button', { class: 'fight-btn', title: t().combat.fightTip }, t().combat.fight);
     this.back = h(
       'button',
-      { class: 'fight-btn', title: tr('Fall back (R)', 'Отступать (R)') },
-      tr('R · Fall back', 'R · Отступать'),
+      { class: 'fight-btn', title: t().combat.fallBackTip },
+      t().combat.fallBack,
     );
     this.fight.addEventListener('click', () => onStance('fight'));
     this.back.addEventListener('click', () => onStance('fallback'));

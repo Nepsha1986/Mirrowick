@@ -1,4 +1,4 @@
-import { tr } from '../i18n';
+import { t } from '../i18n';
 import type { Paper } from '../lantern/papers';
 import { h, uiRoot } from './dom';
 
@@ -23,9 +23,9 @@ export class Reader {
     this.title = h('h2', {});
     this.text = h('div', { class: 'reader-text' });
     this.count = h('span', { class: 'reader-count' });
-    this.prev = h('button', { class: 'set-btn', title: tr('Previous page (←)', 'Назад (←)') }, '‹');
-    this.next = h('button', { class: 'set-btn', title: tr('Next page (→)', 'Дальше (→)') }, '›');
-    const done = h('button', { class: 'set-btn' }, tr('Put down', 'Отложить'));
+    this.prev = h('button', { class: 'set-btn', title: t().reader.prev }, '‹');
+    this.next = h('button', { class: 'set-btn', title: t().reader.next }, '›');
+    const done = h('button', { class: 'set-btn' }, t().reader.done);
     this.prev.addEventListener('click', () => this.turn(-1));
     this.next.addEventListener('click', () => this.turn(1));
     done.addEventListener('click', () => this.close());
@@ -59,7 +59,7 @@ export class Reader {
     this.paper = paper;
     this.page = 0;
     this.onClose = onClose;
-    this.title.textContent = tr(paper.title);
+    this.title.textContent = paper.title;
     this.sheet.className = `reader-sheet ${paper.hand}`;
     this.render();
     this.el.hidden = false;
@@ -89,8 +89,7 @@ export class Reader {
 
   private render(): void {
     const pages = this.paper?.pages ?? [];
-    const page = pages[this.page];
-    const text = page ? tr(page) : '';
+    const text = pages[this.page] ?? '';
     this.text.replaceChildren(...text.split('\n\n').map((para) => h('p', {}, para)));
     const many = pages.length > 1;
     this.count.textContent = many ? `${this.page + 1} / ${pages.length}` : '';

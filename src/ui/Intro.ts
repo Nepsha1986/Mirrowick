@@ -1,67 +1,34 @@
 import { music } from '../audio/AmbientMusic';
-import { tr, type Words } from '../i18n';
+import { t, type Messages } from '../i18n';
 import { h, uiRoot } from './dom';
 
-/** A line of the opening: who says it, or nobody for what happens. */
-type Line = [who: Words | null, text: Words];
+type Call = Messages['intro']['call'];
 
-const MARK = { en: 'Mark', ru: 'Марк' };
-const PETE = { en: 'Pete', ru: 'Пит' };
+/** A line of the opening: who says it, or nobody for what happens. */
+type Line = [who: keyof Messages['intro']['who'] | null, text: keyof Call];
 
 /** The phone call that brings Mark out to his uncle's house. */
 const CALL: Line[] = [
-  [
-    null,
-    {
-      en: 'A phone buzzes on the table. An unknown number.',
-      ru: 'На столе жужжит телефон. Номер незнакомый.',
-    },
-  ],
-  [MARK, { en: 'Hello?', ru: 'Алло?' }],
-  [
-    PETE,
-    {
-      en: "Mark? It's Pete. Victor's neighbour, from down the lane.",
-      ru: 'Марк? Это Пит. Сосед Виктора, дальше по улице.',
-    },
-  ],
-  [MARK, { en: 'Pete… Has something happened?', ru: 'Пит… Что-то случилось?' }],
-  [
-    PETE,
-    {
-      en: "It's your uncle. Nobody's seen him for three days.",
-      ru: 'Твой дядя. Его никто не видел уже три дня.',
-    },
-  ],
-  [
-    PETE,
-    {
-      en: "The door was open, his coat still on the hook. But he's gone.",
-      ru: 'Дверь открыта, пальто на вешалке. А его нет.',
-    },
-  ],
-  [MARK, { en: 'Have you called the police?', ru: 'В полицию звонили?' }],
-  [
-    PETE,
-    {
-      en: "They had a look round and said he'll turn up. I don't think he will.",
-      ru: 'Они походили, посмотрели и сказали, что найдётся. Я так не думаю.',
-    },
-  ],
-  [
-    PETE,
-    {
-      en: "You're the only family he's got. Can you come?",
-      ru: 'Ты у него единственный родственник. Приедешь?',
-    },
-  ],
-  [MARK, { en: "I'm on my way.", ru: 'Уже еду.' }],
-  [null, { en: 'Four hours of road later…', ru: 'Четыре часа дороги спустя…' }],
+  [null, 'buzz'],
+  ['mark', 'hello'],
+  ['pete', 'itsPete'],
+  ['mark', 'what'],
+  ['pete', 'uncle'],
+  ['pete', 'gone'],
+  ['mark', 'police'],
+  ['pete', 'turnUp'],
+  ['pete', 'come'],
+  ['mark', 'onMyWay'],
+  [null, 'road'],
 ];
 
+/** How long a line stays before the next: time enough to read it unhurried. */
+const readTime = (text: string) => 1400 + text.length * 55;
+
 /**
- * The opening of a new game: words on black, one line at a time. A click,
- * Space, Enter or E brings the next; Esc skips the lot.
+ * The opening of a new game: words on black, one line at a time, each
+ * following the last once there has been time to read it. A click, Space,
+ * Enter or E brings the next at once; Esc skips the lot.
  */
 export class Intro {
   private readonly el: HTMLElement;
@@ -69,6 +36,8 @@ export class Intro {
   private next = 0;
   private done = false;
   private readonly timers: number[] = [];
+  /** The next line, coming by itself. */
+  private auto = 0;
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.repeat) return;
     if (e.key === 'Escape') this.finish();
@@ -83,11 +52,7 @@ export class Intro {
       'div',
       { class: 'intro interactive' },
       this.lines,
-      h(
-        'div',
-        { class: 'intro-hint' },
-        tr('Space · next   Esc · skip', 'Пробел · дальше   Esc · пропустить'),
-      ),
+      h('div', { class: 'intro-hint' }, t().intro.hint),
     );
     this.el.addEventListener('click', () => this.step());
     window.addEventListener('keydown', this.onKey);
@@ -100,10 +65,13 @@ export class Intro {
 
   private step(): void {
     if (this.done) return;
+    window.clearTimeout(this.auto);
     const line = CALL[this.next++];
     if (!line) return this.finish();
-    const who = line[0] && tr(line[0]);
-    const text = tr(line[1]);
+    const words = t().intro;
+    const who = line[0] && words.who[line[0]];
+    const text = words.call[line[1]];
+    this.auto = window.setTimeout(() => this.step(), readTime(text));
     for (const old of this.lines.children) old.classList.add('past');
     this.lines.append(
       h(
@@ -120,7 +88,8 @@ export class Intro {
   private finish(): void {
     if (this.done) return;
     this.done = true;
-    for (const t of this.timers) window.clearTimeout(t);
+    for (const id of this.timers) window.clearTimeout(id);
+    window.clearTimeout(this.auto);
     window.removeEventListener('keydown', this.onKey);
     // The game starts under the black, which then lifts.
     this.onDone();

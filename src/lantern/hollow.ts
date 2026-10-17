@@ -1,4 +1,4 @@
-import { tr } from '../i18n';
+import { t } from '../i18n';
 import type { FoeId } from './combat';
 import { T, TL, makeNoise, mulberry32, type Pt } from './util';
 import type { Light, Thing, WorldObject } from './world';
@@ -73,7 +73,7 @@ export function buildHollow(g: Grid): { foes: FoeSpawn[]; things: Thing[] } {
       x: 8.5 * T,
       y: 33.5 * T,
       depth: 33.6 * T + 6,
-      label: tr('Take the pistol', 'Взять пистолет'),
+      label: t().use.pistol,
       take: true,
     },
     {
@@ -82,7 +82,7 @@ export function buildHollow(g: Grid): { foes: FoeSpawn[]; things: Thing[] } {
       frame: 'ammo',
       x: 12.5 * T,
       y: 33.5 * T,
-      label: tr('Take rounds', 'Взять патроны'),
+      label: t().use.rounds,
     },
   ];
   g.block[I(12, 33)] = 1;

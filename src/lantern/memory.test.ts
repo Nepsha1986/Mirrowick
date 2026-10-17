@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FACTS, ITEMS } from './items';
+import { t } from '../i18n';
+import { itemWords } from './items';
 import { Memory, type Hoard } from './memory';
 
 const drawer: Hoard = {
@@ -21,14 +22,14 @@ describe("the hero's memory", () => {
   it('remembers what he saw once he needs it, and takes it next time', () => {
     const m = new Memory();
     m.search(drawer, new Set());
-    expect(m.learn('dark', new Set())).toBe(ITEMS.flashlight?.recall?.en);
+    expect(m.learn('dark', new Set())).toBe(itemWords('flashlight')?.recall);
     const r = m.search(drawer, new Set());
     expect(r.take).toEqual(['flashlight']);
     expect(r.says).toContain('the flashlight');
   });
 
   it('just knows the fact if he never saw what would help', () => {
-    expect(new Memory().learn('cellar-lock', new Set())).toBe(FACTS['cellar-lock'].en);
+    expect(new Memory().learn('cellar-lock', new Set())).toBe(t().thoughts.facts['cellar-lock']);
   });
 
   it('takes it at once if he already knows he needs it', () => {
