@@ -20,6 +20,7 @@ describe('saved game', () => {
       day: 3,
       things: ['tv'],
       items: ['flashlight', 'pistol'],
+      known: ['dark', 'seen:cellar-key'],
       ammo: [5, 24] as [number, number],
     };
     writeSave(save);

@@ -27,7 +27,7 @@ const OUTER = 11;
 const INNER = 6;
 
 /**
- * The Upper World, for now one homestead on a country road: a village house
+ * The Upper World, for now one homestead on a country road: Uncle Victor's house
  * with a kitchen, a living room, a bedroom, a hall and a bathroom, a car in
  * the drive, a garden — and up the lane the old windmill, long fallen in.
  * In its floor lies a cracked mirror that leads down to the Lower World.
@@ -324,17 +324,21 @@ export function generateUpperWorld(): World {
   objects.push({ key: 'ln-town', frame: 'bed', x: 9.5 * T, y: 16 * T });
   solid(9, 15);
   solid(9, 16);
-  objects.push({ key: 'ln-town', frame: 'stable', ...C(9, 14), scale: 0.7 });
   solid(9, 14);
-  // The flashlight waits on the bedside table: you start without it.
+  // Victor's bedside table: a drawer of odds and ends, the flashlight and
+  // the key to the mill's hatch among them. You leave them until you need them.
   things.push({
-    id: 'flashlight',
-    key: 'ln-up',
-    frame: 'flashlight',
-    ...C(9.1, 13.9),
-    depth: 15 * T,
-    label: 'Pick up the flashlight',
-    take: true,
+    id: 'nightstand',
+    key: 'ln-town',
+    frame: 'stable',
+    ...C(9, 14),
+    scale: 0.7,
+    label: 'Look in the bedside table',
+    hoard: {
+      place: 'In the drawer',
+      items: ['flashlight', 'cellar-key'],
+      junk: ['a tangle of chargers', 'old receipts', 'a dead watch', 'reading glasses'],
+    },
   });
   obj('wardrobe', 12, 14, { x: 12 * T });
   solid(11, 14);
@@ -375,7 +379,7 @@ export function generateUpperWorld(): World {
   light({ x: 17 * T, y: 19.9 * T }, 60, LAMP);
 
   // --- The yard ------------------------------------------------------------------------
-  // A car in the drive, parked a little askew.
+  // Your car in the drive, parked a little askew.
   objects.push({ key: 'ln-up', frame: 'car', x: 25.15 * T, y: 19 * T, angle: -6, depth: 20.8 * T });
   for (let y = 17; y <= 20; y++) for (const x of [24, 25]) solid(x, y);
 
@@ -546,7 +550,8 @@ export function generateUpperWorld(): World {
     objects,
     decals,
     lights,
-    spawn: C(16, 11),
+    // A new game starts by the car: you've just driven up.
+    spawn: C(26.4, 19),
     life: { buildings: [house], festoons: [], spots: [] },
     walls,
     patches,
@@ -558,6 +563,7 @@ export function generateUpperWorld(): World {
         exit: cellarStairs(),
         label: 'Go down to the cellar',
         fade: 'dark',
+        lock: { key: 'cellar-key', fact: 'cellar-lock', says: 'Padlocked. I need the key.' },
       },
     ],
     sails: [],

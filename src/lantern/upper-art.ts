@@ -231,6 +231,17 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(-3, -2, 2, 1.2, '#9a2a24');
     p.line(-7, -1, 2, -1, 'rgba(255,255,255,.18)', 0.8);
   });
+  // A small brass key, worn bright where the fingers hold it, for the bag.
+  add('key', 22, 14, (p) => {
+    c.translate(11, 7);
+    c.rotate(0.2);
+    p.circ(-5, 0, 3.6, '#b08a3a', 1);
+    p.circ(-5, 0, 1.4, '#3a2a14');
+    p.rect(-2, -1, 10, 2, '#b08a3a', 0.8);
+    p.rect(5, 1, 1.6, 2.4, '#a07c32');
+    p.rect(2.6, 1, 1.4, 1.6, '#a07c32');
+    p.line(-7, -1.6, -3.6, -2.6, 'rgba(255,240,190,.5)', 0.8);
+  });
   add('streetlamp', 20, 20, (p) => {
     shadow(p, 11, 11, 7, 6);
     p.circ(10, 10, 7, '#3a3e42', 1.2);

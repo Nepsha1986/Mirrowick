@@ -11,6 +11,8 @@ import {
 } from './mill';
 import { buildHollow, type FoeSpawn } from './hollow';
 import { buildTown, type TownLife } from './town';
+import type { Fact } from './items';
+import type { Hoard } from './memory';
 import {
   H,
   LOWER_MILL,
@@ -87,12 +89,15 @@ export interface Thing extends Pt {
   key: string;
   frame: string;
   depth?: number;
+  scale?: number;
   /** The prompt. */
   label: string;
   /** Switches on and off: how it looks while on, and the prompt then. */
   on?: { frame: string; label: string };
   /** You pick it up: it goes into your pockets and is gone from the world. */
   take?: boolean;
+  /** You look in: a drawer of odds and ends, see `Memory`. */
+  hoard?: Hoard;
 }
 
 /** A way through to the other world (world pixels). */
@@ -103,6 +108,8 @@ export interface Portal extends Pt {
   label: string;
   /** A flash of the Mirror's light, or a plain fade (stairs). */
   fade: 'glint' | 'dark';
+  /** Locked until you carry the key; trying it teaches the hero the fact. */
+  lock?: { key: string; fact: Fact; says: string };
 }
 
 /** Windmill sails that turn above a building's roof. */

@@ -9,6 +9,8 @@ export class LanternHud {
   private readonly clock: HTMLElement;
   private readonly phase: HTMLElement;
   private readonly action: HTMLElement;
+  private readonly thought: HTMLElement;
+  private thoughtTimer = 0;
 
   constructor(mainMenu: () => void, place: string, bag: () => void) {
     const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
@@ -24,6 +26,7 @@ export class LanternHud {
     this.clock = h('div', { class: 'title' });
     this.phase = h('div', { class: 'sub' });
     this.action = h('div', { class: 'action-pill', hidden: true });
+    this.thought = h('div', { class: 'thought', hidden: true });
     this.el = h(
       'div',
       { class: 'hud' },
@@ -45,6 +48,7 @@ export class LanternHud {
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
       ),
       this.dialog.el,
+      this.thought,
       this.action,
     );
     uiRoot().append(this.el);
@@ -57,6 +61,19 @@ export class LanternHud {
     if (text && this.action.textContent !== text) this.action.textContent = text;
   }
 
+  /** What goes through the hero's head, or what he sees: a line for a few seconds. */
+  think(text: string): void {
+    this.thought.textContent = text;
+    this.thought.hidden = false;
+    // Restart the fade-in for a new line.
+    this.thought.style.animation = 'none';
+    void this.thought.offsetWidth;
+    this.thought.style.animation = '';
+    window.clearTimeout(this.thoughtTimer);
+    const ms = 2500 + text.length * 45;
+    this.thoughtTimer = window.setTimeout(() => (this.thought.hidden = true), ms);
+  }
+
   update(day: number, hour: number, night: number): void {
     const hr = Math.floor(hour);
     const mn = Math.floor(((hour - hr) * 60) / 10) * 10;
@@ -67,6 +84,7 @@ export class LanternHud {
   }
 
   destroy(): void {
+    window.clearTimeout(this.thoughtTimer);
     this.el.remove();
   }
 }

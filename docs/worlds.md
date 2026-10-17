@@ -21,7 +21,9 @@
 
 ## Персонажи
 
-- [Герой](characters/hero.md)
+- [Герой](characters/hero.md) — Марк
+- [Дядя Виктор](characters/victor.md) — пропал
+- [Пит](characters/pete.md) — сосед дяди
 - [Жители деревни](characters/villagers.md)
 - [Враги](characters/foes.md) — пятеро в Лощине
 
@@ -29,7 +31,9 @@
 
 - [Свет, тьма и время суток](mechanics/light.md)
 - [Переход между мирами](mechanics/mirror-travel.md)
+- [Интро](mechanics/intro.md) — звонок и приезд
 - [Взаимодействие](mechanics/interaction.md)
+- [Память героя](mechanics/memory.md) — «хлам», который становится нужным
 - [Сохранение](mechanics/saving.md)
 - [Настройки](mechanics/settings.md)
 - [Бой](mechanics/combat.md)
