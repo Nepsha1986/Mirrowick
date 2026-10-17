@@ -35,6 +35,8 @@ export class LanternHud {
   private thoughtTimer = 0;
   private readonly satchel: HTMLElement;
   private readonly timers: number[] = [];
+  /** The mouse is over the prompt: what it is about stays pointed at. */
+  private overPrompt = false;
 
   constructor(
     mainMenu: () => void,
@@ -42,6 +44,8 @@ export class LanternHud {
     bag: () => void,
     /** A point in the world to one on the screen. */
     private readonly toScreen: (p: Pt) => Pt,
+    /** The prompt was clicked: do what it says. */
+    act: () => void,
   ) {
     const back = h('button', { class: 'round-btn', title: t().hud.menu }, '←');
     back.addEventListener('click', mainMenu);
@@ -65,8 +69,12 @@ export class LanternHud {
       w: 0,
       h: 0,
     });
-    this.action = pin('action-pill');
+    this.action = pin('action-pill interactive');
     this.thought = pin('thought');
+    const pill = this.action.el;
+    pill.addEventListener('mouseenter', () => (this.overPrompt = true));
+    pill.addEventListener('mouseleave', () => (this.overPrompt = false));
+    pill.addEventListener('click', act);
     this.el = h(
       'div',
       { class: 'hud' },
@@ -94,11 +102,12 @@ export class LanternHud {
     uiRoot().append(this.el);
   }
 
-  /** What you can do right here, over the thing (`at`, the top of it), or nothing. */
+  /** What you can do with the thing under the mouse, over it (`at`, the top of it), or nothing. */
   prompt(text: string | null, at: Pt | null = null): void {
     const a = this.action;
     if (this.dialog.open) text = null;
     a.el.hidden = !text;
+    if (!text) this.overPrompt = false;
     a.at = at;
     if (!text) return;
     if (a.el.textContent !== text || !a.w) {
@@ -123,6 +132,11 @@ export class LanternHud {
     window.clearTimeout(this.thoughtTimer);
     const ms = 2500 + text.length * 45;
     this.thoughtTimer = window.setTimeout(() => (th.el.hidden = true), ms);
+  }
+
+  /** Whether the mouse is over the prompt. */
+  get pointing(): boolean {
+    return this.overPrompt;
   }
 
   /** The dialog about to open belongs to the thing at `at` (the top of it): it opens by it. */

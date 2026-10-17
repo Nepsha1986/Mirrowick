@@ -332,6 +332,12 @@ button:focus-visible {
 .action-pill.pinned {
   padding: 7px 14px;
   font-size: 12px;
+  cursor: pointer;
+}
+
+.action-pill.pinned:hover {
+  border-color: rgba(159, 216, 230, 0.95);
+  box-shadow: 0 0 22px rgba(159, 216, 230, 0.45);
 }
 
 .thought.pinned {
@@ -587,22 +593,6 @@ nav[hidden] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.letter {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(26, 18, 12, 0.6);
-  color: var(--paper);
-  font: 15px/1.5 var(--serif);
-  resize: vertical;
-}
-
-.letter:focus {
-  outline: 1px solid var(--ember-hot);
 }
 
 /* --- Fight -------------------------------------------------------------- */

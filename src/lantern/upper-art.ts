@@ -381,19 +381,12 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(2, 4, 8, 32, '#55667e', 1);
     p.rect(90, 4, 8, 32, '#55667e', 1);
   });
-  const tv = (on: boolean) => (p: Painter) => {
+  add('tv', 96, 24, (p) => {
     p.rect(8, 10, 80, 12, WOOD, 1.2);
     p.rect(14, 2, 68, 9, '#141619', 1.2);
-    if (on) {
-      // The screen's glow spills onto the stand.
-      p.rect(16, 3, 64, 7, '#bfe4ff');
-      p.rect(16, 3, 64, 2, '#ffffff');
-      p.rect(16, 11, 64, 4, 'rgba(160,210,255,.35)');
-    } else p.rect(16, 3, 64, 3, '#3a5a7a');
-    p.circ(82, 16, 2, on ? '#e04a3a' : '#8a8a8a');
-  };
-  add('tv', 96, 24, tv(false));
-  add('tvOn', 96, 24, tv(true));
+    p.rect(16, 3, 64, 3, '#3a5a7a');
+    p.circ(82, 16, 2, '#8a8a8a');
+  });
   add('desk', 34, 64, (p) => {
     shadow(p, 18, 34, 15, 30);
     p.rect(4, 2, 28, 60, WOOD, 1.3);
@@ -1057,58 +1050,5 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(-2.5, -12, 5, 1.6, '#6a4a2e');
   });
 
-  // Long grass round a walker's knees, facing right like the hero: a few
-  // tufts rooted just past him, ahead and behind where his legs would show
-  // and thinner at the sides, their blades leaning in over him and leaving
-  // his head and shoulders clear. Each blade a tapering leaf, paler at the tip.
-  add('wade', 52, 52, (p) => {
-    const greens = ['#4f6e2a', '#5f8034', '#6f8f3c', '#83a048'];
-    const blade = (x: number, y: number, a: number, len: number, col: string) => {
-      const bend = (ar() - 0.5) * 0.7;
-      const tx = x + Math.cos(a + bend) * len;
-      const ty = y + Math.sin(a + bend) * len;
-      const w = 1.4 + ar() * 0.6;
-      c.beginPath();
-      c.moveTo(x - Math.sin(a) * w, y + Math.cos(a) * w);
-      c.quadraticCurveTo(x + Math.cos(a) * len * 0.55, y + Math.sin(a) * len * 0.55, tx, ty);
-      c.quadraticCurveTo(
-        x + Math.cos(a) * len * 0.5,
-        y + Math.sin(a) * len * 0.5,
-        x + Math.sin(a) * w,
-        y - Math.cos(a) * w,
-      );
-      c.fillStyle = col;
-      c.fill();
-      c.strokeStyle = 'rgba(28,40,12,.55)';
-      c.lineWidth = 0.5;
-      c.stroke();
-      p.line(x + (tx - x) * 0.7, y + (ty - y) * 0.7, tx, ty, 'rgba(200,200,120,.45)', 0.7);
-      return { x: tx, y: ty };
-    };
-    // Ahead of him and behind him, where the feet go, and a little to each side.
-    for (const [deg, n] of [
-      [-12, 6],
-      [14, 6],
-      [168, 6],
-      [-166, 6],
-      [-95, 3],
-      [92, 3],
-    ] as const) {
-      const at = (deg * Math.PI) / 180;
-      for (let k = 0; k < n; k++) {
-        const r = 15 + ar() * 4;
-        const a = at + (ar() - 0.5) * 0.5;
-        const tip = blade(
-          26 + Math.cos(a) * r,
-          26 + Math.sin(a) * r,
-          // Back in towards him, fanned.
-          a + Math.PI + (ar() - 0.5) * 1.3,
-          11 + ar() * 6,
-          greens[Math.floor(ar() * greens.length)] as string,
-        );
-        if (ar() < 0.15) p.ell(tip.x, tip.y, 1.6, 0.9, '#c8b874');
-      }
-    }
-  });
   A.refresh();
 }
