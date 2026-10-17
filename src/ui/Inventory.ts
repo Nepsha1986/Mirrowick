@@ -11,6 +11,8 @@ export interface BagItem {
   note?: string;
   /** A paper id, if it has something to read: a click reads it. */
   read?: string;
+  /** Done with: shown faded, and left behind soon. */
+  spent?: boolean;
 }
 
 /** What the bag shows: your things and yourself. */
@@ -66,7 +68,10 @@ export class Inventory {
         ? v.items.map((it) => {
             const li = h(
               'li',
-              { class: it.read ? 'bag-read' : '', title: it.read ? t().bag.read : '' },
+              {
+                class: [it.read && 'bag-read', it.spent && 'bag-spent'].filter(Boolean).join(' '),
+                title: it.read ? t().bag.read : '',
+              },
               it.icon ? h('img', { src: it.icon, alt: '' }) : h('span', { class: 'bag-blank' }),
               h(
                 'div',

@@ -658,29 +658,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.circ(0, -6.5, 1.8, '#c8362c', 0.5);
   });
 
-  // Victor's phone, for the bag: an old one, its corner chipped, the
-  // screen cracked across one end.
-  add('phone', 22, 24, (p) => {
-    c.translate(11, 12);
-    c.rotate(-0.15);
-    p.poly(
-      [
-        [-6, -10],
-        [6, -10],
-        [6, 8.5],
-        [4.5, 10],
-        [-6, 10],
-      ],
-      '#26282c',
-      1,
-    );
-    p.rect(-4.6, -7.6, 9.2, 14, '#3c5470');
-    p.rect(-4.6, -7.6, 9.2, 4, 'rgba(160,200,240,.35)');
-    p.line(1, 6.4, 4.6, 2, 'rgba(230,240,255,.55)', 0.6);
-    p.line(2.6, 4.2, 4.6, 5.4, 'rgba(230,240,255,.45)', 0.5);
-    p.rect(-1.5, 7.6, 3, 1, '#4a4c52');
-  });
-
   // The shed's things: a workbench with a vice and tools left out, tins of
   // paint on a shelf, an old bike against the wall, a push mower, garden
   // tools on hooks.
@@ -766,16 +743,74 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
 
   // The back garden: a log pile under the eaves, a chopping block with an
   // axe left in it, a compost heap, a wheelbarrow left askew, washing on a line.
-  add('woodpile', 72, 30, (p) => {
-    shadow(p, 37, 17, 34, 11);
-    for (let row = 0; row < 3; row++) {
-      for (let x = 4 + (row % 2) * 4; x < 66; x += 8) {
-        const y = 7 + row * 8 + (ar() - 0.5) * 1.5;
-        p.circ(x, y, 4.4, '#6a4a2e', 0.9);
-        p.circ(x, y, 3, ['#c8a070', '#b8905e', '#d4ae7c'][Math.floor(ar() * 3)] as string);
-        p.circ(x, y, 1, 'rgba(90,60,30,.6)');
+  add('woodpile', 76, 40, (p) => {
+    shadow(p, 39, 21, 37, 15);
+    // One split log lying along the stack: bark on top, a pale split face
+    // down one side, and its sawn ends showing their rings.
+    const log = (x: number, y: number, len: number, r: number, a: number, shade: number) => {
+      c.save();
+      c.translate(x, y);
+      c.rotate(a);
+      const bark = ['#5e4228', '#6a4a2e', '#553a22'][Math.floor(ar() * 3)] as string;
+      const face = ['#c49a68', '#b8905e', '#cfa676'][Math.floor(ar() * 3)] as string;
+      c.beginPath();
+      c.roundRect(-len / 2, -r, len, r * 2, r * 0.8);
+      c.fillStyle = bark;
+      c.fill();
+      c.strokeStyle = 'rgba(28,19,13,.85)';
+      c.lineWidth = 0.8;
+      c.stroke();
+      // Split along its length, sometimes.
+      if (ar() < 0.6) p.rect(-len / 2 + r * 0.6, r * 0.1, len - r * 1.2, r * 0.75, face);
+      // A strip of bark catching the light, and a knot.
+      p.line(-len / 2 + r, -r * 0.45, len / 2 - r, -r * 0.5, 'rgba(150,115,80,.45)', 0.8);
+      if (ar() < 0.4) p.circ((ar() - 0.5) * len * 0.6, -r * 0.1, 0.9, '#3e2a18');
+      // The sawn ends.
+      for (const e of [-1, 1]) {
+        p.ell((e * len) / 2, 0, r * 0.45, r * 0.95, face, 0.6);
+        p.ell((e * len) / 2, 0, r * 0.18, r * 0.4, 'rgba(120,80,40,.5)');
+      }
+      if (shade) {
+        c.beginPath();
+        c.roundRect(-len / 2 - r * 0.5, -r, len + r, r * 2, r * 0.8);
+        c.fillStyle = `rgba(20,14,8,${shade})`;
+        c.fill();
+      }
+      c.restore();
+    };
+    // Rows from the wall out, each made of two or three logs end to end,
+    // none quite the same length or quite straight; the back rows in shade.
+    for (const [y, r, shade] of [
+      [8, 3.6, 0.35],
+      [15, 3.9, 0.2],
+      [22.5, 4, 0.08],
+      [30, 4.2, 0],
+    ] as const) {
+      let x = 6 + ar() * 3;
+      while (x < 68) {
+        const len = Math.min(18 + ar() * 12, 71 - x);
+        if (len < 9) break;
+        log(x + len / 2, y + (ar() - 0.5) * 1.4, len, r, (ar() - 0.5) * 0.06, shade);
+        x += len + 0.5 + ar() * 1.5;
       }
     }
+    // Stakes at the ends, holding it in; the right one leans a touch.
+    p.rect(2, 4, 4, 31, '#4a3420', 1);
+    c.save();
+    c.translate(72, 35);
+    c.rotate(0.06);
+    p.rect(-2, -31, 4, 31, '#4a3420', 1);
+    c.restore();
+    // One that rolled off, and chips and bark scattered in front.
+    log(52, 37, 15, 3.6, -0.25, 0);
+    for (let k = 0; k < 14; k++)
+      p.ell(
+        8 + ar() * 60,
+        34 + ar() * 5,
+        0.6 + ar() * 1.2,
+        0.5 + ar() * 0.4,
+        ar() < 0.6 ? '#c8a878' : '#5e4228',
+      );
   });
   add('chopblock', 30, 30, (p) => {
     shadow(p, 16, 17, 11, 9);
@@ -926,7 +961,14 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     }
     p.rect(9, 8, 28, 16, '#2a2622', 1);
     for (let x = 11; x < 36; x += 3) p.line(x, 9, x, 23, '#5a5652', 0.8);
+    // Cold: grey ash, a few lumps of charcoal nobody cleared.
     p.ell(20, 17, 6, 3, 'rgba(200,190,180,.35)');
+    for (const [x, y] of [
+      [17, 15],
+      [24, 18],
+      [20, 20],
+    ] as const)
+      p.circ(x, y, 1.3, '#1e1c1a');
     p.rect(38, 3, 4, 3, '#b0aca4');
   });
   add('bbqtable', 40, 40, (p) => {
@@ -1015,29 +1057,57 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(-2.5, -12, 5, 1.6, '#6a4a2e');
   });
 
-  // Long grass round a walker's knees: a ring of blades with the middle
-  // left open, laid over the hero's feet while he wades through it.
+  // Long grass round a walker's knees, facing right like the hero: a few
+  // tufts rooted just past him, ahead and behind where his legs would show
+  // and thinner at the sides, their blades leaning in over him and leaving
+  // his head and shoulders clear. Each blade a tapering leaf, paler at the tip.
   add('wade', 52, 52, (p) => {
-    for (let k = 0; k < 70; k++) {
-      const a = ar() * 6.28;
-      const r0 = 9 + ar() * 8;
-      const len = 6 + ar() * 8;
+    const greens = ['#4f6e2a', '#5f8034', '#6f8f3c', '#83a048'];
+    const blade = (x: number, y: number, a: number, len: number, col: string) => {
       const bend = (ar() - 0.5) * 0.7;
-      const x0 = 26 + Math.cos(a) * r0;
-      const y0 = 26 + Math.sin(a) * r0;
-      p.line(
-        x0,
-        y0,
-        x0 + Math.cos(a + bend) * len,
-        y0 + Math.sin(a + bend) * len,
-        ['#4f6e2c', '#5f7f36', '#6f8c3e', '#8a9a4a'][k % 4] as string,
-        1.3,
+      const tx = x + Math.cos(a + bend) * len;
+      const ty = y + Math.sin(a + bend) * len;
+      const w = 1.4 + ar() * 0.6;
+      c.beginPath();
+      c.moveTo(x - Math.sin(a) * w, y + Math.cos(a) * w);
+      c.quadraticCurveTo(x + Math.cos(a) * len * 0.55, y + Math.sin(a) * len * 0.55, tx, ty);
+      c.quadraticCurveTo(
+        x + Math.cos(a) * len * 0.5,
+        y + Math.sin(a) * len * 0.5,
+        x + Math.sin(a) * w,
+        y - Math.cos(a) * w,
       );
-    }
-    for (let k = 0; k < 8; k++) {
-      const a = ar() * 6.28;
-      const d = 16 + ar() * 6;
-      p.ell(26 + Math.cos(a) * d, 26 + Math.sin(a) * d, 1.8, 1, '#c8b874');
+      c.fillStyle = col;
+      c.fill();
+      c.strokeStyle = 'rgba(28,40,12,.55)';
+      c.lineWidth = 0.5;
+      c.stroke();
+      p.line(x + (tx - x) * 0.7, y + (ty - y) * 0.7, tx, ty, 'rgba(200,200,120,.45)', 0.7);
+      return { x: tx, y: ty };
+    };
+    // Ahead of him and behind him, where the feet go, and a little to each side.
+    for (const [deg, n] of [
+      [-12, 6],
+      [14, 6],
+      [168, 6],
+      [-166, 6],
+      [-95, 3],
+      [92, 3],
+    ] as const) {
+      const at = (deg * Math.PI) / 180;
+      for (let k = 0; k < n; k++) {
+        const r = 15 + ar() * 4;
+        const a = at + (ar() - 0.5) * 0.5;
+        const tip = blade(
+          26 + Math.cos(a) * r,
+          26 + Math.sin(a) * r,
+          // Back in towards him, fanned.
+          a + Math.PI + (ar() - 0.5) * 1.3,
+          11 + ar() * 6,
+          greens[Math.floor(ar() * greens.length)] as string,
+        );
+        if (ar() < 0.15) p.ell(tip.x, tip.y, 1.6, 0.9, '#c8b874');
+      }
     }
   });
   A.refresh();

@@ -64,7 +64,12 @@ export const en = {
       escWhat: 'menu',
     },
   },
-  places: { lower: 'The Lower World', upper: 'The Upper World', cellar: 'The Cellar' },
+  /** Where you are, top left: the place, and a line on where that is. */
+  places: {
+    lower: { name: 'Mirrowick', where: 'Through the mirror' },
+    upper: { name: "Victor's house", where: 'On the edge of Mirrowick' },
+    cellar: { name: 'The cellar', where: "Under Victor's shed" },
+  },
   bag: {
     title: 'Inventory',
     close: 'Close (I)',
@@ -75,6 +80,7 @@ export const en = {
     rounds: 'Rounds',
     roundsAbout: 'For the pistol. There are more in the crate in the Hollow.',
     roundsNote: '{mag} loaded, {spare} spare',
+    spent: 'Probably not needed any more',
     read: 'Click to read',
   },
   reader: { prev: 'Previous page (←)', next: 'Next page (→)', done: 'Put down' },
@@ -103,6 +109,7 @@ export const en = {
     car: "Look at Victor's car",
     mailbox: 'Open the mailbox',
     cellarDown: 'Go down to the cellar',
+    unlock: 'Unlock the padlock',
     tome: 'Read the open book',
     shedUp: 'Climb up to the shed',
     mirror: 'Step into the mirror',
@@ -111,16 +118,12 @@ export const en = {
   },
   /** Drawers and pockets: where you look, and the junk in them. */
   hoard: {
-    coat: 'In the coat pockets',
     drawer: 'In the drawer',
     wardrobe: 'In the wardrobe',
     took: '{place}: you take {what}. The rest is junk.',
     nothingNeeded: '{place}: {what}. Nothing you need.',
     nothing: 'nothing',
     junk: {
-      ticket: 'a bus ticket',
-      hanky: 'a handkerchief',
-      change: 'some loose change',
       chargers: 'a tangle of chargers',
       receipts: 'old receipts',
       watch: 'a dead watch',
@@ -155,13 +158,6 @@ export const en = {
       plain: 'a pistol',
       taken: 'the pistol',
     },
-    phone: {
-      name: "Victor's phone",
-      about:
-        'An old phone with a cracked screen. Messages with Margaret Hollis, from the bookshop.',
-      plain: 'a phone',
-      taken: "Victor's phone, from the inside pocket",
-    },
   },
   /** What the hero thinks: on learning something, a nudge later, things he looks at. */
   thoughts: {
@@ -169,6 +165,7 @@ export const en = {
       dark: "It's getting dark. I'll need a light soon.",
       'cellar-lock':
         'A padlock on the hatch. Victor kept everything in the house. Probably in his bedroom.',
+      'cellar-open': "The padlock's off. I doubt I'll need that key again.",
       trail:
         'Footprints, glowing where the light falls. Someone came and went here, again and again.',
     },
@@ -180,6 +177,7 @@ export const en = {
     carStill: "Victor's car is still in the drive. Wherever he went, he didn't drive.",
     car: "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
     padlocked: 'Padlocked. I need the key.',
+    flashlightOn: 'Too dark to see. Out with the flashlight.',
   },
   /** Things to read: a title, its pages (blank lines split paragraphs), and a thought after. */
   papers: {

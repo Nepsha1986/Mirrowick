@@ -30,6 +30,7 @@ export type Sfx =
   | 'paper'
   | 'switch'
   | 'locked'
+  | 'unlock'
   | 'steps'
   | 'mirror'
   | 'rustle';
@@ -457,6 +458,12 @@ export class AmbientMusic {
           noise('bandpass', 1500, 0.18, 0.07, { q: 5, delay: d });
           noise('lowpass', 350, 0.18, 0.08, { delay: d + 0.02 });
         }
+        break;
+      case 'unlock':
+        // A key turning in a padlock, and the shackle springing free.
+        noise('bandpass', 1800, 0.08, 0.1, { q: 6 });
+        tone('square', 1500, 1300, 0.03, 0.03, { delay: 0.14, cutoff: 2800 });
+        noise('bandpass', 1200, 0.12, 0.14, { q: 4, delay: 0.2 });
         break;
       case 'steps':
         // Four footfalls on wooden stairs, not quite in time.

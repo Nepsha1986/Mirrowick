@@ -1,21 +1,48 @@
 import { fill, t } from '../i18n';
+import { clamp, type Pt } from '../lantern/util';
 import { Dialog } from './Dialog';
 import { h, uiRoot } from './dom';
 
-/** Clock, a way back and what you can do right here; nothing else. */
+/** Room kept between a label and the edge of the screen, and under the top bar. */
+const EDGE = 12;
+const TOP = 84;
+/** How far a thought about a thing sits above it: clear of the prompt. */
+const OVER_PROMPT = 46;
+
+/** An element pinned over a point in the world, and its size, measured when its words change. */
+interface Pin {
+  el: HTMLElement;
+  at: Pt | null;
+  w: number;
+  h: number;
+}
+
+/**
+ * Clock, a way back and what you can do right here; nothing else. The
+ * prompt, the hero's thoughts and a thing's dialog hang over the world:
+ * over the thing they are about, or over the hero.
+ */
 export class LanternHud {
   /** What a thing asks of you when you use it: the mailbox's choices. */
   readonly dialog = new Dialog();
   private readonly el: HTMLElement;
   private readonly clock: HTMLElement;
   private readonly phase: HTMLElement;
-  private readonly action: HTMLElement;
-  private readonly thought: HTMLElement;
+  private readonly action: Pin;
+  private readonly thought: Pin;
+  /** What the open dialog belongs to. */
+  private dialogAt: Pt | null = null;
   private thoughtTimer = 0;
   private readonly satchel: HTMLElement;
   private readonly timers: number[] = [];
 
-  constructor(mainMenu: () => void, place: string, bag: () => void) {
+  constructor(
+    mainMenu: () => void,
+    place: { name: string; where: string },
+    bag: () => void,
+    /** A point in the world to one on the screen. */
+    private readonly toScreen: (p: Pt) => Pt,
+  ) {
     const back = h('button', { class: 'round-btn', title: t().hud.menu }, '←');
     back.addEventListener('click', mainMenu);
     // A satchel, for the inventory.
@@ -32,8 +59,14 @@ export class LanternHud {
     this.satchel = satchel;
     this.clock = h('div', { class: 'title' });
     this.phase = h('div', { class: 'sub' });
-    this.action = h('div', { class: 'action-pill', hidden: true });
-    this.thought = h('div', { class: 'thought', hidden: true });
+    const pin = (cls: string): Pin => ({
+      el: h('div', { class: `${cls} pinned`, hidden: true }),
+      at: null,
+      w: 0,
+      h: 0,
+    });
+    this.action = pin('action-pill');
+    this.thought = pin('thought');
     this.el = h(
       'div',
       { class: 'hud' },
@@ -48,37 +81,87 @@ export class LanternHud {
           h(
             'div',
             {},
-            h('div', { class: 'title' }, 'Mirrowick'),
-            h('div', { class: 'sub' }, place),
+            h('div', { class: 'title' }, place.name),
+            h('div', { class: 'sub' }, place.where),
           ),
         ),
         h('div', { class: 'place clock' }, h('div', {}, this.clock, this.phase)),
       ),
       this.dialog.el,
-      this.thought,
-      this.action,
+      this.thought.el,
+      this.action.el,
     );
     uiRoot().append(this.el);
   }
 
-  /** What you can do right here, or nothing. */
-  prompt(text: string | null): void {
+  /** What you can do right here, over the thing (`at`, the top of it), or nothing. */
+  prompt(text: string | null, at: Pt | null = null): void {
+    const a = this.action;
     if (this.dialog.open) text = null;
-    this.action.hidden = !text;
-    if (text && this.action.textContent !== text) this.action.textContent = text;
+    a.el.hidden = !text;
+    a.at = at;
+    if (!text) return;
+    if (a.el.textContent !== text || !a.w) {
+      a.el.textContent = text;
+      this.measure(a);
+    }
   }
 
-  /** What goes through the hero's head, or what he sees: a line for a few seconds. */
-  think(text: string): void {
-    this.thought.textContent = text;
-    this.thought.hidden = false;
+  /**
+   * What goes through the hero's head, or what he sees: a line for a few
+   * seconds, over the thing it is about (`at`, the top of it) or over him.
+   */
+  think(text: string, at: Pt | null = null): void {
+    const th = this.thought;
+    th.el.textContent = text;
+    th.el.hidden = false;
+    th.at = at;
     // Restart the fade-in for a new line.
-    this.thought.style.animation = 'none';
-    void this.thought.offsetWidth;
-    this.thought.style.animation = '';
+    th.el.style.animation = 'none';
+    this.measure(th);
+    th.el.style.animation = '';
     window.clearTimeout(this.thoughtTimer);
     const ms = 2500 + text.length * 45;
-    this.thoughtTimer = window.setTimeout(() => (this.thought.hidden = true), ms);
+    this.thoughtTimer = window.setTimeout(() => (th.el.hidden = true), ms);
+  }
+
+  /** The dialog about to open belongs to the thing at `at` (the top of it): it opens by it. */
+  dialogBy(at: Pt): void {
+    this.dialogAt = at;
+    this.dialog.el.classList.add('pinned');
+  }
+
+  /**
+   * Hangs the prompt, the thought and the dialog over what they are about,
+   * kept on the screen. Call once the camera has moved, with the top of the
+   * hero's head.
+   */
+  place(hero: Pt): void {
+    const vw = this.el.clientWidth;
+    const vh = this.el.clientHeight;
+    const put = (el: HTMLElement, w: number, h: number, at: Pt, lift: number) => {
+      const p = this.toScreen(at);
+      const x = clamp(p.x - w / 2, EDGE, vw - w - EDGE);
+      const y = clamp(p.y - lift - h, TOP, vh - h - EDGE);
+      el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    };
+    const a = this.action;
+    if (!a.el.hidden && a.at) put(a.el, a.w, a.h, a.at, 8);
+    const th = this.thought;
+    if (!th.el.hidden) put(th.el, th.w, th.h, th.at ?? hero, th.at ? OVER_PROMPT : 8);
+    const d = this.dialog.el;
+    if (this.dialog.open && this.dialogAt) {
+      const w = d.offsetWidth;
+      const h = d.offsetHeight;
+      // Over the thing if there is room, else under it.
+      const p = this.toScreen(this.dialogAt);
+      put(d, w, h, this.dialogAt, p.y - h - 16 < TOP ? -h - 56 : 16);
+    }
+  }
+
+  private measure(pin: Pin): void {
+    pin.w = pin.el.offsetWidth;
+    pin.h = pin.el.offsetHeight;
   }
 
   /** How to play, for a few seconds at the start of a new game. */

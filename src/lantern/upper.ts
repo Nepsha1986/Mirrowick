@@ -393,7 +393,7 @@ export function generateUpperWorld(): World {
 
   // Hall: a mat at the door, Victor's coat still on the stand, a plant.
   // The front door stands ajar, as Pete found it. His phone is still in the
-  // coat's inside pocket, where the police never looked.
+  // coat's inside pocket, where the police never looked: you read it there.
   decal('doormat', 22.5, 31);
   obj('frontdoor', 22, 32, { x: 22 * T + 15, y: 32.5 * T - 24, angle: -62 });
   things.push({
@@ -402,11 +402,7 @@ export function generateUpperWorld(): World {
     frame: 'coatrack',
     ...C(21, 29),
     label: t().use.coat,
-    hoard: {
-      place: t().hoard.coat,
-      items: ['phone'],
-      junk: [junk.ticket, junk.hanky, junk.change],
-    },
+    read: 'phone',
   });
   solid(21, 29);
   obj('plant', 21, 31);
@@ -568,7 +564,7 @@ export function generateUpperWorld(): World {
   }
 
   // The barbecue corner beside the house, off the kitchen's end: a patio of
-  // slabs laid by hand, a brick grill against its back edge, a round table
+  // slabs laid by hand, a brick grill against its back edge (cold), a round table
   // with four chairs, one pushed back as someone got up.
   patches.push({ kind: 'paving', pts: [P(10.1, 27.3)], width: 4.5 * T, height: 3.75 * T });
   obj('grill', 8.3, 25.5, { angle: -1.5 });
@@ -584,7 +580,6 @@ export function generateUpperWorld(): World {
   ] as const) {
     obj('gardenchair', x, y, { angle: a });
   }
-  light(C(8.3, 25.5), 30, 0xff8a40, { flicker: 0.1 });
 
   // Flowers under the front windows.
   for (const x of [15, 16, 17, 18, 19, 25, 26, 27]) {
@@ -868,6 +863,8 @@ export function generateUpperWorld(): World {
           key: 'cellar-key',
           fact: 'cellar-lock',
           says: t().thoughts.padlocked,
+          open: 'cellar-open',
+          unlock: t().use.unlock,
         },
       },
     ],
