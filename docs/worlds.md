@@ -24,6 +24,7 @@
 - [Герой](characters/hero.md) — Марк
 - [Дядя Виктор](characters/victor.md) — пропал
 - [Пит](characters/pete.md) — сосед дяди
+- [Маргарет Холлис](characters/margaret.md) — книжная лавка, переписка с Виктором
 - [Жители деревни](characters/villagers.md)
 - [Враги](characters/foes.md) — пятеро в Лощине
 

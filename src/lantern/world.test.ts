@@ -111,7 +111,7 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it.each(['tv', 'mailbox', 'nightstand', 'notebook', 'fridge-note', 'victor-car'])(
+  it.each(['tv', 'mailbox', 'nightstand', 'coat', 'fridge-note', 'victor-car'])(
     'put the %s within reach',
     (id) => {
       const thing = upper.things.find((t) => t.id === id) as Pt;
@@ -139,6 +139,7 @@ describe('things', () => {
       for (const t of w.things) if (t.read) expect(paper(t.read), t.id).not.toBeNull();
     }
     expect(PAPERS['bookshop-letter']).toBeDefined();
+    for (const it of Object.values(ITEMS)) if (it.read) expect(paper(it.read)).not.toBeNull();
   });
 });
 

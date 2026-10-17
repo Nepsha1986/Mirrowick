@@ -1,13 +1,19 @@
 import { t } from '../i18n';
 
-/** How a paper looks: in someone's hand, typed, or printed in an old book. */
-export type Hand = 'hand' | 'typed' | 'print';
+/**
+ * How a paper looks: in someone's hand, typed, printed in an old book, or
+ * messages on a phone's screen.
+ */
+export type Hand = 'hand' | 'typed' | 'print' | 'phone';
 
-/** Something to read: a note, a letter, a notebook, a book. */
+/** Something to read: a note, a letter, a book, a phone's messages. */
 export interface Paper {
   title: string;
   hand: Hand;
-  /** One page per string; blank lines split paragraphs. */
+  /**
+   * One page per string; blank lines split paragraphs. On a phone each
+   * paragraph is a message: `> ` starts one the owner sent, `# ` a date.
+   */
   pages: string[];
   /** What the hero thinks once he has read it the first time. */
   after?: string;
@@ -19,7 +25,7 @@ export interface Paper {
  */
 export const PAPERS: Record<string, Hand> = {
   'fridge-note': 'hand',
-  notebook: 'hand',
+  phone: 'phone',
   'bookshop-letter': 'typed',
   tome: 'print',
 };

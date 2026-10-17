@@ -16,6 +16,8 @@ export interface Item {
    * junk, and he only remembers that he saw it.
    */
   needs?: Fact;
+  /** Something on it to read (a paper id): read once you take it, and again from the bag. */
+  read?: string;
 }
 
 /** Everything the hero can carry, by id. */
@@ -23,6 +25,7 @@ export const ITEMS: Record<string, Item> = {
   flashlight: { icon: ['ln-up', 'flashlight'], needs: 'dark' },
   'cellar-key': { icon: ['ln-up', 'key'], needs: 'cellar-lock' },
   pistol: { icon: ['ln-foes', 'pistol'] },
+  phone: { icon: ['ln-up', 'phone'], read: 'phone' },
 };
 
 /**

@@ -658,16 +658,27 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.circ(0, -6.5, 1.8, '#c8362c', 0.5);
   });
 
-  // Victor's notebook on the desk: a worn brown cover, a pencil across it.
-  add('notebook', 22, 24, (p) => {
+  // Victor's phone, for the bag: an old one, its corner chipped, the
+  // screen cracked across one end.
+  add('phone', 22, 24, (p) => {
     c.translate(11, 12);
-    c.rotate(-0.18);
-    p.rect(-7, -9, 14, 18, '#6a4428', 1);
-    p.rect(-7, -9, 2, 18, '#4a2e1a');
-    p.rect(-4.5, -9, 1.2, 18, '#222');
-    p.rect(-6.5, 7, 13, 1.4, '#ece4d0');
-    p.line(-8, 5, 8, -3, '#d8a83a', 1.6);
-    p.line(7, -2.5, 8.6, -3.3, '#2a2a2a', 1.2);
+    c.rotate(-0.15);
+    p.poly(
+      [
+        [-6, -10],
+        [6, -10],
+        [6, 8.5],
+        [4.5, 10],
+        [-6, 10],
+      ],
+      '#26282c',
+      1,
+    );
+    p.rect(-4.6, -7.6, 9.2, 14, '#3c5470');
+    p.rect(-4.6, -7.6, 9.2, 4, 'rgba(160,200,240,.35)');
+    p.line(1, 6.4, 4.6, 2, 'rgba(230,240,255,.55)', 0.6);
+    p.line(2.6, 4.2, 4.6, 5.4, 'rgba(230,240,255,.45)', 0.5);
+    p.rect(-1.5, 7.6, 3, 1, '#4a4c52');
   });
 
   // The shed's things: a workbench with a vice and tools left out, tins of

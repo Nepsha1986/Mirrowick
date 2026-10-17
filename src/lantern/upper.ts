@@ -334,8 +334,7 @@ export function generateUpperWorld(): World {
   solid(17, 25);
   lamp(C(17, 24.5), 110);
 
-  // Living room: sofa facing the telly, a rug, the computer in the corner,
-  // and Victor's notebook left on the desk.
+  // Living room: sofa facing the telly, a rug, the computer in the corner.
   decal('rugBlue', 24, 24.6);
   obj('sofa', 24, 26);
   for (const x of [23, 24, 25]) solid(x, 26);
@@ -352,16 +351,6 @@ export function generateUpperWorld(): World {
   solid(27, 24);
   solid(27, 25);
   obj('chair', 26, 24.5, { y: 25 * T, depth: 25 * T - 4 });
-  things.push({
-    id: 'notebook',
-    key: 'ln-up',
-    frame: 'notebook',
-    x: 27.35 * T,
-    y: 25.9 * T,
-    depth: 26 * T,
-    label: t().use.notebook,
-    read: 'notebook',
-  });
   obj('plant', 21, 23);
   solid(21, 23);
   obj('floorlamp', 27, 27);
@@ -371,7 +360,8 @@ export function generateUpperWorld(): World {
   lamp(C(26.6, 24.5), 40, 0xa8d8ff);
 
   // Hall: a mat at the door, Victor's coat still on the stand, a plant.
-  // The front door stands ajar, as Pete found it.
+  // The front door stands ajar, as Pete found it. His phone is still in the
+  // coat's inside pocket, where the police never looked.
   decal('doormat', 22.5, 31);
   obj('frontdoor', 22, 32, { x: 22 * T + 15, y: 32.5 * T - 24, angle: -62 });
   things.push({
@@ -382,7 +372,7 @@ export function generateUpperWorld(): World {
     label: t().use.coat,
     hoard: {
       place: t().hoard.coat,
-      items: [],
+      items: ['phone'],
       junk: [junk.ticket, junk.hanky, junk.change],
     },
   });

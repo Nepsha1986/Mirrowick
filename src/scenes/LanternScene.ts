@@ -306,7 +306,11 @@ export class LanternScene extends Phaser.Scene {
         t().places[this.realm],
         () => this.bag?.toggle(),
       );
-      this.bag = new Inventory();
+      // Something in the bag with words on it, a phone say: read it there.
+      this.bag = new Inventory((id) => {
+        this.bag?.toggle(false);
+        this.readPaper(id);
+      });
       this.reader = new Reader();
       if (this.start.fresh) {
         this.hud.controls();
@@ -873,6 +877,9 @@ export class LanternScene extends Phaser.Scene {
     this.gained(take);
     this.heroImg.setFrame(this.heroFrame());
     this.save();
+    // Found something with words on it: he looks at it there and then.
+    const words = take.map((id) => ITEMS[id]?.read).find((r) => r !== undefined);
+    if (words) this.time.delayedCall(700, () => !this.leaving && this.readPaper(words));
   }
 
   /**
@@ -959,7 +966,8 @@ export class LanternScene extends Phaser.Scene {
     for (const id of this.items) {
       const it = ITEMS[id];
       const words = itemWords(id);
-      if (it && words) items.push({ name: words.name, about: words.about, icon: icon(...it.icon) });
+      if (it && words)
+        items.push({ name: words.name, about: words.about, icon: icon(...it.icon), read: it.read });
     }
     if (this.items.has('pistol')) {
       const w = t().bag;
