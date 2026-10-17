@@ -483,7 +483,7 @@ export function generateUpperWorld(): World {
     angle: 3,
     depth: 28.6 * T,
     label: "Look at Victor's car",
-    says: "Victor's old estate. Dust on the glass, leaves on the roof. It hasn't moved in days.",
+    says: "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
   });
   for (let y = 24; y <= 28; y++) for (const x of [30, 31]) solid(x, y);
   objects.push({ key: 'ln-up', frame: 'car', x: 31.15 * T, y: 33 * T, angle: -6, depth: 34.8 * T });

@@ -581,8 +581,8 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
 
   // --- Victor's place ------------------------------------------------------------------
   // Victor's old estate car from above, nose to the south: boxy, maroon, its
-  // paint gone dull on the roof. Dust on the glass and leaves on the roof and
-  // bonnet: it hasn't moved in days. A dent in the rear wing, one hubcap gone.
+  // paint gone dull on the roof, dust on the glass. A dent in the rear wing,
+  // one hubcap gone.
   add('carVictor', 64, 128, (p) => {
     shadow(p, 35, 67, 29, 58);
     rrect(5, 5, 54, 118, 9);
@@ -621,16 +621,6 @@ export function paintUpperAtlas(scene: Phaser.Scene): void {
     p.rect(12, 10, 40, 5, 'rgba(200,185,160,.4)');
     // A dent in the rear wing.
     p.ell(55, 22, 2.5, 5, 'rgba(30,10,10,.45)');
-    // Fallen leaves on the roof and the bonnet.
-    for (let k = 0; k < 11; k++) {
-      const x = 14 + ar() * 36;
-      const y = (k < 7 ? 28 : 98) + ar() * (k < 7 ? 50 : 16);
-      c.save();
-      c.translate(x, y);
-      c.rotate(ar() * 6.28);
-      p.ell(0, 0, 3, 1.7, ['#c88a2a', '#a8582a', '#d8b040', '#8a6a2a'][k % 4] as string);
-      c.restore();
-    }
     // Mirrors, lights, wheels; the front right one bare without its hubcap.
     p.rect(1, 84, 5, 7, '#2a2422', 1);
     p.rect(58, 84, 5, 7, '#2a2422', 1);
