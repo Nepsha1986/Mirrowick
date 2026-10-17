@@ -57,15 +57,16 @@ export interface ThinWall {
 
 /**
  * A road, path or bed painted onto the ground along a line, with ragged
- * edges; a round floor (planks, flagstones) centred on its first point,
- * `width` across and `height` tall; or long grass in clumps, one round each
+ * edges; a round floor (planks, flagstones) or a square patio of slabs
+ * (paving) centred on its first point, `width` across and `height` tall; or
+ * long grass in clumps, one round each
  * point, `width` across.
  */
 export interface GroundPatch {
   pts: Pt[];
   width: number;
   height?: number;
-  kind: 'road' | 'gravel' | 'dirt' | 'soil' | 'planks' | 'flagstones' | 'meadow';
+  kind: 'road' | 'gravel' | 'dirt' | 'soil' | 'planks' | 'flagstones' | 'paving' | 'meadow';
 }
 
 export interface Light extends Pt {

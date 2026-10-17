@@ -99,6 +99,59 @@ function walk(
 }
 
 /**
+ * A patio of square slabs laid in neat rows, but by hand: each sits a hair
+ * off true, one or two have cracked or sunk a little darker, and moss grows
+ * in a few of the joints.
+ */
+function paintPaving(
+  c: Ctx,
+  patch: GroundPatch,
+  r: () => number,
+  pickCol: (cols: string[]) => string,
+): void {
+  const centre = patch.pts[0] as Pt;
+  const w = patch.width;
+  const h = patch.height ?? patch.width;
+  const x0 = centre.x - w / 2;
+  const y0 = centre.y - h / 2;
+  const SLAB = 24;
+  const j = (a = 0.7) => (r() - 0.5) * a * 2;
+  // The joints show through between the slabs.
+  c.fillStyle = '#7d7568';
+  c.fillRect(x0 + j(), y0 + j(), w, h);
+  for (let y = y0; y < y0 + h - 4; y += SLAB) {
+    for (let x = x0; x < x0 + w - 4; x += SLAB) {
+      const sw = Math.min(SLAB, x0 + w - x) - 2;
+      const sh = Math.min(SLAB, y0 + h - y) - 2;
+      const sunk = r() < 0.06;
+      c.fillStyle = sunk ? '#a39886' : pickCol(['#c9bfae', '#bfb4a2', '#d2c9b8', '#c4baa6']);
+      c.beginPath();
+      c.moveTo(x + 1 + j(), y + 1 + j());
+      c.lineTo(x + 1 + sw + j(), y + 1 + j());
+      c.lineTo(x + 1 + sw + j(), y + 1 + sh + j());
+      c.lineTo(x + 1 + j(), y + 1 + sh + j());
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,.12)';
+      c.fillRect(x + 2, y + 2, sw - 2, 1.5);
+      if (r() < 0.08) {
+        c.strokeStyle = 'rgba(60,50,40,.45)';
+        c.lineWidth = 0.7;
+        c.beginPath();
+        c.moveTo(x + 2 + r() * sw * 0.3, y + 2);
+        c.lineTo(x + sw * (0.4 + r() * 0.3), y + sh * 0.6);
+        c.lineTo(x + sw - 1, y + sh - r() * 4);
+        c.stroke();
+      }
+      if (r() < 0.15) {
+        c.fillStyle = 'rgba(90,120,50,.7)';
+        c.fillRect(x + sw + 0.5, y + 2 + r() * (sh - 8), 1.6, 3 + r() * 5);
+      }
+    }
+  }
+}
+
+/**
  * Long grass: a darker, shaggier green round each point, and clumps of
  * blades on it, a few gone to seed. Clumps spill past their tile, so the
  * edge of the meadow is ragged.
@@ -162,7 +215,7 @@ interface Box {
   h: number;
 }
 
-const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones']);
+const ROUND = new Set<GroundPatch['kind']>(['planks', 'flagstones', 'paving']);
 
 /** The area a layer needs, so its texture covers that and not the whole map. */
 function bounds(boxes: Box[], margin: number): Box {
@@ -231,7 +284,8 @@ export function paintGround(scene: Phaser.Scene, key: string, patches: GroundPat
     const c = tmp.getContext('2d') as Ctx;
     c.translate(-own.x, -own.y);
     if (ROUND.has(patch.kind)) {
-      paintFloor(c, patch, r, pick);
+      if (patch.kind === 'paving') paintPaving(c, patch, r, pick);
+      else paintFloor(c, patch, r, pick);
       main.drawImage(tmp, own.x, own.y);
       continue;
     }

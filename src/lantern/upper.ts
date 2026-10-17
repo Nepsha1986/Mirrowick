@@ -551,6 +551,25 @@ export function generateUpperWorld(): World {
     solid(Math.floor(x), Math.floor(y));
   }
 
+  // The barbecue corner beside the house, off the kitchen's end: a square
+  // patio of slabs, a brick grill against its back edge, a round table with
+  // four chairs, tucked in but not quite straight.
+  patches.push({ kind: 'paving', pts: [P(10.1, 27.3)], width: 4.5 * T, height: 3.75 * T });
+  obj('grill', 8.3, 25.5, { angle: -1.5 });
+  solid(8, 25);
+  solid(9, 25);
+  obj('bbqtable', 9.6, 26.8);
+  solid(10, 27);
+  for (const [x, y, a] of [
+    [9.55, 25.85, 4],
+    [10.6, 26.85, 93],
+    [9.65, 27.75, 178],
+    [8.6, 26.75, -84],
+  ] as const) {
+    obj('gardenchair', x, y, { angle: a });
+  }
+  light(C(8.3, 25.5), 30, 0xff8a40, { flicker: 0.1 });
+
   // Flowers under the front windows.
   for (const x of [15, 16, 17, 18, 19, 25, 26, 27]) {
     if (x === 18) continue;
@@ -611,23 +630,6 @@ export function generateUpperWorld(): World {
     });
   }
 
-  // The barbecue corner at the top of the garden: flagstones, a brick grill,
-  // a round table and three chairs pulled back as people left them.
-  keep(14, 9, 20, 14);
-  patches.push({ kind: 'flagstones', pts: [P(17.3, 12)], width: 4 * T, height: 2.9 * T });
-  obj('grill', 15.4, 10.9, { angle: -3 });
-  solid(15, 10);
-  solid(16, 10);
-  obj('bbqtable', 17.9, 12.3);
-  solid(17, 12);
-  for (const [x, y, a] of [
-    [16.7, 12.9, 20],
-    [18.9, 11.6, -35],
-    [18.8, 13.2, 62],
-  ] as const) {
-    obj('gardenchair', x, y, { angle: a });
-  }
-  light(C(15.4, 10.9), 30, 0xff8a40, { flicker: 0.1 });
   obj('compost', 9, 12, { angle: 4 });
   solid(9, 12);
   obj('wheelbarrow', 12, 13, { x: 12.3 * T });
@@ -781,8 +783,7 @@ export function generateUpperWorld(): World {
       if (block[i]) continue;
       const v = n1(x * 0.35 + 40, y * 0.35);
       const inLawn = x >= LAWN.x0 && x <= LAWN.x1 && y >= LAWN.y0;
-      const bbq = x >= 14 && x <= 20 && y <= 14;
-      const rim = inLawn && !bbq && !trod[i] && (x === LAWN.x0 || x === LAWN.x1 || y === LAWN.y0);
+      const rim = inLawn && !trod[i] && (x === LAWN.x0 || x === LAWN.x1 || y === LAWN.y0);
       const wild = !clear[i] && v > 0.22;
       if (!wild && !(rim && v > 0.55)) continue;
       tall[i] = 1;
