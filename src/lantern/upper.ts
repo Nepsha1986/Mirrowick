@@ -147,6 +147,21 @@ export function generateUpperWorld(): World {
   const branch = [P(23.4, 34.9), P(26.4, 35.4), P(29.4, 35.2), P(31.9, 34.5)];
   patches.push({ kind: 'gravel', width: 1.1 * T, pts: branch });
   keepAlong(branch);
+  // And a narrow one round the house's west end, past the barbecue, to the
+  // back door and the garden.
+  const round = [
+    P(22.6, 34.9),
+    P(18.5, 35.15),
+    P(14.6, 34.8),
+    P(13.15, 33.4),
+    P(12.95, 29.8),
+    P(13.05, 24.5),
+    P(13.7, 21.6),
+    P(15.6, 21.05),
+    P(17.4, 21.3),
+  ];
+  patches.push({ kind: 'gravel', width: 1 * T, pts: round });
+  keepAlong(round);
   const footpath = [
     P(17.5, 21.9),
     P(17.6, 19.6),
