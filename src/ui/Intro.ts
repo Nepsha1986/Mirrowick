@@ -1,22 +1,62 @@
 import { music } from '../audio/AmbientMusic';
+import { tr, type Words } from '../i18n';
 import { h, uiRoot } from './dom';
 
 /** A line of the opening: who says it, or nobody for what happens. */
-type Line = [who: string | null, text: string];
+type Line = [who: Words | null, text: Words];
+
+const MARK = { en: 'Mark', ru: 'Марк' };
+const PETE = { en: 'Pete', ru: 'Пит' };
 
 /** The phone call that brings Mark out to his uncle's house. */
 const CALL: Line[] = [
-  [null, 'A phone buzzes on the table. An unknown number.'],
-  ['Mark', 'Hello?'],
-  ['Pete', "Mark? It's Pete. Victor's neighbour, from down the lane."],
-  ['Mark', 'Pete… Has something happened?'],
-  ['Pete', "It's your uncle. Nobody's seen him for three days."],
-  ['Pete', "The door was open, his coat still on the hook. But he's gone."],
-  ['Mark', 'Have you called the police?'],
-  ['Pete', "They had a look round and said he'll turn up. I don't think he will."],
-  ['Pete', "You're the only family he's got. Can you come?"],
-  ['Mark', "I'm on my way."],
-  [null, 'Four hours of road later…'],
+  [
+    null,
+    {
+      en: 'A phone buzzes on the table. An unknown number.',
+      ru: 'На столе жужжит телефон. Номер незнакомый.',
+    },
+  ],
+  [MARK, { en: 'Hello?', ru: 'Алло?' }],
+  [
+    PETE,
+    {
+      en: "Mark? It's Pete. Victor's neighbour, from down the lane.",
+      ru: 'Марк? Это Пит. Сосед Виктора, дальше по улице.',
+    },
+  ],
+  [MARK, { en: 'Pete… Has something happened?', ru: 'Пит… Что-то случилось?' }],
+  [
+    PETE,
+    {
+      en: "It's your uncle. Nobody's seen him for three days.",
+      ru: 'Твой дядя. Его никто не видел уже три дня.',
+    },
+  ],
+  [
+    PETE,
+    {
+      en: "The door was open, his coat still on the hook. But he's gone.",
+      ru: 'Дверь открыта, пальто на вешалке. А его нет.',
+    },
+  ],
+  [MARK, { en: 'Have you called the police?', ru: 'В полицию звонили?' }],
+  [
+    PETE,
+    {
+      en: "They had a look round and said he'll turn up. I don't think he will.",
+      ru: 'Они походили, посмотрели и сказали, что найдётся. Я так не думаю.',
+    },
+  ],
+  [
+    PETE,
+    {
+      en: "You're the only family he's got. Can you come?",
+      ru: 'Ты у него единственный родственник. Приедешь?',
+    },
+  ],
+  [MARK, { en: "I'm on my way.", ru: 'Уже еду.' }],
+  [null, { en: 'Four hours of road later…', ru: 'Четыре часа дороги спустя…' }],
 ];
 
 /**
@@ -43,7 +83,11 @@ export class Intro {
       'div',
       { class: 'intro interactive' },
       this.lines,
-      h('div', { class: 'intro-hint' }, 'Space · next   Esc · skip'),
+      h(
+        'div',
+        { class: 'intro-hint' },
+        tr('Space · next   Esc · skip', 'Пробел · дальше   Esc · пропустить'),
+      ),
     );
     this.el.addEventListener('click', () => this.step());
     window.addEventListener('keydown', this.onKey);
@@ -58,7 +102,8 @@ export class Intro {
     if (this.done) return;
     const line = CALL[this.next++];
     if (!line) return this.finish();
-    const [who, text] = line;
+    const who = line[0] && tr(line[0]);
+    const text = tr(line[1]);
     for (const old of this.lines.children) old.classList.add('past');
     this.lines.append(
       h(

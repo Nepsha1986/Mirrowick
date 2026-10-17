@@ -1,3 +1,4 @@
+import { tr } from '../i18n';
 import { Dialog } from './Dialog';
 import { h, uiRoot } from './dom';
 
@@ -15,10 +16,14 @@ export class LanternHud {
   private readonly timers: number[] = [];
 
   constructor(mainMenu: () => void, place: string, bag: () => void) {
-    const back = h('button', { class: 'round-btn', title: 'Main menu (Esc)' }, '←');
+    const back = h(
+      'button',
+      { class: 'round-btn', title: tr('Main menu (Esc)', 'Главное меню (Esc)') },
+      '←',
+    );
     back.addEventListener('click', mainMenu);
     // A satchel, for the inventory.
-    const satchel = h('button', { class: 'round-btn', title: 'Inventory (I)' });
+    const satchel = h('button', { class: 'round-btn', title: tr('Inventory (I)', 'Сумка (I)') });
     satchel.innerHTML =
       '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" ' +
       'stroke-width="1.6" stroke-linejoin="round"><path d="M7 6V4.5a3 3 0 0 1 6 0V6"/>' +
@@ -83,12 +88,12 @@ export class LanternHud {
   /** How to play, for a few seconds at the start of a new game. */
   controls(): void {
     const keys: [string, string][] = [
-      ['Click', 'walk there'],
-      ['WASD', 'walk'],
-      ['E', 'use what glows'],
-      ['I', 'inventory'],
-      ['Hold T', 'pass time'],
-      ['Esc', 'menu'],
+      [tr('Click', 'Клик'), tr('walk there', 'идти туда')],
+      ['WASD', tr('walk', 'ходить')],
+      ['E', tr('use what glows', 'взять, открыть, прочесть')],
+      ['I', tr('inventory', 'сумка')],
+      [tr('Hold T', 'Держать T'), tr('pass time', 'ждать')],
+      ['Esc', tr('menu', 'меню')],
     ];
     const el = h(
       'div',
@@ -133,9 +138,16 @@ export class LanternHud {
   update(day: number, hour: number, night: number): void {
     const hr = Math.floor(hour);
     const mn = Math.floor(((hour - hr) * 60) / 10) * 10;
-    const text = `Day ${day} · ${String(hr).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
+    const text = `${tr('Day', 'День')} ${day} · ${String(hr).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
     if (this.clock.textContent !== text) this.clock.textContent = text;
-    const phase = night >= 1 ? 'Night' : night <= 0 ? 'Day' : hour >= 12 ? 'Dusk' : 'Dawn';
+    const phase =
+      night >= 1
+        ? tr('Night', 'Ночь')
+        : night <= 0
+          ? tr('Day', 'День')
+          : hour >= 12
+            ? tr('Dusk', 'Сумерки')
+            : tr('Dawn', 'Рассвет');
     if (this.phase.textContent !== phase) this.phase.textContent = phase;
   }
 

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { music, type Sfx } from '../audio/AmbientMusic';
+import { tr, type Words } from '../i18n';
 import {
   FISTS,
   FOES,
@@ -111,26 +112,41 @@ export interface CombatHost {
   tracks?: Tracks;
 }
 
-const VERB: Record<FoeId, string> = {
-  wolf: 'bites',
-  brigand: 'shoots',
-  boar: 'gores',
-  crawler: 'slashes',
-  shade: 'chills',
+/** How each foe hurts you; the Russian carries its object. */
+const VERB: Record<FoeId, Words> = {
+  wolf: { en: 'bites', ru: 'кусает вас' },
+  brigand: { en: 'shoots', ru: 'стреляет в вас' },
+  boar: { en: 'gores', ru: 'бьёт вас клыками' },
+  crawler: { en: 'slashes', ru: 'полосует вас' },
+  shade: { en: 'chills', ru: 'обдаёт вас холодом' },
 };
-const NOTICE: Record<FoeId, string> = {
-  wolf: 'A wolf growls and comes for you.',
-  brigand: 'The brigand draws his flintlock.',
-  boar: 'The boar snorts and lowers its head.',
-  crawler: 'Glass grinds on glass: the crawler stirs.',
-  shade: 'Something in the dark moves towards you.',
+const NOTICE: Record<FoeId, Words> = {
+  wolf: { en: 'A wolf growls and comes for you.', ru: 'Волк рычит и бросается к вам.' },
+  brigand: { en: 'The brigand draws his flintlock.', ru: 'Разбойник выхватывает кремнёвку.' },
+  boar: { en: 'The boar snorts and lowers its head.', ru: 'Кабан фыркает и опускает голову.' },
+  crawler: {
+    en: 'Glass grinds on glass: the crawler stirs.',
+    ru: 'Стекло скрежещет о стекло: ползун шевелится.',
+  },
+  shade: {
+    en: 'Something in the dark moves towards you.',
+    ru: 'Что-то в темноте движется к вам.',
+  },
 };
-const DEATH: Record<FoeId, string> = {
-  wolf: 'The wolf is dead.',
-  brigand: 'The brigand is dead.',
-  boar: 'The boar is dead.',
-  crawler: 'The crawler shatters.',
-  shade: 'The shade comes apart like smoke.',
+const DEATH: Record<FoeId, Words> = {
+  wolf: { en: 'The wolf is dead.', ru: 'Волк мёртв.' },
+  brigand: { en: 'The brigand is dead.', ru: 'Разбойник мёртв.' },
+  boar: { en: 'The boar is dead.', ru: 'Кабан мёртв.' },
+  crawler: { en: 'The crawler shatters.', ru: 'Ползун рассыпается осколками.' },
+  shade: { en: 'The shade comes apart like smoke.', ru: 'Тень расходится, как дым.' },
+};
+/** Each foe in Russian: who, whom, and from whom. */
+const RU: Record<FoeId, [nom: string, acc: string, gen: string]> = {
+  wolf: ['волк', 'волка', 'волка'],
+  brigand: ['разбойник', 'разбойника', 'разбойника'],
+  boar: ['кабан', 'кабана', 'кабана'],
+  crawler: ['стеклянный ползун', 'стеклянного ползуна', 'стеклянного ползуна'],
+  shade: ['тень', 'тень', 'тени'],
 };
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -140,6 +156,7 @@ const unit = (dx: number, dy: number): Pt | null => {
   return d > 0.001 ? { x: dx / d, y: dy / d } : null;
 };
 const lower = (f: Foe) => f.kind.name.toLowerCase();
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** What each enemy sounds like when it notices you, and when it strikes. */
 const CRY: Record<FoeId, Sfx | null> = {
   wolf: 'growl',
@@ -326,22 +343,34 @@ export class Combat {
     if (s === 'fallback' && !this.hunters().some((f) => dist(f, this.host.hero) < CALM)) return;
     this.stance = s;
     if (s === 'fallback') {
-      this.say(this.threat ? 'You start backing away, facing them.' : 'You fall back.');
+      this.say(
+        this.threat
+          ? tr('You start backing away, facing them.', 'Вы пятитесь, не сводя с них глаз.')
+          : tr('You fall back.', 'Вы отступаете.'),
+      );
     } else if (this.threat || this.target) {
-      this.say('You stand and fight.');
+      this.say(tr('You stand and fight.', 'Вы принимаете бой.'));
     }
   }
 
   /** A crate of rounds: fill your pockets. */
   refill(): void {
     if (!this.host.armed()) {
-      this.say('Rounds, but nothing to fire them from.');
+      this.say(
+        tr('Rounds, but nothing to fire them from.', 'Патроны, но стрелять ими не из чего.'),
+      );
       return;
     }
     this.ammo.spare = SPARE_ROUNDS;
     music.sfx('reload');
-    this.float('+ rounds', this.host.hero, '#e8d8a0');
-    this.say(`You take rounds: ${this.ammo.spare} spare.`, 'good');
+    this.float(tr('+ rounds', '+ патроны'), this.host.hero, '#e8d8a0');
+    this.say(
+      tr(
+        `You take rounds: ${this.ammo.spare} spare.`,
+        `Вы берёте патроны: ${this.ammo.spare} в запасе.`,
+      ),
+      'good',
+    );
   }
 
   /**
@@ -370,7 +399,7 @@ export class Combat {
         return { dir: this.away(), speed: RUN, face: null };
       }
       this.stance = 'fight';
-      this.say('You got away.', 'good');
+      this.say(tr('You got away.', 'Вы ушли.'), 'good');
       return null;
     }
     if (t && !want) {
@@ -406,7 +435,10 @@ export class Combat {
       }
     }
     if (wasEngaged && !this.threat && this.stance === 'fallback' && !this.down) {
-      this.say('Clear of them — you turn and run.', 'good');
+      this.say(
+        tr('Clear of them — you turn and run.', 'Оторвались — вы разворачиваетесь и бежите.'),
+        'good',
+      );
     }
     const gone = (f: Foe) => f.state === 'dead' || f.state === 'home' || dist(f, h) > 1.5 * CALM;
     if (this.target && gone(this.target)) {
@@ -489,7 +521,7 @@ export class Combat {
     if (w === PISTOL) {
       if (this.jam > 0) {
         this.jam -= dt;
-        if (this.jam <= 0) this.say('You clear the jam.');
+        if (this.jam <= 0) this.say(tr('You clear the jam.', 'Вы устраняете осечку.'));
         return;
       }
       if (this.reload > 0) {
@@ -504,7 +536,7 @@ export class Combat {
       if (this.ammo.mag === 0) {
         this.reload = reloadTime(HERO_SKILLS.guns, PISTOL);
         music.sfx('reload');
-        this.say('Reloading…');
+        this.say(tr('Reloading…', 'Перезарядка…'));
         return;
       }
     }
@@ -528,8 +560,14 @@ export class Combat {
         this.jam = clearTime(skill);
         this.aim = 0;
         music.sfx('click');
-        this.float('jammed!', h, '#f0b060');
-        this.say('Click — your pistol jams. Clearing it…', 'bad');
+        this.float(tr('jammed!', 'заело!'), h, '#f0b060');
+        this.say(
+          tr(
+            'Click — your pistol jams. Clearing it…',
+            'Щелчок — пистолет заело. Вы возитесь с ним…',
+          ),
+          'bad',
+        );
         return;
       }
       music.sfx('shot');
@@ -541,14 +579,22 @@ export class Combat {
     const chance = this.chance(t, w);
     const roll = rollAttack(chance, skill, Math.random);
     const name = lower(t);
+    const [nom, acc, gen] = RU[t.kind.id];
     if (roll === 'miss' || roll === 'fumble') {
       if (w === PISTOL) this.tracer(h, t, true);
-      this.float('miss', t, PALE);
+      this.float(tr('miss', 'мимо'), t, PALE);
       if (roll === 'fumble') {
         this.aim = -1.4;
-        this.say(w === PISTOL ? 'You snatch at the trigger and fumble the shot.' : 'You stumble.');
+        this.say(
+          w === PISTOL
+            ? tr(
+                'You snatch at the trigger and fumble the shot.',
+                'Вы дёргаете спуск и смазываете выстрел.',
+              )
+            : tr('You stumble.', 'Вы спотыкаетесь.'),
+        );
       } else {
-        this.say(`You miss the ${name}.`);
+        this.say(tr(`You miss the ${name}.`, `Вы не попадаете в ${acc}.`));
       }
       this.wake(t);
       return;
@@ -558,8 +604,8 @@ export class Combat {
     if (dmg === 0) {
       music.sfx('glass');
       this.bits.glass.explode(5, t.x, t.y);
-      this.float('glances off', t, PALE);
-      this.say(`The bullet glances off the ${name}.`);
+      this.float(tr('glances off', 'рикошет'), t, PALE);
+      this.say(tr(`The bullet glances off the ${name}.`, `Пуля отскакивает от ${gen}.`));
       this.wake(t);
       return;
     }
@@ -570,8 +616,11 @@ export class Combat {
     if (push) this.host.nav.move(t, push.x * 6, push.y * 6, t.kind.r);
     this.say(
       roll === 'crit'
-        ? `A critical hit! The ${name} takes ${dmg}.`
-        : `You hit the ${name} for ${dmg}.`,
+        ? tr(
+            `A critical hit! The ${name} takes ${dmg}.`,
+            `Критическое попадание! ${cap(nom)} получает ${dmg}.`,
+          )
+        : tr(`You hit the ${name} for ${dmg}.`, `Вы попадаете в ${acc}: ${dmg}.`),
       'good',
     );
     this.hurtFoe(t, dmg, roll === 'crit');
@@ -613,7 +662,7 @@ export class Combat {
     music.sfx('hurt');
     if (this.hp > 0) return;
     this.down = true;
-    this.say('You fall.', 'bad');
+    this.say(tr('You fall.', 'Вы падаете.'), 'bad');
     this.host.fall();
   }
 
@@ -642,13 +691,13 @@ export class Combat {
     f.cd = Math.max(f.cd, 0.4);
     const cry = CRY[f.kind.id];
     if (cry) music.sfx(cry);
-    this.say(NOTICE[f.kind.id], 'bad');
+    this.say(tr(NOTICE[f.kind.id]), 'bad');
   }
 
   private hurtFoe(f: Foe, dmg: number, crit: boolean): void {
     f.hp -= dmg;
     f.hurt = 0.18;
-    this.float(crit ? `crit -${dmg}` : `-${dmg}`, f, crit ? '#ffd27a' : RED);
+    this.float(crit ? `${tr('crit', 'крит')} -${dmg}` : `-${dmg}`, f, crit ? '#ffd27a' : RED);
     if (f.hp <= 0) {
       this.kill(f);
       return;
@@ -658,7 +707,11 @@ export class Combat {
       f.state = 'flee';
       f.t = 0;
       if (f.kind.id === 'wolf') music.sfx('yelp');
-      this.say(f.kind.id === 'wolf' ? 'The wolf yelps and bolts.' : `The ${lower(f)} runs for it.`);
+      this.say(
+        f.kind.id === 'wolf'
+          ? tr('The wolf yelps and bolts.', 'Волк взвизгивает и удирает.')
+          : tr(`The ${lower(f)} runs for it.`, `${cap(RU[f.kind.id][0])} бросается наутёк.`),
+      );
     }
   }
 
@@ -677,7 +730,7 @@ export class Combat {
       });
     }
     if (f.kind.id === 'crawler') f.img.setFrame('crawler');
-    this.say(DEATH[f.kind.id], 'good');
+    this.say(tr(DEATH[f.kind.id]), 'good');
     if (this.target === f) this.target = null;
     const { scene } = this.host;
     this.splash(f, 16);
@@ -736,16 +789,25 @@ export class Combat {
     );
     const roll = rollAttack(chance, f.kind.skill, Math.random);
     const name = lower(f);
+    const who = cap(RU[f.kind.id][0]);
     f.lunge = 0.16;
     if (f.kind.id !== 'brigand') music.sfx(STRIKE[f.kind.id]);
     if (roll === 'miss' || roll === 'fumble') {
-      this.float('miss', h, PALE);
-      this.say(f.kind.id === 'brigand' ? 'The brigand fires and misses.' : `The ${name} misses.`);
+      this.float(tr('miss', 'мимо'), h, PALE);
+      this.say(
+        f.kind.id === 'brigand'
+          ? tr('The brigand fires and misses.', 'Разбойник стреляет — мимо.')
+          : tr(`The ${name} misses.`, `${who} промахивается.`),
+      );
       return false;
     }
     const dmg = Math.round(damage(w, { dt: 0, dr: 0 }, roll === 'crit', Math.random) * mult);
-    const crit = roll === 'crit' ? 'A critical hit! ' : '';
-    this.hurtHero(dmg, `${crit}The ${name} ${VERB[f.kind.id]} you for ${dmg}.`);
+    const crit = roll === 'crit' ? tr('A critical hit! ', 'Критическое попадание! ') : '';
+    const verb = VERB[f.kind.id];
+    this.hurtHero(
+      dmg,
+      crit + tr(`The ${name} ${verb.en} you for ${dmg}.`, `${who} ${verb.ru}: ${dmg}.`),
+    );
     return true;
   }
 
@@ -783,8 +845,8 @@ export class Combat {
       return this.goHome(
         f,
         f.kind.id === 'shade'
-          ? 'The shade melts back into the trees.'
-          : `The ${lower(f)} gives up the chase.`,
+          ? tr('The shade melts back into the trees.', 'Тень растворяется среди деревьев.')
+          : tr(`The ${lower(f)} gives up the chase.`, `${cap(RU[f.kind.id][0])} бросает погоню.`),
       );
     }
     if (f.kind.id === 'brigand') this.brigand(f, d, dt);
@@ -840,7 +902,7 @@ export class Combat {
       if (f.t <= 0 && d > 2.5 * T && d < 7 * T && this.host.nav.lineFree(f.x, f.y, h.x, h.y, 6)) {
         f.charge = 'windup';
         f.t = 0;
-        this.say('The boar paws the ground…', 'bad');
+        this.say(tr('The boar paws the ground…', 'Кабан роет землю копытом…'), 'bad');
         return;
       }
     }
@@ -870,7 +932,7 @@ export class Combat {
       f.ran = 0;
       f.t = 0;
       music.sfx('snort');
-      this.say('The boar charges!', 'bad');
+      this.say(tr('The boar charges!', 'Кабан бросается в атаку!'), 'bad');
       return;
     }
     if (f.charge === 'run') {
@@ -884,7 +946,7 @@ export class Combat {
         if (this.foeAttacks(f, 15, 1.25)) {
           this.host.nav.move(h, Math.cos(f.dir) * 26, Math.sin(f.dir) * 26, this.host.heroR);
         } else {
-          this.say('You sidestep the boar.', 'good');
+          this.say(tr('You sidestep the boar.', 'Вы уходите от кабана в сторону.'), 'good');
         }
         f.charge = 'blown';
         f.t = 0;
@@ -929,7 +991,10 @@ export class Combat {
     f.cd = reloadTime(f.kind.skill, w);
     if (Math.random() < w.jam) {
       music.sfx('click');
-      this.say("The brigand's flintlock misfires.", 'good');
+      this.say(
+        tr("The brigand's flintlock misfires.", 'Кремнёвка разбойника даёт осечку.'),
+        'good',
+      );
       return;
     }
     music.sfx('boom');
@@ -1031,7 +1096,7 @@ export class Combat {
     const { scene } = this.host;
     const label = scene.add
       .text(at.x + rnd(-6, 6), at.y - 20, text, {
-        fontFamily: 'Lato, sans-serif',
+        fontFamily: 'Lato, "PT Sans", sans-serif',
         fontSize: '13px',
         fontStyle: 'bold',
         color,
@@ -1112,18 +1177,25 @@ export class Combat {
     const armed = this.host.armed();
     const state =
       this.jam > 0
-        ? ' · jammed!'
+        ? tr(' · jammed!', ' · заело!')
         : this.reload > 0
-          ? ' · reloading…'
+          ? tr(' · reloading…', ' · перезарядка…')
           : this.ammo.mag
             ? ''
-            : ' · empty';
+            : tr(' · empty', ' · пусто');
+    const { mag, spare } = this.ammo;
     const weapon = armed
-      ? `Pistol · ${this.ammo.mag}/${PISTOL.mag} · ${this.ammo.spare} spare${state}`
-      : 'Bare hands · no gun';
+      ? tr(
+          `Pistol · ${mag}/${PISTOL.mag} · ${spare} spare${state}`,
+          `Пистолет · ${mag}/${PISTOL.mag} · ${spare} в запасе${state}`,
+        )
+      : tr('Bare hands · no gun', 'Голые руки · оружия нет');
     const t = this.target;
     const target = t
-      ? `${t.kind.name} · ${this.chance(t)}% to hit${t.state === 'flee' ? ' · fleeing' : ''}`
+      ? tr(
+          `${t.kind.name} · ${this.chance(t)}% to hit`,
+          `${cap(RU[t.kind.id][0])} · ${this.chance(t)}% попасть`,
+        ) + (t.state === 'flee' ? tr(' · fleeing', ' · убегает') : '')
       : null;
     p.update({
       hp: this.hp,

@@ -1,8 +1,9 @@
+import { tr } from '../i18n';
 import { FACTS, ITEMS, type Fact } from './items';
 
 /** What lies in a drawer or a box: things worth having, maybe, and plain junk. */
 export interface Hoard {
-  /** Where you look, for the words: "In the drawer". */
+  /** Where you look, for the words: "In the drawer", in the current language. */
   place: string;
   /** Ids of things you could carry. */
   items: string[];
@@ -18,6 +19,7 @@ export interface Search {
 
 const seen = (item: string) => `seen:${item}`;
 const read = (paper: string) => `read:${paper}`;
+/** "a flashlight" becomes "the flashlight"; Russian has no articles. */
 const the = (plain: string) => plain.replace(/^an? /, 'the ');
 
 /**
@@ -63,7 +65,7 @@ export class Memory {
     const wanted = Object.entries(ITEMS).filter(([, it]) => it.needs === fact);
     if (wanted.some(([id]) => carried.has(id))) return null;
     const recall = wanted.find(([id]) => this.known.has(seen(id)))?.[1].recall;
-    return recall ?? FACTS[fact];
+    return tr(recall ?? FACTS[fact]);
   }
 
   /** Whether something the fact calls for is still out of his pockets. */
@@ -96,20 +98,35 @@ export class Memory {
         this.known.add(seen(id));
       }
     }
-    const plain = (id: string) => ITEMS[id]?.plain ?? id;
+    const plain = (id: string) => {
+      const p = ITEMS[id]?.plain;
+      return p ? tr(p) : id;
+    };
     if (take.length) {
       const what = take.map((id) => the(plain(id)));
-      return { take, says: `${hoard.place}: you take ${list(what)}. The rest is junk.` };
+      return {
+        take,
+        says: tr(
+          `${hoard.place}: you take ${list(what)}. The rest is junk.`,
+          `${hoard.place}: вы берёте ${list(what)}. Остальное — хлам.`,
+        ),
+      };
     }
     // What he leaves goes in among the junk, not at the front.
     const [first, ...rest] = hoard.junk;
     const all = [first, ...left.map(plain), ...rest].filter((s): s is string => !!s);
-    return { take, says: `${hoard.place}: ${list(all)}. Nothing you need.` };
+    return {
+      take,
+      says: tr(
+        `${hoard.place}: ${list(all)}. Nothing you need.`,
+        `${hoard.place}: ${list(all)}. Ничего нужного.`,
+      ),
+    };
   }
 }
 
 /** "a, b and c". */
 function list(words: string[]): string {
-  if (words.length < 2) return words[0] ?? 'nothing';
-  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+  if (words.length < 2) return words[0] ?? tr('nothing', 'ничего');
+  return `${words.slice(0, -1).join(', ')} ${tr('and', 'и')} ${words[words.length - 1]}`;
 }

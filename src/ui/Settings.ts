@@ -1,14 +1,34 @@
 import { music } from '../audio/AmbientMusic';
+import { lang, setLang, tr } from '../i18n';
 import { clearSave, loadSave } from '../lantern/save';
 import { h } from './dom';
 
-/** Music volume, full screen, and a way to delete the saved game. */
+/** Language, music volume, full screen, and a way to delete the saved game. */
 export class SettingsPanel {
   readonly el: HTMLElement;
   private readonly offKeys: () => void;
   private readonly offFullscreen: () => void;
 
-  constructor(close: () => void, saveDeleted: () => void) {
+  constructor(close: () => void, saveDeleted: () => void, langChanged: () => void) {
+    // Language: each button names its own, so you can find yours in either.
+    const langs = h(
+      'span',
+      { class: 'set-langs' },
+      ...(['en', 'ru'] as const).map((l) => {
+        const b = h(
+          'button',
+          { class: `set-btn${lang() === l ? ' on' : ''}` },
+          l === 'en' ? 'English' : 'Русский',
+        );
+        b.addEventListener('click', () => {
+          if (lang() === l) return;
+          setLang(l);
+          langChanged();
+        });
+        return b;
+      }),
+    );
+
     // Volume.
     const level = h('span', { class: 'set-value' });
     const slider = h('input', {
@@ -29,7 +49,8 @@ export class SettingsPanel {
 
     // Full screen.
     const full = h('button', { class: 'set-btn' });
-    const showFull = () => (full.textContent = document.fullscreenElement ? 'On' : 'Off');
+    const showFull = () =>
+      (full.textContent = document.fullscreenElement ? tr('On', 'Вкл.') : tr('Off', 'Выкл.'));
     showFull();
     full.addEventListener('click', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
@@ -44,7 +65,11 @@ export class SettingsPanel {
     const showDel = () => {
       const has = !!loadSave();
       del.disabled = !has;
-      del.textContent = !has ? 'None' : armed ? 'Click again' : 'Delete';
+      del.textContent = !has
+        ? tr('None', 'Нет')
+        : armed
+          ? tr('Click again', 'Ещё раз')
+          : tr('Delete', 'Удалить');
     };
     showDel();
     del.addEventListener('click', () => {
@@ -62,7 +87,12 @@ export class SettingsPanel {
       showDel();
     });
 
-    const back = h('button', { class: 'menu-btn' }, h('span', { class: 'dot' }), 'Back');
+    const back = h(
+      'button',
+      { class: 'menu-btn' },
+      h('span', { class: 'dot' }),
+      tr('Back', 'Назад'),
+    );
     back.addEventListener('click', close);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
@@ -75,10 +105,11 @@ export class SettingsPanel {
     this.el = h(
       'div',
       { class: 'settings interactive' },
-      h('h2', {}, 'Settings'),
-      row('Music', slider, level),
-      row('Full screen', full),
-      row('Saved game', del),
+      h('h2', {}, tr('Settings', 'Настройки')),
+      row(tr('Language', 'Язык'), langs),
+      row(tr('Music', 'Музыка'), slider, level),
+      row(tr('Full screen', 'Полный экран'), full),
+      row(tr('Saved game', 'Сохранение'), del),
       back,
     );
   }

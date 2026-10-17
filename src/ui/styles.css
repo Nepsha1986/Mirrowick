@@ -10,8 +10,9 @@
   --ember: #e8673a;
   --ember-hot: #f08a3c;
   --ember-deep: #c8434a;
-  --serif: 'Fraunces', Georgia, serif;
-  --sans: 'Lato', system-ui, sans-serif;
+  /* Fraunces and Lato have no Cyrillic: Lora and PT Sans draw the Russian. */
+  --serif: 'Fraunces', 'Lora', Georgia, serif;
+  --sans: 'Lato', 'PT Sans', system-ui, sans-serif;
 }
 
 html,
@@ -488,6 +489,16 @@ button:focus-visible {
 
 .set-btn:hover:not(:disabled) {
   border-color: rgba(240, 138, 60, 0.6);
+}
+
+.set-btn.on {
+  border-color: var(--ember-hot);
+  color: #ffd9b8;
+}
+
+.set-langs {
+  display: flex;
+  gap: 6px;
 }
 
 .set-btn.danger:not(:disabled) {

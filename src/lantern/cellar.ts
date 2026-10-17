@@ -1,3 +1,4 @@
+import { tr } from '../i18n';
 import { cellarMirror, cellarStairs, lowerMirror, upperHatch, wallTiles } from './mill';
 import { CH, CW, T, TL, mulberry32, type Pt } from './util';
 import {
@@ -123,7 +124,7 @@ export function generateCellar(): World {
       key: 'ln-cellar',
       frame: 'lectern',
       ...P(19, 6.6),
-      label: 'Read the open book',
+      label: tr('Read the open book', 'Прочесть раскрытую книгу'),
       read: 'tome',
     },
   ];
@@ -203,14 +204,14 @@ export function generateCellar(): World {
         ...P(5.5, 13),
         to: 'upper',
         exit: upperHatch(),
-        label: 'Climb up to the shed',
+        label: tr('Climb up to the shed', 'Подняться в сарай'),
         fade: 'dark',
       },
       {
         ...mid,
         to: 'lower',
         exit: lowerMirror(),
-        label: 'Step into the mirror',
+        label: tr('Step into the mirror', 'Шагнуть в зеркало'),
         fade: 'glint',
       },
     ],

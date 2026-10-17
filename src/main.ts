@@ -1,8 +1,13 @@
 import '@fontsource/fraunces/latin-600.css';
 import '@fontsource/lato/latin-400.css';
 import '@fontsource/lato/latin-700.css';
+import '@fontsource/lora/cyrillic-600.css';
+import '@fontsource/lora/cyrillic-600-italic.css';
+import '@fontsource/pt-sans/cyrillic-400.css';
+import '@fontsource/pt-sans/cyrillic-700.css';
 import './ui/styles.css';
 import * as Phaser from 'phaser';
+import { lang } from './i18n';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { LanternScene } from './scenes/LanternScene';
@@ -13,6 +18,13 @@ async function boot(): Promise<void> {
     document.fonts.load('600 32px Fraunces'),
     document.fonts.load('400 16px Lato'),
     document.fonts.load('700 16px Lato'),
+    ...(lang() === 'ru'
+      ? [
+          document.fonts.load('600 32px Lora', 'Я'),
+          document.fonts.load('400 16px "PT Sans"', 'Я'),
+          document.fonts.load('700 16px "PT Sans"', 'Я'),
+        ]
+      : []),
   ]);
 
   const game = new Phaser.Game({

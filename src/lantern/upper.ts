@@ -1,3 +1,4 @@
+import { tr } from '../i18n';
 import { cellarStairs, upperHatch } from './mill';
 import type { Building } from './town';
 import { T, TL, UH, UW, makeNoise, mulberry32, type Pt } from './util';
@@ -324,7 +325,7 @@ export function generateUpperWorld(): World {
     ...C(19, 23),
     x: 19.6 * T,
     depth: 24 * T,
-    label: 'Read the note on the fridge',
+    label: tr('Read the note on the fridge', 'Прочесть записку на холодильнике'),
     read: 'fridge-note',
   });
   obj('ktable', 17, 25);
@@ -341,8 +342,8 @@ export function generateUpperWorld(): World {
     key: 'ln-up',
     frame: 'tv',
     ...C(24, 23),
-    label: 'Turn on the TV',
-    on: { frame: 'tvOn', label: 'Turn off the TV' },
+    label: tr('Turn on the TV', 'Включить телевизор'),
+    on: { frame: 'tvOn', label: tr('Turn off the TV', 'Выключить телевизор') },
   });
   for (const x of [23, 24, 25]) solid(x, 23);
   obj('desk', 27, 24.5, { y: 25 * T });
@@ -356,7 +357,7 @@ export function generateUpperWorld(): World {
     x: 27.35 * T,
     y: 25.9 * T,
     depth: 26 * T,
-    label: "Read Victor's notebook",
+    label: tr("Read Victor's notebook", 'Прочесть блокнот Виктора'),
     read: 'notebook',
   });
   obj('plant', 21, 23);
@@ -376,11 +377,15 @@ export function generateUpperWorld(): World {
     key: 'ln-up',
     frame: 'coatrack',
     ...C(21, 29),
-    label: "Check Victor's coat",
+    label: tr("Check Victor's coat", 'Проверить пальто Виктора'),
     hoard: {
-      place: 'In the coat pockets',
+      place: tr('In the coat pockets', 'В карманах пальто'),
       items: [],
-      junk: ['a bus ticket', 'a handkerchief', 'some loose change'],
+      junk: [
+        tr('a bus ticket', 'автобусный билет'),
+        tr('a handkerchief', 'носовой платок'),
+        tr('some loose change', 'мелочь'),
+      ],
     },
   });
   solid(21, 29);
@@ -411,11 +416,16 @@ export function generateUpperWorld(): World {
     frame: 'stable',
     ...C(15, 28),
     scale: 0.7,
-    label: 'Look in the bedside table',
+    label: tr('Look in the bedside table', 'Заглянуть в тумбочку'),
     hoard: {
-      place: 'In the drawer',
+      place: tr('In the drawer', 'В ящике'),
       items: ['flashlight', 'cellar-key'],
-      junk: ['a tangle of chargers', 'old receipts', 'a dead watch', 'reading glasses'],
+      junk: [
+        tr('a tangle of chargers', 'клубок зарядок'),
+        tr('old receipts', 'старые чеки'),
+        tr('a dead watch', 'остановившиеся часы'),
+        tr('reading glasses', 'очки для чтения'),
+      ],
     },
   });
   things.push({
@@ -424,11 +434,15 @@ export function generateUpperWorld(): World {
     frame: 'wardrobe',
     ...C(18, 28),
     x: 18 * T,
-    label: 'Look in the wardrobe',
+    label: tr('Look in the wardrobe', 'Заглянуть в шкаф'),
     hoard: {
-      place: 'In the wardrobe',
+      place: tr('In the wardrobe', 'В шкафу'),
       items: [],
-      junk: ['shirts', 'a moth-eaten jumper', 'a box of old bills'],
+      junk: [
+        tr('shirts', 'рубашки'),
+        tr('a moth-eaten jumper', 'побитый молью свитер'),
+        tr('a box of old bills', 'коробка старых счетов'),
+      ],
     },
   });
   solid(17, 28);
@@ -482,8 +496,11 @@ export function generateUpperWorld(): World {
     y: 26.6 * T,
     angle: 3,
     depth: 28.6 * T,
-    label: "Look at Victor's car",
-    says: "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
+    label: tr("Look at Victor's car", 'Осмотреть машину Виктора'),
+    says: tr(
+      "Victor's old estate. Cobwebs here and there. Probably hasn't been driven in days.",
+      'Старый универсал Виктора. Кое-где паутина. На ней, похоже, давно не ездили.',
+    ),
   });
   for (let y = 24; y <= 28; y++) for (const x of [30, 31]) solid(x, y);
   objects.push({ key: 'ln-up', frame: 'car', x: 31.15 * T, y: 33 * T, angle: -6, depth: 34.8 * T });
@@ -509,7 +526,7 @@ export function generateUpperWorld(): World {
     key: 'ln-up',
     frame: 'mailbox',
     ...C(24, 39),
-    label: 'Open the mailbox',
+    label: tr('Open the mailbox', 'Открыть почтовый ящик'),
   });
   solid(24, 39);
   for (const x of [18, 35]) {
@@ -732,9 +749,13 @@ export function generateUpperWorld(): World {
         ...hatch,
         to: 'cellar',
         exit: cellarStairs(),
-        label: 'Go down to the cellar',
+        label: tr('Go down to the cellar', 'Спуститься в подвал'),
         fade: 'dark',
-        lock: { key: 'cellar-key', fact: 'cellar-lock', says: 'Padlocked. I need the key.' },
+        lock: {
+          key: 'cellar-key',
+          fact: 'cellar-lock',
+          says: tr('Padlocked. I need the key.', 'Заперто на замок. Нужен ключ.'),
+        },
       },
     ],
     sails: [],

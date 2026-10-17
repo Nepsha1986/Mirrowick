@@ -1,3 +1,4 @@
+import { tr } from '../i18n';
 import { loadSave } from '../lantern/save';
 import { h, uiRoot } from './dom';
 import { SettingsPanel } from './Settings';
@@ -17,25 +18,39 @@ export class MainMenu {
 
   constructor(private readonly actions: MainMenuActions) {
     this.nav = h('nav', { class: 'interactive' });
-    this.el = h(
-      'div',
-      { class: 'menu' },
-      h('div', { class: 'eyebrow' }, 'Chapter I · The Lower World'),
+    this.el = h('div', { class: 'menu' });
+    uiRoot().append(this.el);
+    this.render();
+  }
+
+  /** Everything in the current language; again when it changes. */
+  private render(): void {
+    this.el.replaceChildren(
+      h('div', { class: 'eyebrow' }, tr('Chapter I · The Lower World', 'Глава I · Нижний мир')),
       h('h1', {}, 'Mirrowick'),
       h(
         'p',
         { class: 'tagline' },
-        'Two villages, one name. Only one of them is still on the maps.',
+        tr(
+          'Two villages, one name. Only one of them is still on the maps.',
+          'Две деревни, одно имя. На картах осталась только одна.',
+        ),
       ),
       this.nav,
       h(
         'footer',
         {},
-        h('span', {}, 'v0.1 · prototype'),
-        h('span', {}, 'Art painted in code · Music: procedural'),
+        h('span', {}, tr('v0.1 · prototype', 'v0.1 · прототип')),
+        h(
+          'span',
+          {},
+          tr(
+            'Art painted in code · Music: procedural',
+            'Графика нарисована кодом · Музыка: процедурная',
+          ),
+        ),
       ),
     );
-    uiRoot().append(this.el);
     this.renderNav();
   }
 
@@ -47,18 +62,21 @@ export class MainMenu {
         { class: `menu-btn${opts.primary ? ' primary' : ''}`, disabled: !opts.onClick },
         h('span', { class: 'dot' }),
         label,
-        !opts.onClick && h('span', { class: 'soon' }, 'soon'),
+        !opts.onClick && h('span', { class: 'soon' }, tr('soon', 'скоро')),
       );
       if (opts.onClick) b.addEventListener('click', opts.onClick);
       return b;
     };
     const saved = !!loadSave();
     const first = saved
-      ? button('Continue', { primary: true, onClick: this.actions.resume })
-      : button('Play', { primary: true, onClick: this.actions.play });
+      ? button(tr('Continue', 'Продолжить'), { primary: true, onClick: this.actions.resume })
+      : button(tr('Play', 'Играть'), { primary: true, onClick: this.actions.play });
     const items = [first];
-    if (saved) items.push(button('New game', { onClick: this.actions.play }));
-    items.push(button('Settings', { onClick: () => this.openSettings() }), button('Credits'));
+    if (saved) items.push(button(tr('New game', 'Новая игра'), { onClick: this.actions.play }));
+    items.push(
+      button(tr('Settings', 'Настройки'), { onClick: () => this.openSettings() }),
+      button(tr('Credits', 'Авторы')),
+    );
     this.nav.replaceChildren(...items);
     first.focus();
   }
@@ -68,6 +86,12 @@ export class MainMenu {
     this.settings = new SettingsPanel(
       () => this.closeSettings(),
       () => this.renderNav(),
+      () => {
+        // Redraw the menu in the new language, with the settings still open.
+        this.closeSettings();
+        this.render();
+        this.openSettings();
+      },
     );
     this.nav.after(this.settings.el);
   }

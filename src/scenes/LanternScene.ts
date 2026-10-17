@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
+import { tr, type Words } from '../i18n';
 import { createLanternTextures } from '../lantern/art';
 import { groundBox, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
 import { generateCellar } from '../lantern/cellar';
@@ -64,10 +65,10 @@ const HALO = 0xfff2c4;
 const GLINT: [number, number, number] = [159, 216, 230];
 const DUSK: [number, number, number] = [13, 10, 8];
 /** What each world is called in the HUD, and its backdrop colour. */
-const PLACES: Record<Realm, { name: string; bg: string }> = {
-  lower: { name: 'The Lower World', bg: '#0d0a08' },
-  upper: { name: 'The Upper World', bg: '#2c3a1e' },
-  cellar: { name: 'The Cellar', bg: '#060507' },
+const PLACES: Record<Realm, { name: Words; bg: string }> = {
+  lower: { name: { en: 'The Lower World', ru: 'Нижний мир' }, bg: '#0d0a08' },
+  upper: { name: { en: 'The Upper World', ru: 'Верхний мир' }, bg: '#2c3a1e' },
+  cellar: { name: { en: 'The Cellar', ru: 'Подвал' }, bg: '#060507' },
 };
 
 /** What the scene is started with: which world, and where and when you arrive. */
@@ -302,7 +303,7 @@ export class LanternScene extends Phaser.Scene {
       this.setupInput();
       this.hud = new LanternHud(
         () => this.scene.start('menu'),
-        PLACES[this.realm].name,
+        tr(PLACES[this.realm].name),
         () => this.bag?.toggle(),
       );
       this.bag = new Inventory();
@@ -311,7 +312,12 @@ export class LanternScene extends Phaser.Scene {
         this.hud.controls();
         // Just out of the car, the first thing he sees: Victor never drove off.
         this.time.delayedCall(FIRST_THOUGHT * 1000, () =>
-          this.hud?.think("Victor's car is still in the drive. Wherever he went, he didn't drive."),
+          this.hud?.think(
+            tr(
+              "Victor's car is still in the drive. Wherever he went, he didn't drive.",
+              'Машина Виктора всё ещё у дома. Куда бы он ни ушёл, он ушёл пешком.',
+            ),
+          ),
         );
       }
       document.addEventListener('visibilitychange', saveOnHide);
@@ -886,7 +892,7 @@ export class LanternScene extends Phaser.Scene {
     this.save();
     this.reader.show(paper, () => {
       this.input.keyboard?.resetKeys();
-      if (first && paper.after) this.hud?.think(paper.after);
+      if (first && paper.after) this.hud?.think(tr(paper.after));
     });
   }
 
@@ -901,7 +907,7 @@ export class LanternScene extends Phaser.Scene {
   private gained(ids: string[]): void {
     const got = ids.flatMap((id) => {
       const it = ITEMS[id];
-      return it ? [{ name: it.name, icon: this.icon(...it.icon) }] : [];
+      return it ? [{ name: tr(it.name), icon: this.icon(...it.icon) }] : [];
     });
     if (got.length) this.hud?.gained(got);
   }
@@ -913,7 +919,7 @@ export class LanternScene extends Phaser.Scene {
    */
   private nudge(dt: number): void {
     if (this.demo || this.leaving || this.realm !== 'upper') return;
-    for (const [fact, nudge] of Object.entries(NUDGES) as [Fact, string][]) {
+    for (const [fact, nudge] of Object.entries(NUDGES) as [Fact, Words][]) {
       const waited = this.stuck.get(fact) ?? 0;
       if (waited < 0 || !this.memory.knows(fact) || !this.memory.lacks(fact, this.items)) continue;
       if (waited + dt < NUDGE_AFTER) {
@@ -922,7 +928,7 @@ export class LanternScene extends Phaser.Scene {
       }
       // Once a visit is enough.
       this.stuck.set(fact, -1);
-      this.hud?.think(nudge);
+      this.hud?.think(tr(nudge));
     }
   }
 
@@ -952,13 +958,19 @@ export class LanternScene extends Phaser.Scene {
     const items: BagItem[] = [];
     for (const id of this.items) {
       const it = ITEMS[id];
-      if (it) items.push({ name: it.name, about: it.about, icon: icon(...it.icon) });
+      if (it) items.push({ name: tr(it.name), about: tr(it.about), icon: icon(...it.icon) });
     }
     if (this.items.has('pistol')) {
       items.push({
-        name: 'Rounds',
-        about: 'For the pistol. There are more in the crate in the Hollow.',
-        note: `${this.ammo.mag} loaded, ${this.ammo.spare} spare`,
+        name: tr('Rounds', 'Патроны'),
+        about: tr(
+          'For the pistol. There are more in the crate in the Hollow.',
+          'Для пистолета. Ещё есть в ящике в Лощине.',
+        ),
+        note: tr(
+          `${this.ammo.mag} loaded, ${this.ammo.spare} spare`,
+          `${this.ammo.mag} в обойме, ${this.ammo.spare} в запасе`,
+        ),
         icon: icon('ln-foes', 'ammo'),
       });
     }
