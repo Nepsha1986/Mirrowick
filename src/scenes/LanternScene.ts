@@ -10,7 +10,7 @@ import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
-import { ITEMS, type Fact } from '../lantern/items';
+import { ITEMS, NUDGES, type Fact } from '../lantern/items';
 import { Memory, type Hoard } from '../lantern/memory';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
@@ -39,6 +39,10 @@ const FAST = 24;
 const CHUNK = 10 * T;
 /** How close you must stand to something to use it. */
 const REACH = 1.4 * T;
+/** How near something must be, in plain sight, to be haloed: E then walks you to it. */
+const NOTICE = 3.2 * T;
+/** Seconds after a thought before the hero has a second one, if he's still stuck. */
+const NUDGE_AFTER = 100;
 /** Seconds between autosaves. */
 const AUTOSAVE = 5;
 /** The halo around whatever you can use right here. */
@@ -70,6 +74,8 @@ export interface LanternData {
   ammo?: [number, number];
   /** How you arrived: through a mirror, or down or up the stairs. */
   via?: Portal['fade'];
+  /** A new game, just after the intro: show the controls. */
+  fresh?: boolean;
 }
 
 const chunkOf = (p: Pt) => `${Math.floor(p.x / CHUNK)},${Math.floor(p.y / CHUNK)}`;
@@ -136,6 +142,14 @@ export class LanternScene extends Phaser.Scene {
   private haloPool!: Phaser.GameObjects.Image;
   /** What you are using right now, while it shows a dialog. */
   private using: Target | null = null;
+  /** What E sent you walking to, to use once you're there. */
+  private pending: Target | null = null;
+  /** Glints on drawers that still hold something worth a look. */
+  private glints: { img: Phaser.GameObjects.Image; hoard: Hoard }[] = [];
+  /** How long the hero has known each fact this visit without finding what it calls for. */
+  private stuck = new Map<Fact, number>();
+  /** Whether the hero walked this frame: time only passes while he does. */
+  private moving = false;
   /** What the things that don't just switch on and off do, by id. */
   private readonly uses: Record<string, () => void> = {
     mailbox: () => this.hud && openMailbox(this.hud.dialog, () => (this.using = null)),
@@ -204,6 +218,10 @@ export class LanternScene extends Phaser.Scene {
     this.halo = null;
     this.haloGlow = undefined;
     this.using = null;
+    this.pending = null;
+    this.glints = [];
+    this.stuck.clear();
+    this.moving = false;
     this.thingsOn = new Set(this.start.things ?? []);
     // The menu's backdrop wanders with a light; a new game starts empty-handed.
     this.items = new Set(this.start.items ?? (this.demo ? ['flashlight'] : []));
@@ -260,6 +278,7 @@ export class LanternScene extends Phaser.Scene {
         () => this.bag?.toggle(),
       );
       this.bag = new Inventory();
+      if (this.start.fresh) this.hud.controls();
       document.addEventListener('visibilitychange', saveOnHide);
       this.save();
     }
@@ -613,7 +632,7 @@ export class LanternScene extends Phaser.Scene {
       Phaser.Input.Keyboard.Key
     >;
     kb.on('keydown-ESC', () => this.scene.start('menu'));
-    kb.on('keydown-E', () => this.inReach()?.use());
+    kb.on('keydown-E', () => this.act());
     kb.on('keydown-F', () => this.combat?.setStance('fight'));
     kb.on('keydown-R', () => this.combat?.setStance('fallback'));
     kb.on('keydown-I', () => this.bag?.toggle());
@@ -631,6 +650,7 @@ export class LanternScene extends Phaser.Scene {
     }
     // Clicking a thing only walks you to it: you use it with E.
     this.combat?.release();
+    this.pending = null;
     this.hero.path = this.nav.route(this.hero, wp, HERO_R);
     const end = this.hero.path[this.hero.path.length - 1] ?? wp;
     this.markerAt = { x: end.x, y: end.y, t: 0.6 };
@@ -641,17 +661,26 @@ export class LanternScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
     const prev = this.hour();
+    // Time passes while you walk, or while you hold T; standing still, it waits.
     if (this.demo) this.drift();
-    else this.tod = (this.tod + (dt * (this.keys.T?.isDown ? FAST : 1)) / DAY_LEN) % 1;
+    else {
+      const rate = this.keys.T?.isDown ? FAST : this.moving ? 1 : 0;
+      this.tod = (this.tod + (dt * rate) / DAY_LEN) % 1;
+    }
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
     this.combat?.update(dt);
     this.tracks?.update(dt);
     this.checkTargets();
-    // The first night, or the dark below, tells the hero he needs a light.
-    if (!this.demo && !this.memory.knows('dark') && (this.realm === 'cellar' || this.night() > 0.6))
+    // Sundown on the first evening, or the dark below, tells the hero he needs a light.
+    if (
+      !this.demo &&
+      !this.memory.knows('dark') &&
+      (this.realm === 'cellar' || this.night() > 0.25)
+    )
       this.learn('dark');
+    this.nudge(dt);
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE) this.save();
     this.updateTownLife(dt);
@@ -659,7 +688,10 @@ export class LanternScene extends Phaser.Scene {
     this.drawMarker(dt);
     this.updateLighting(dt);
     this.hud?.update(this.day, this.hour(), this.night());
-    if (this.bag?.open) this.bag.show(this.bagView());
+    if (this.bag?.open) {
+      this.bag.show(this.bagView());
+      this.hud?.seenBag();
+    }
   }
 
   // --- Using things ------------------------------------------------------------------
@@ -682,6 +714,13 @@ export class LanternScene extends Phaser.Scene {
           .setScale(t.scale ?? 1),
       );
       const hoard = t.hoard;
+      if (hoard?.items.length) {
+        const glint = this.add
+          .image(t.x + 6, t.y - 6, 'ln-up', 'glint')
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setDepth((t.depth ?? t.y + 4) + 1);
+        this.glints.push({ img: glint, hoard });
+      }
       this.targets.push({
         x: t.x,
         y: t.y,
@@ -715,6 +754,7 @@ export class LanternScene extends Phaser.Scene {
   /** Into your pockets: gone from the world, and the hero carries it. */
   private take(id: string, img: Phaser.GameObjects.Image): void {
     this.items.add(id);
+    this.gained([id]);
     this.setHalo(null);
     this.targets = this.targets.filter((t) => t.img !== img);
     const chunk = this.chunks.get(chunkOf(img));
@@ -729,6 +769,7 @@ export class LanternScene extends Phaser.Scene {
     const { take, says } = this.memory.search(hoard, this.items);
     for (const id of take) this.items.add(id);
     this.hud?.think(says);
+    this.gained(take);
     this.heroImg.setFrame(this.heroFrame());
     this.save();
   }
@@ -738,6 +779,35 @@ export class LanternScene extends Phaser.Scene {
     const thought = this.memory.learn(fact, this.items);
     if (thought) this.hud?.think(thought);
     this.save();
+  }
+
+  /** Shows what just went into the bag, flying up to it. */
+  private gained(ids: string[]): void {
+    const got = ids.flatMap((id) => {
+      const it = ITEMS[id];
+      return it ? [{ name: it.name, icon: this.icon(...it.icon) }] : [];
+    });
+    if (got.length) this.hud?.gained(got);
+  }
+
+  /**
+   * A second thought, if the hero has long known he needs something and
+   * still hasn't found it: where to look. Only up in the Upper World, where
+   * Victor's house is.
+   */
+  private nudge(dt: number): void {
+    if (this.demo || this.leaving || this.realm !== 'upper') return;
+    for (const fact of Object.keys(NUDGES) as Fact[]) {
+      const waited = this.stuck.get(fact) ?? 0;
+      if (waited < 0 || !this.memory.knows(fact) || !this.memory.lacks(fact, this.items)) continue;
+      if (waited + dt < NUDGE_AFTER) {
+        this.stuck.set(fact, waited + dt);
+        continue;
+      }
+      // Once a visit is enough.
+      this.stuck.set(fact, -1);
+      this.hud?.think(NUDGES[fact]);
+    }
   }
 
   /** Through, unless it is locked and you have no key. */
@@ -762,11 +832,7 @@ export class LanternScene extends Phaser.Scene {
 
   /** What the bag shows: what you carry, and how you are. */
   private bagView() {
-    const icon = (key: string, frame: string) => {
-      const k = `${key}/${frame}`;
-      if (!this.icons.has(k)) this.icons.set(k, this.textures.getBase64(key, frame));
-      return this.icons.get(k);
-    };
+    const icon = this.icon.bind(this);
     const items: BagItem[] = [];
     for (const id of this.items) {
       const it = ITEMS[id];
@@ -781,6 +847,13 @@ export class LanternScene extends Phaser.Scene {
       });
     }
     return { items, hp: this.combat?.hp ?? HERO_HP, maxHp: HERO_HP, skills: HERO_SKILLS };
+  }
+
+  /** A thing's picture as a data URL, painted once. */
+  private icon(key: string, frame: string): string | undefined {
+    const k = `${key}/${frame}`;
+    if (!this.icons.has(k)) this.icons.set(k, this.textures.getBase64(key, frame));
+    return this.icons.get(k);
   }
 
   private useThing(id: string): void {
@@ -808,15 +881,18 @@ export class LanternScene extends Phaser.Scene {
     if (t) this.haloPool.setPosition(t.x, t.y).setDepth(t.y + 5);
   }
 
-  /** The nearest thing within reach, if any. */
-  private inReach(): Target | null {
+  /**
+   * The nearest thing you can use from here, if any: in reach, or a few
+   * steps away with no wall between.
+   */
+  private noticed(): Target | null {
     if (this.demo || this.leaving) return null;
     const h = this.hero;
     let best: Target | null = null;
-    let bd = REACH;
+    let bd = NOTICE;
     for (const t of this.targets) {
       const d = Math.hypot(t.x - h.x, t.y - h.y);
-      if (d < bd) {
+      if (d < bd && (d < REACH || !this.nav.wallBetween(h, t))) {
         bd = d;
         best = t;
       }
@@ -824,8 +900,29 @@ export class LanternScene extends Phaser.Scene {
     return best;
   }
 
+  private inReach(t: Target): boolean {
+    return Math.hypot(t.x - this.hero.x, t.y - this.hero.y) < REACH;
+  }
+
+  /** E: uses what is haloed, walking over to it first if it is a few steps away. */
+  private act(): void {
+    const t = this.noticed();
+    if (!t) return;
+    if (this.inReach(t)) return t.use();
+    this.combat?.release();
+    this.hero.path = this.nav.route(this.hero, t, HERO_R);
+    this.pending = t;
+  }
+
   private checkTargets(): void {
-    const near = this.inReach();
+    // Arrived where E sent you: use it; stopped short of it: give up.
+    const p = this.pending;
+    if (p && this.inReach(p)) {
+      this.pending = null;
+      this.hero.path = [];
+      p.use();
+    } else if (p && (!this.hero.path.length || !this.targets.includes(p))) this.pending = null;
+    const near = this.noticed();
     // Walking away from the mailbox closes it.
     if (this.using && near !== this.using) this.hud?.dialog.close();
     this.setHalo(near);
@@ -833,6 +930,16 @@ export class LanternScene extends Phaser.Scene {
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
     this.hud?.prompt(near ? `E · ${near.label()}` : null);
+    // A twinkle on a drawer with something in it still worth having.
+    const t = this.time.now / 1000;
+    for (const g of this.glints) {
+      const on = !this.demo && this.memory.worthLooking(g.hoard, this.items);
+      g.img.setVisible(on);
+      if (on)
+        g.img
+          .setAlpha(0.35 + 0.45 * Math.max(0, Math.sin(t * 2.4)))
+          .setScale(0.6 + 0.25 * Math.sin(t * 1.2));
+    }
   }
 
   /** Remembers where you are; the menu's Continue picks up from here. */
@@ -923,6 +1030,7 @@ export class LanternScene extends Phaser.Scene {
       // Standing still while the light takes you.
     } else if (kx || ky) {
       h.path = [];
+      this.pending = null;
       const l = Math.hypot(kx, ky);
       want = { x: kx / l, y: ky / l };
     } else if (h.path.length) {
@@ -942,10 +1050,13 @@ export class LanternScene extends Phaser.Scene {
     const s = Math.min(left, (steer ? steer.speed : SPEED) * dt);
     const mx = dir ? dir.x * s : 0;
     const my = dir ? dir.y * s : 0;
+    const bx = h.x;
+    const by = h.y;
     if (mx || my) {
       this.nav.move(h, mx, my, HERO_R);
       h.walk += dt * 10;
     }
+    this.moving = h.x !== bx || h.y !== by;
     this.tracks?.follow(h, 'hero');
     // Turn smoothly towards the walking direction, or the enemy.
     const face = steer?.face ?? (mx || my ? Math.atan2(my, mx) : null);

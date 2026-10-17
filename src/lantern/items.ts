@@ -45,6 +45,17 @@ export const ITEMS: Record<string, Item> = {
 
 /** What the hero thinks on learning something, when nothing he saw comes to mind. */
 export const FACTS: Record<Fact, string> = {
-  dark: "It's getting dark. I could do with a light.",
-  'cellar-lock': 'A padlock on the hatch. Victor must keep the key somewhere.',
+  dark: "It's getting dark. I'll need a light soon.",
+  'cellar-lock':
+    'A padlock on the hatch. Victor kept everything in the house. Probably in his bedroom.',
+};
+
+/**
+ * A second thought, a while after the first, while the hero still hasn't
+ * found what the fact calls for.
+ */
+export const NUDGES: Record<Fact, string> = {
+  dark: "Still no light. Victor's bedroom is off the hall, just inside the front door. His bedside table, maybe.",
+  'cellar-lock':
+    "That key. Victor's bedroom is off the hall, just inside the front door. His bedside table, maybe.",
 };

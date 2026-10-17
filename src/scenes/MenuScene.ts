@@ -31,10 +31,10 @@ export class MenuScene extends Phaser.Scene {
       });
     };
     this.menu = new MainMenu({
-      play: () => begin({ demo: false }, true),
+      play: () => begin({ demo: false, fresh: true }, true),
       resume: () => {
         const save = loadSave();
-        if (!save) return begin({ demo: false }, true);
+        if (!save) return begin({ demo: false, fresh: true }, true);
         const { realm, x, y, tod, day, things, items, known, ammo } = save;
         begin({ demo: false, realm, at: { x, y }, tod, day, things, items, known, ammo });
       },

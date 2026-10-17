@@ -223,6 +223,7 @@ export function generateUpperWorld(): World {
     h: 11,
     roof: 'tiles',
     chimneys: [{ x: 4.5, y: 1.4 }],
+    porch: 9,
   };
   const floor = (x: number, y: number): number => {
     if (x <= 13 && y <= 12) return TL.CHECKER; // kitchen
@@ -302,9 +303,22 @@ export function generateUpperWorld(): World {
   light(C(18, 9.8), 90, 0x8ab8ff, { room, thing: 'tv', flicker: 0.16 });
   lamp(C(20.6, 10.5), 40, 0xa8d8ff);
 
-  // Hall: a mat at the door, a coat stand, a plant.
+  // Hall: a mat at the door, Victor's coat still on the stand, a plant.
+  // The front door stands ajar, as Pete found it.
   decal('doormat', 16.5, 17);
-  obj('coatrack', 15, 15);
+  obj('frontdoor', 16, 18, { x: 16 * T + 15, y: 18.5 * T - 24, angle: -62 });
+  things.push({
+    id: 'coat',
+    key: 'ln-up',
+    frame: 'coatrack',
+    ...C(15, 15),
+    label: "Check Victor's coat",
+    hoard: {
+      place: 'In the coat pockets',
+      items: [],
+      junk: ['a bus ticket', 'a handkerchief', 'some loose change'],
+    },
+  });
   solid(15, 15);
   obj('plant', 15, 17);
   solid(15, 17);
@@ -340,7 +354,19 @@ export function generateUpperWorld(): World {
       junk: ['a tangle of chargers', 'old receipts', 'a dead watch', 'reading glasses'],
     },
   });
-  obj('wardrobe', 12, 14, { x: 12 * T });
+  things.push({
+    id: 'wardrobe',
+    key: 'ln-up',
+    frame: 'wardrobe',
+    ...C(12, 14),
+    x: 12 * T,
+    label: 'Look in the wardrobe',
+    hoard: {
+      place: 'In the wardrobe',
+      items: [],
+      junk: ['shirts', 'a moth-eaten jumper', 'a box of old bills'],
+    },
+  });
   solid(11, 14);
   solid(12, 14);
   lamp(C(11, 15.5), 100);
@@ -375,7 +401,10 @@ export function generateUpperWorld(): World {
         : { kind: 'window', x: cx - OUTER / 2, y: cy - 11, w: OUTER, h: 22 },
     );
   }
+  // The front door: a step, a lamp on a green porch canopy (painted with the
+  // roof) and a mat on the gravel, so you can tell the way in from the road.
   decal('step', 16.5, 18.9);
+  decal('porchmat', 16.5, 19.7, { angle: 3, alpha: 1 });
   light({ x: 17 * T, y: 19.9 * T }, 60, LAMP);
 
   // --- The yard ------------------------------------------------------------------------
