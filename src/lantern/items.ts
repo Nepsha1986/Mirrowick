@@ -51,7 +51,7 @@ export const FACTS: Record<Fact, string> = {
   dark: "It's getting dark. I'll need a light soon.",
   'cellar-lock':
     'A padlock on the hatch. Victor kept everything in the house. Probably in his bedroom.',
-  trail: 'Footprints, glowing where the light falls. Someone walked from the house to the shed.',
+  trail: 'Footprints, glowing where the light falls. Someone came and went here, again and again.',
 };
 
 /**

@@ -157,6 +157,11 @@ export interface World {
    * its light, so they glow, but only in the flashlight's beam after dark.
    */
   trail?: Print[];
+  /**
+   * Tree crowns that hang over the hero and thin out while he walks under
+   * them; the trunk below is an ordinary object.
+   */
+  crowns?: WorldObject[];
 }
 
 export const GLASS = 0x9fd8e6;
