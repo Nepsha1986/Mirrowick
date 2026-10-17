@@ -2,6 +2,7 @@ import { storage } from '../ui/dom';
 import type { Realm } from './world';
 
 const KEY = 'mirrowick.save';
+const REALMS: Realm[] = ['lower', 'yard', 'upper', 'cellar'];
 
 /** Everything a game needs to carry on where it left off. */
 export interface SaveData {
@@ -26,7 +27,7 @@ export function loadSave(): SaveData | null {
   try {
     const d = JSON.parse(raw) as Partial<SaveData>;
     const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-    if (d.realm !== 'lower' && d.realm !== 'upper' && d.realm !== 'cellar') return null;
+    if (!d.realm || !REALMS.includes(d.realm)) return null;
     if (!num(d.x) || !num(d.y) || !num(d.tod) || !num(d.day)) return null;
     const strings = (v: unknown) =>
       Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : null;

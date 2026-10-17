@@ -104,7 +104,8 @@ export const en = {
   },
   /** Where you are, top left: the place, and a line on where that is. */
   places: {
-    lower: { name: 'The Facility', where: 'Through the mirror' },
+    lower: { name: 'Site 7', where: 'Level −1' },
+    yard: { name: 'Site 7', where: 'The surface' },
     upper: { name: "Victor's house", where: 'On the edge of Mirrowick' },
     cellar: { name: 'The cellar', where: "Under Victor's shed" },
   },
@@ -141,6 +142,8 @@ export const en = {
     tome: 'Read the open book',
     shedUp: 'Climb up to the shed',
     mirror: 'Step into the mirror',
+    rampUp: 'Up the ramp, outside',
+    rampDown: 'Down the ramp',
     rounds: 'Take rounds',
     screen: 'Look at the screen',
     shiftLog: 'Read the shift log',

@@ -103,7 +103,8 @@ export const ru: Messages = {
     },
   },
   places: {
-    lower: { name: 'Комплекс', where: 'По ту сторону зеркала' },
+    lower: { name: 'Объект 7', where: 'Уровень −1' },
+    yard: { name: 'Объект 7', where: 'Поверхность' },
     upper: { name: 'Дом Виктора', where: 'Окраина Mirrowick' },
     cellar: { name: 'Подвал', where: 'Под сараем Виктора' },
   },
@@ -139,6 +140,8 @@ export const ru: Messages = {
     tome: 'Прочесть раскрытую книгу',
     shedUp: 'Подняться в сарай',
     mirror: 'Шагнуть в зеркало',
+    rampUp: 'Подняться наружу',
+    rampDown: 'Спуститься по пандусу',
     rounds: 'Взять патроны',
     screen: 'Посмотреть на экран',
     shiftLog: 'Прочесть журнал смены',

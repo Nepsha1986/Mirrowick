@@ -5,9 +5,10 @@ import type { Pt } from './util';
 
 /**
  * The two worlds and the cellar between them: the Lower World is the
- * Facility on the far side of the mirror.
+ * Facility on the far side of the mirror, level −1 underground and the
+ * yard up on the surface.
  */
-export type Realm = 'lower' | 'upper' | 'cellar';
+export type Realm = 'lower' | 'yard' | 'upper' | 'cellar';
 
 export interface WorldObject extends Pt {
   /** Texture key; defaults to the main atlas. */
@@ -119,7 +120,7 @@ export interface Print extends Pt {
   left: boolean;
 }
 
-/** A way through to the other world (world pixels). */
+/** A way through to another place (world pixels). */
 export interface Portal extends Pt {
   to: Realm;
   /** Where you come out on the other side. */
@@ -129,6 +130,11 @@ export interface Portal extends Pt {
   fade: 'glint' | 'dark';
   /** Locked, until the hero has the key. */
   lock?: Lock;
+  /**
+   * A band this big across the way (centred on it): walk onto it and you
+   * go through, with nothing to press.
+   */
+  step?: { w: number; h: number };
 }
 
 export type RoofKind = 'tiles' | 'tin';
@@ -185,6 +191,9 @@ export interface World {
    */
   indoors?: Uint8Array;
 }
+
+/** Grey daylight, where the Facility's ramp comes up to the surface. */
+export const DAYLIGHT = 0xd6d8d2;
 
 /** The cold light of the mirrors and of whatever comes through them. */
 export const GLASS = 0x9fd8e6;

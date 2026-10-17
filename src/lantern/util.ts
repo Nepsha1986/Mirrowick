@@ -6,12 +6,17 @@ export const T = 32;
 export const DAY_LEN = 360;
 
 /**
- * The Lower World: the Facility, a vast complex built round the mirror,
- * on a map this many tiles across. Level −1 is underground; a long tunnel
- * leads up from it to the yard, in front of level 0.
+ * The Lower World: the Facility, a vast complex built round the mirror.
+ * Level −1, underground, is a map this many tiles across; a long tunnel
+ * leads up from it to the yard, in front of level 0, on a map of its own.
  */
 export const LW = 126;
-export const LH = 150;
+export const LH = 108;
+export const YW = 106;
+export const YH = 50;
+/** Where the tunnel goes over from level −1 to the yard, on either map (tiles). */
+export const LAB_RAMP = { x: 30, y: 106.4 };
+export const YARD_RAMP = { x: 20, y: 2.6 };
 /** Chamber 7, built round the mirror's hall, and the mirror in it (tiles). */
 export const CHAMBER = { x0: 38, y0: 12, w: 40, h: 29 };
 export const LAB_MIRROR = { x: 57.5, y: 26 };

@@ -1,4 +1,13 @@
-import { CELLAR_MIRROR, CELLAR_STAIRS, LAB_MIRROR, SHED_HATCH, T, type Pt } from './util';
+import {
+  CELLAR_MIRROR,
+  CELLAR_STAIRS,
+  LAB_MIRROR,
+  LAB_RAMP,
+  SHED_HATCH,
+  T,
+  YARD_RAMP,
+  type Pt,
+} from './util';
 import type { ThinWall } from './world';
 
 /** Where each way between the places comes out (world pixels). */
@@ -6,6 +15,13 @@ export const labMirror = (): Pt => ({ x: LAB_MIRROR.x * T, y: LAB_MIRROR.y * T }
 export const upperHatch = (): Pt => ({ x: SHED_HATCH.x * T, y: SHED_HATCH.y * T });
 export const cellarStairs = (): Pt => ({ x: CELLAR_STAIRS.x * T, y: CELLAR_STAIRS.y * T });
 export const cellarMirror = (): Pt => ({ x: CELLAR_MIRROR.x * T, y: CELLAR_MIRROR.y * T });
+export const labRamp = (): Pt => ({ x: LAB_RAMP.x * T, y: LAB_RAMP.y * T });
+export const yardRamp = (): Pt => ({ x: YARD_RAMP.x * T, y: YARD_RAMP.y * T });
+/** The ramp's way over is a band across the tunnel, walked onto (world pixels). */
+export const RAMP_BAND = { w: 6 * T, h: 0.8 * T };
+/** Where you come out of it: a step further on, back up or down the ramp. */
+export const labRampExit = (): Pt => ({ x: LAB_RAMP.x * T, y: (LAB_RAMP.y - 0.9) * T });
+export const yardRampExit = (): Pt => ({ x: YARD_RAMP.x * T, y: (YARD_RAMP.y + 0.9) * T });
 
 /** Every tile a set of thin walls touches: solid for path-finding. */
 export function wallTiles(walls: ThinWall[], fn: (x: number, y: number) => void): void {

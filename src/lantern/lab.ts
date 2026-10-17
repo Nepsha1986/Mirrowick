@@ -1,9 +1,10 @@
 import { t } from '../i18n';
 import type { FoeSpawn } from './combat';
 import { layHall } from './hall';
-import { cellarMirror, labMirror, wallTiles } from './ways';
+import { RAMP_BAND, cellarMirror, labMirror, labRamp, wallTiles, yardRampExit } from './ways';
 import { CHAMBER, LH, LW, T, TL, mulberry32, type Pt } from './util';
 import {
+  DAYLIGHT,
   type GroundPatch,
   type Light,
   type Thing,
@@ -12,27 +13,19 @@ import {
   type WorldObject,
 } from './world';
 
-/** The Facility's walls, and the bars and fence. */
+/** The Facility's walls, and the bars. */
 const WALL = 12;
 const BARS = 9;
-const MESH = 5;
 /** Emergency lighting, a dying fluorescent panel, screens, the cages' lamps. */
 const ALARM = 0xff3a2a;
 const EMERGENCY = 0xff6a3a;
 const PANEL = 0xdfe8ff;
 const SCREEN = 0x7affc8;
 const CAGE = 0xbfd8ff;
-const FIRE = 0xff9a40;
-/** Level −1 is dug in under everything north of this row; south of it is the surface. */
-const SURFACE = 108;
-/** Level 0, the side of it that faces the yard: all roof for now (tiles, inclusive). */
-const LEVEL0 = { x0: 42, y0: 100, x1: 111, y1: 117 };
-/** The yard in front of it, fenced in (tiles, inclusive). */
-const YARD = { x0: 14, y0: 118, x1: 110, y1: 146 };
 /** The corridor on level −1 that everything opens off (tiles, inclusive). */
 const HALLWAY = { x0: 14, y0: 45, x1: 112, y1: 47 };
-/** The tunnel up from the checkpoint to the yard (tiles, inclusive). */
-const TUNNEL = { x0: 27, y0: 66, x1: 32, y1: 117 };
+/** The tunnel up from the checkpoint, as far as level −1 goes (tiles, inclusive). */
+const TUNNEL = { x0: 27, y0: 66, x1: 32, y1: 106 };
 /** The five cages along the vivarium's south wall: left edge of each, and their rows. */
 const CAGES = [71, 77, 83, 89, 95];
 const CAGE_W = 5;
@@ -45,8 +38,8 @@ const CAGE_Y1 = 66;
  * poured round the very hall that lies under Victor's shed, the corridor
  * past sealed doors and the stairs up to level 0, the vivarium, and the
  * checkpoint with the guards' weapons locker. From the checkpoint a long
- * tunnel climbs to the surface, to the fenced yard in front of level 0,
- * where a marauder has made his camp. Level 0 itself is still shut.
+ * tunnel climbs towards the surface; near the top it goes over to the
+ * yard, a map of its own (`yard.ts`).
  */
 export function generateLab(): World {
   const R = mulberry32(7007);
@@ -86,19 +79,8 @@ export function generateLab(): World {
     o: Partial<Thing> = {},
   ) => things.push({ id, key: 'ln-lab', frame, ...P(x, y), label, says, ...o });
 
-  // Underground it is dark at any hour; on the surface, earth and ash, and level 0's roof.
-  for (let y = 0; y < LH; y++) {
-    for (let x = 0; x < LW; x++) {
-      if (y < SURFACE) indoors[I(x, y)] = 1;
-      else ground[I(x, y)] = TL.ASH;
-    }
-  }
-  for (let y = LEVEL0.y0; y <= LEVEL0.y1; y++) {
-    for (let x = LEVEL0.x0; x <= LEVEL0.x1; x++) {
-      ground[I(x, y)] = TL.ROOFTOP;
-      indoors[I(x, y)] = 1;
-    }
-  }
+  // Underground it is dark at any hour.
+  indoors.fill(1);
   /** Carves a room out of the ground: floor, and free to walk (tiles, inclusive). */
   const room = (x0: number, y0: number, x1: number, y1: number, floor: number) => {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, floor);
@@ -632,8 +614,8 @@ export function generateLab(): World {
   // --- The tunnel -------------------------------------------------------------------------
   // A long ramp for trucks, climbing from level −1 to the surface. Lamps
   // every so often, some dead; cables along the wall; a cart where its
-  // battery gave out; a slope of fallen earth. The last stretch is open
-  // to the sky, between retaining walls.
+  // battery gave out; a slope of fallen earth. At the top, grey daylight
+  // from the mouth: walk into it and you are out in the yard.
   const { x0: tx0, x1: tx1, y0: ty0, y1: ty1 } = TUNNEL;
   room(tx0, ty0, tx1, ty1, TL.CONCRETE);
   hwall(ty0, tx0, tx1, -1, [[29, 30]]);
@@ -642,7 +624,7 @@ export function generateLab(): World {
   patches.push({
     kind: 'asphalt',
     width: 5.2 * T,
-    pts: [P(30, SURFACE - 6), P(30.1, ty1 + 0.6)],
+    pts: [P(30, ty1 - 5), P(30.1, ty1 + 0.6)],
   });
   for (const [y, west, lit] of [
     [70, true, true],
@@ -655,7 +637,7 @@ export function generateLab(): World {
     obj('lampEmergency', west ? tx0 + 0.25 : tx1 + 0.75, y, { angle: west ? -90 : 90 });
     if (lit) light(west ? tx0 + 0.8 : tx1 + 0.2, y, 80, EMERGENCY, { flicker: 0.05 });
   }
-  for (let y = ty0 + 1.5; y < SURFACE - 1; y += 3.4)
+  for (let y = ty0 + 1.5; y < ty1; y += 3.4)
     decal('cable', tx1 + 0.55, y, { angle: 90 + tilt(6), depth: -44, alpha: 1 });
   for (const y of [72, 88, 104]) decal('arrows', 30, y, { angle: 90, alpha: 0.5 });
   obj('cart', 31.2, 80, { angle: 6 + tilt(4) });
@@ -671,157 +653,11 @@ export function generateLab(): World {
   decal('stain', 30.6, 82.6, { angle: R() * 360, alpha: 0.5 });
   for (let k = 0; k < 4; k++)
     decal(`papers${k % 3}`, 27.5 + R() * 4.5, 67 + R() * 36, { angle: R() * 360 });
-  // Where the roof ends and the sky begins.
-  decal('hazard', 28.5, SURFACE - 0.3, { depth: -49, alpha: 0.7 });
-  decal('hazard', 31, SURFACE - 0.3, { depth: -49, alpha: 0.7, angle: 180 });
-
-  // --- Level 0, from outside ---------------------------------------------------------------
-  // The front of the ground floor along the yard, its doors shut fast. Not
-  // a way in, yet.
-  const front = LEVEL0.y1 + 1;
-  walls.push({
-    kind: 'concrete',
-    x: LEVEL0.x0 * T - WALL,
-    y: LEVEL0.y0 * T,
-    w: WALL,
-    h: (front - LEVEL0.y0) * T,
-  });
-  walls.push({
-    kind: 'concrete',
-    x: LEVEL0.x0 * T - WALL,
-    y: front * T - WALL,
-    w: (YARD.x1 + 1 - LEVEL0.x0) * T + WALL,
-    h: WALL,
-  });
-  // The retaining wall either side of the tunnel's mouth.
-  walls.push({
-    kind: 'concrete',
-    x: YARD.x0 * T,
-    y: front * T - WALL,
-    w: (tx0 - YARD.x0) * T,
-    h: WALL,
-  });
-  walls.push({
-    kind: 'concrete',
-    x: (tx1 + 1) * T,
-    y: front * T - WALL,
-    w: (LEVEL0.x0 - tx1 - 1) * T - WALL,
-    h: WALL,
-  });
-  look('level0-door', 'sealedDoor', 76, front + 0.15, t().use.sealed, t().thoughts.entrance, {
-    angle: 180,
-  });
-  obj('floodlight', 80.4, front + 0.35);
-  for (const [x, a] of [
-    [72.6, 4],
-    [79.6, -7],
-  ] as const) {
-    obj('sandbags', x, front + 1.1, { angle: a });
-    solidAt(x, front + 1.1);
-  }
-  // On the roof: vents and units, here and there over the dark.
-  for (let k = 0; k < 18; k++) {
-    const x = LEVEL0.x0 + 1 + Math.floor(R() * (LEVEL0.x1 - LEVEL0.x0 - 2));
-    const y = LEVEL0.y0 + 1 + Math.floor(R() * (LEVEL0.y1 - LEVEL0.y0 - 2));
-    obj(R() < 0.6 ? 'vent' : 'roofUnit', x + 1, y + 1, {
-      angle: Math.floor(R() * 4) * 90 + tilt(3),
-    });
-  }
-
-  // --- The yard ------------------------------------------------------------------------------
-  // Cracked asphalt over dead ground, ash in drifts; two cars burnt out
-  // where they stood; a fallen barrier at the gate. One floodlight over
-  // the tunnel still works. The marauder keeps a fire going in a drum.
-  room(YARD.x0, YARD.y0, YARD.x1, YARD.y1, TL.ASH);
-  const yx0 = YARD.x0 * T;
-  const yx1 = (YARD.x1 + 1) * T;
-  const yy1 = (YARD.y1 + 1) * T;
-  walls.push({ kind: 'mesh', x: yx0, y: YARD.y0 * T - WALL, w: MESH, h: yy1 - YARD.y0 * T + WALL });
-  walls.push({
-    kind: 'mesh',
-    x: yx1 - MESH,
-    y: YARD.y0 * T - WALL,
-    w: MESH,
-    h: yy1 - YARD.y0 * T + WALL,
-  });
-  walls.push({ kind: 'mesh', x: yx0, y: yy1 - MESH, w: yx1 - yx0, h: MESH });
-  patches.push({
-    kind: 'asphalt',
-    width: 3.4 * T,
-    pts: [P(30.1, YARD.y0 - 0.4), P(30.4, 124), P(31.6, 128.6), P(60, 129.2), P(110.6, 128.8)],
-  });
-  patches.push({ kind: 'asphalt', width: 5 * T, pts: [P(45, 123.2), P(66, 123.4)] });
-  patches.push({ kind: 'asphalt', width: 4 * T, pts: [P(76, front + 0.4), P(76.4, 128.6)] });
-  obj('carBurnt', 51.2, 123.2, { angle: 7 });
-  for (let y = 122; y <= 123; y++) for (let x = 50; x <= 52; x++) solidAt(x, y);
-  obj('carBurnt', 58.4, 123.6, { angle: 184, scale: 0.97 });
-  for (let y = 123; y <= 124; y++) for (let x = 57; x <= 59; x++) solidAt(x, y);
-  obj('barrier', 108.4, 128.6, { angle: 68 });
-  obj('barrierPost', 109.6, 127.2);
-  solidAt(109, 127);
-  for (const [x, y, a] of [
-    [42.4, 128.2, -8],
-    [44.6, 127.1, 14],
-    [70.2, 125.6, 82],
-  ] as const) {
-    obj('sandbags', x, y, { angle: a });
-    solidAt(x, y);
-  }
-  // The marauder's fire, in an oil drum, and where he sleeps.
-  obj('fireBarrel', 66.5, 126.5);
-  solidAt(66.5, 126.5);
-  light(66.5, 126.2, 120, FIRE, { flicker: 0.2 });
-  decal('mattress', 68.8, 125.4, { angle: -12, depth: -46, alpha: 1 });
-  foes.push({ kind: 'marauder', ...P(67.5, 128.5) });
-  objects.push({ frame: 'crate', ...P(64.6, 125.2), angle: 12 });
-  solidAt(64.6, 125.2);
-  // The floodlight over the tunnel, and the dead lamps along the road.
-  obj('floodlight', 34.6, front + 0.35);
-  light(31.5, front + 2.5, 210, 0xfff2d0, { flicker: 0.02 });
-  for (const x of [48, 72, 90, 104]) {
-    obj('lampPost', x, 131.6);
-    solidAt(x, 131.6);
-  }
-  // Dead trees, ash, rubbish.
-  for (const [x, y] of [
-    [20.5, 121.5],
-    [24.5, 135.5],
-    [47.5, 136.5],
-    [86.5, 121.5],
-    [93.5, 136.5],
-    [98.5, 124.5],
-    [21.5, 129.5],
-    [76.5, 135.5],
-    [60.5, 141.5],
-    [104.5, 142.5],
-    [36.5, 143.5],
-  ] as const) {
-    objects.push({
-      frame: 'dead',
-      ...P(x, y),
-      angle: R() * 360,
-      scale: 0.9 + R() * 0.35,
-      depth: y * T + 14,
-    });
-    solidAt(x, y);
-  }
-  for (let k = 0; k < 110; k++) {
-    const x = YARD.x0 + 0.5 + R() * (YARD.x1 - YARD.x0);
-    const y = YARD.y0 + 1 + R() * (YARD.y1 - YARD.y0 - 1);
-    const v = R();
-    if (v < 0.45) decals.push({ frame: 'tuft', ...P(x, y), angle: R() * 360, alpha: 0.6 });
-    else if (v < 0.75) decal('ash', x, y, { angle: R() * 360, alpha: 0.7 });
-    else if (v < 0.9) decals.push({ frame: 'debris', ...P(x, y), angle: R() * 360 });
-    else decal('puddle', x, y, { angle: R() * 360, alpha: 0.6 });
-  }
-  for (const [x, y] of [
-    [38, 123],
-    [55, 130.4],
-    [80, 129.4],
-    [95, 138],
-  ] as const) {
-    decal('crack', x, y, { angle: R() * 360, alpha: 0.8, depth: -90 });
-  }
+  // The daylight at the top of the ramp, where it goes over to the yard.
+  const ramp = labRamp();
+  light(ramp.x / T, ramp.y / T + 0.4, 150, DAYLIGHT, { slow: true, flicker: 0.12 });
+  decal('hazard', 28.5, ty1 + 0.2, { depth: -49, alpha: 0.6 });
+  decal('hazard', 31, ty1 + 0.2, { depth: -49, alpha: 0.6, angle: 180 });
 
   wallTiles(walls, (x, y) => (block[I(x, y)] = 1));
   // The doorways stay open; the shut door is the scene's to block.
@@ -847,7 +683,6 @@ export function generateLab(): World {
   ] as const) {
     block[I(x, y)] = 0;
   }
-  for (let x = tx0; x <= tx1; x++) block[I(x, ty1)] = 0;
 
   return {
     realm: 'lower',
@@ -869,6 +704,14 @@ export function generateLab(): World {
         exit: cellarMirror(),
         label: t().use.mirror,
         fade: 'glint',
+      },
+      {
+        ...ramp,
+        to: 'yard',
+        exit: yardRampExit(),
+        label: t().use.rampUp,
+        fade: 'dark',
+        step: RAMP_BAND,
       },
     ],
     walls,

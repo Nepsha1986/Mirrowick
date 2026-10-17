@@ -6,6 +6,7 @@ import { generateCellar } from './cellar';
 import { ITEMS } from './items';
 import { PAPERS, paper } from './papers';
 import { generateLab } from './lab';
+import { generateYard } from './yard';
 import { upperHatch } from './ways';
 import type { Portal, Thing, World } from './world';
 
@@ -42,7 +43,7 @@ describe('the Facility', () => {
     expect(reach(nav(false), lab.spawn, door)).toBeLessThan(1.4 * T);
   });
 
-  it('leads, once the door is open, past the vivarium and the checkpoint out to the yard', () => {
+  it('leads, once the door is open, past the vivarium and the checkpoint up the ramp', () => {
     const open = nav(true);
     for (const id of [
       'gun-locker',
@@ -53,13 +54,23 @@ describe('the Facility', () => {
       'sealed-27',
       'shutter',
       'lift',
-      'level0-door',
     ]) {
       expect(reach(open, lab.spawn, thing(id)), id).toBeLessThan(1.4 * T);
     }
-    const marauder = lab.foes?.find((f) => f.kind === 'marauder') as Pt;
-    expect(reach(open, lab.spawn, marauder)).toBeLessThan(T);
-    expect(lab.indoors?.[Math.floor(marauder.y / T) * lab.w + Math.floor(marauder.x / T)]).toBe(0);
+    const ramp = lab.portals.find((p) => p.to === 'yard') as Portal;
+    expect(reach(open, lab.spawn, ramp)).toBeLessThan(T);
+  });
+
+  it('comes up the ramp into the yard, to level 0’s door and the marauder out in the open', () => {
+    const yard = generateYard();
+    const open = new Nav(yard.block, yard.w, yard.h, yard.walls);
+    const door = yard.things.find((t) => t.id === 'level0-door') as Thing;
+    expect(reach(open, yard.spawn, door)).toBeLessThan(1.4 * T);
+    const marauder = yard.foes?.find((f) => f.kind === 'marauder') as Pt;
+    expect(reach(open, yard.spawn, marauder)).toBeLessThan(T);
+    expect(yard.indoors?.[Math.floor(marauder.y / T) * yard.w + Math.floor(marauder.x / T)]).toBe(
+      0,
+    );
   });
 
   it('has the cellar’s hall in Chamber 7, stone for stone, looking-glass wise', () => {
@@ -90,7 +101,12 @@ describe('the Facility', () => {
 });
 
 describe('the worlds and the ways between them', () => {
-  const worlds = { lower: generateLab(), upper: generateUpperWorld(), cellar: generateCellar() };
+  const worlds = {
+    lower: generateLab(),
+    yard: generateYard(),
+    upper: generateUpperWorld(),
+    cellar: generateCellar(),
+  };
   const all = Object.values(worlds);
   const nav = (w: World) => new Nav(w.block, w.w, w.h, w.walls);
 
@@ -137,6 +153,15 @@ describe('the worlds and the ways between them', () => {
         const back = other.portals.find((q) => q.to === w.realm) as Portal;
         expect(back, where).toBeDefined();
         expect(Math.hypot(back.x - p.exit.x, back.y - p.exit.y), where).toBeLessThan(T);
+        // A way you walk onto doesn't take you straight back.
+        const s = back.step;
+        if (s) {
+          const off = Math.max(
+            Math.abs(p.exit.x - back.x) - s.w / 2,
+            Math.abs(p.exit.y - back.y) - s.h / 2,
+          );
+          expect(off, where).toBeGreaterThan(10);
+        }
       }
     }
   });
@@ -189,7 +214,7 @@ describe('things', () => {
   });
 
   it('give everything you can read something to read', () => {
-    for (const w of [upper, generateCellar(), generateLab()]) {
+    for (const w of [upper, generateCellar(), generateLab(), generateYard()]) {
       for (const t of w.things) if (t.read) expect(paper(t.read), t.id).not.toBeNull();
     }
     expect(PAPERS['bookshop-letter']).toBeDefined();

@@ -9,6 +9,7 @@ import { Nav } from '../lantern/nav';
 import { generateUpperWorld } from '../lantern/upper';
 import { writeSave } from '../lantern/save';
 import { generateLab } from '../lantern/lab';
+import { generateYard } from '../lantern/yard';
 import type { Lock, Portal, Realm, Thing, World } from '../lantern/world';
 import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
@@ -73,6 +74,7 @@ const DUSK: [number, number, number] = [13, 10, 8];
 /** What each world is called in the HUD, and its backdrop colour. */
 const PLACES: Record<Realm, { bg: string }> = {
   lower: { bg: '#0d0a08' },
+  yard: { bg: '#0d0a08' },
   upper: { bg: '#2c3a1e' },
   cellar: { bg: '#060507' },
 };
@@ -237,7 +239,9 @@ export class LanternScene extends Phaser.Scene {
         ? generateUpperWorld()
         : this.realm === 'cellar'
           ? generateCellar()
-          : generateLab();
+          : this.realm === 'yard'
+            ? generateYard()
+            : generateLab();
     this.nav = new Nav(this.world.block, this.world.w, this.world.h, this.world.walls);
     this.chunks.clear();
     this.visible.clear();
@@ -659,6 +663,7 @@ export class LanternScene extends Phaser.Scene {
     if (prev < 6 && this.hour() >= 6) this.day++;
 
     this.moveHero(dt);
+    this.checkSteps();
     this.combat?.update(dt);
     this.tracks?.update(dt);
     this.checkLight();
@@ -1118,6 +1123,17 @@ export class LanternScene extends Phaser.Scene {
         g.img
           .setAlpha(0.35 + 0.45 * Math.max(0, Math.sin(sec * 2.4)))
           .setScale(0.6 + 0.25 * Math.sin(sec * 1.2));
+    }
+  }
+
+  /** Walked onto a way you go through by stepping on it: through. */
+  private checkSteps(): void {
+    if (this.demo || this.leaving) return;
+    const h = this.hero;
+    for (const p of this.world.portals) {
+      const s = p.step;
+      if (s && Math.abs(h.x - p.x) < s.w / 2 && Math.abs(h.y - p.y) < s.h / 2)
+        return this.tryWay(p);
     }
   }
 
