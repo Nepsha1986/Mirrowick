@@ -213,7 +213,7 @@ function paintMeadow(c: Ctx, patch: GroundPatch, r: () => number): void {
   }
 }
 
-interface Box {
+export interface Box {
   x: number;
   y: number;
   w: number;
@@ -237,6 +237,30 @@ function bounds(boxes: Box[], margin: number): Box {
   const x = Math.floor(x0 - margin);
   const y = Math.floor(y0 - margin);
   return { x, y, w: Math.ceil(x1 + margin) - x, h: Math.ceil(y1 + margin) - y };
+}
+
+/** A texture painted bigger than this square would eat memory; then it goes in lots this big. */
+const LOT = 2048;
+const CELL = 512;
+
+/**
+ * Splits what is painted onto one texture into lots, by where the middle
+ * of each falls, when it would all cover too wide a box: a big map gets
+ * several textures, each only as big as its own things.
+ */
+export function inLots<I>(items: I[], boxOf: (items: I[]) => Box): I[][] {
+  if (!items.length) return [];
+  const all = boxOf(items);
+  if (all.w * all.h <= LOT * LOT) return [items];
+  const lots = new Map<string, I[]>();
+  for (const item of items) {
+    const b = boxOf([item]);
+    const k = `${Math.floor((b.x + b.w / 2) / CELL)},${Math.floor((b.y + b.h / 2) / CELL)}`;
+    let lot = lots.get(k);
+    if (!lot) lots.set(k, (lot = []));
+    lot.push(item);
+  }
+  return [...lots.values()];
 }
 
 /** Where a texture painted by `paintGround` goes. */

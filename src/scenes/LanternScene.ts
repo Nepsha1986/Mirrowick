@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { music } from '../audio/AmbientMusic';
 import { fill, t } from '../i18n';
 import { createLanternTextures } from '../lantern/art';
-import { groundBox, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
+import { groundBox, inLots, paintGround, paintWalls, wallsBox } from '../lantern/ground-art';
 import { generateCellar } from '../lantern/cellar';
 import { ROOF_PAD, paintRoofs, roofKey } from '../lantern/house-art';
 import { Nav } from '../lantern/nav';
@@ -367,18 +367,18 @@ export class LanternScene extends Phaser.Scene {
     // Roads, paths and floors painted over the ground; thin walls and
     // fences on top. Each texture covers only the area it needs.
     const { patches, walls } = this.world;
-    if (patches.length) {
-      const key = `ln-ground-${this.realm}`;
-      const box = groundBox(patches);
-      paintGround(this, key, patches);
+    inLots(patches, groundBox).forEach((lot, i) => {
+      const key = `ln-ground-${this.realm}-${i}`;
+      const box = groundBox(lot);
+      paintGround(this, key, lot);
       this.add.image(box.x, box.y, key).setOrigin(0).setDepth(-97);
-    }
-    if (walls.length) {
-      const key = `ln-walls-${this.realm}`;
-      const box = wallsBox(walls);
-      paintWalls(this, key, walls);
+    });
+    inLots(walls, wallsBox).forEach((lot, i) => {
+      const key = `ln-walls-${this.realm}-${i}`;
+      const box = wallsBox(lot);
+      paintWalls(this, key, lot);
       this.add.image(box.x, box.y, key).setOrigin(0).setDepth(-30);
-    }
+    });
   }
 
   /** Registers an image in its chunk; only chunks near the camera are shown. */
@@ -399,6 +399,7 @@ export class LanternScene extends Phaser.Scene {
           .setAngle(d.angle ?? 0)
           .setDepth(d.depth ?? -50)
           .setScale(d.scale ?? 1)
+          .setFlipX(!!d.flipX)
           .setAlpha(d.alpha ?? 0.85),
       );
     }
@@ -407,7 +408,8 @@ export class LanternScene extends Phaser.Scene {
         .image(o.x, o.y, o.key ?? 'ln-atlas', o.frame)
         .setDepth(o.depth ?? o.y + 4)
         .setAngle(o.angle ?? 0)
-        .setScale(o.scale ?? 1);
+        .setScale(o.scale ?? 1)
+        .setFlipX(!!o.flipX);
       this.chunked(img);
     }
     for (const o of this.world.crowns ?? []) {

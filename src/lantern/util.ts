@@ -7,13 +7,14 @@ export const DAY_LEN = 360;
 
 /**
  * The Lower World: the Facility, a vast complex built round the mirror,
- * on a map this many tiles across. Only a few rooms of it are built yet.
+ * on a map this many tiles across. Level −1 is underground; a long tunnel
+ * leads up from it to the yard, in front of level 0.
  */
-export const LW = 120;
-export const LH = 120;
-/** Chamber 7, where the mirror stands, and the mirror in it (tiles). */
-export const CHAMBER = { x0: 50, y0: 56, w: 16, h: 13 };
-export const LAB_MIRROR = { x: 58, y: 61 };
+export const LW = 126;
+export const LH = 150;
+/** Chamber 7, built round the mirror's hall, and the mirror in it (tiles). */
+export const CHAMBER = { x0: 38, y0: 12, w: 40, h: 29 };
+export const LAB_MIRROR = { x: 57.5, y: 26 };
 /** The Upper World map, in tiles. */
 export const UW = 60;
 export const UH = 44;
@@ -45,6 +46,8 @@ export const TL = {
   GRATE: 12,
   ASH: 13,
   ROOFTOP: 14,
+  /** Packed earth and stones: what level −1 is dug into. */
+  EARTH: 15,
 } as const;
 
 /** Slots in the ground sheet. */

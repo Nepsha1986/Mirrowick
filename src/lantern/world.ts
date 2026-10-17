@@ -18,6 +18,8 @@ export interface WorldObject extends Pt {
   angle?: number;
   scale?: number;
   alpha?: number;
+  /** Drawn as in a looking-glass. */
+  flipX?: boolean;
 }
 
 /**

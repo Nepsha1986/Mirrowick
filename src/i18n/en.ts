@@ -69,11 +69,13 @@ export const en = {
   /** The first time through the mirror: somewhere else entirely. */
   arrival: {
     through: 'Cold light, and the floor falls away.',
-    floor: 'He lands hard, on concrete. Flat, smooth, cold.',
-    cold: "That's not stone. That's…",
+    floor: 'He lands hard, on stone flags. Chalk under his hands.',
+    cold: 'The circle. The candles. It didn’t work?',
     hum: 'Somewhere close, a machine hums. Low and patient, as if it never stopped.',
+    wrong: 'Only the stairs are on the wrong side. Everything is, as in a mirror.',
     notCellar: "This isn't the cellar.",
-    lamp: 'A red lamp turns on the wall. Round and round, without a sound.',
+    lamp: 'Past the old stones, a red lamp turns on a concrete wall. Round and round, without a sound.',
+    built: 'Someone poured concrete all round the old hall. As if to keep it in.',
     drip: 'Water drips. The air smells of dust and hot wiring.',
     hello: 'Hello? Is anybody here?',
     nobody: 'The echo comes back thin, from far off. Nobody answers.',
@@ -148,6 +150,11 @@ export const en = {
     sealed: 'Try the door',
     plaque: 'Read the plaque',
     gunLocker: 'Look in the weapons locker',
+    lectern: 'Look at the lectern',
+    oldStairs: 'Look at the stairs',
+    shutter: 'Try the shutter',
+    lift: 'Call the lift',
+    chart: 'Read the feeding chart',
   },
   /** Drawers and pockets: where you look, and the junk in them. */
   hoard: {
@@ -231,10 +238,20 @@ export const en = {
     screen:
       "Lines scroll up the screen: STATUS: APERTURE OPEN. PERSONNEL ON SITE: 0. It doesn't care that nobody's reading.",
     sealed: 'Sealed. The light by the handle glows red.',
+    lectern:
+      "The same lectern as in Victor's cellar. The book's gone. Just a tag where it lay: 7-114, REMOVED FOR STUDY.",
+    oldStairs:
+      'The same stairs as at Victor’s. Here they climb into a wall of poured concrete. Someone made very sure nothing came down them.',
+    shutter: "Stairs up to level 0. The shutter's down, and it won't budge.",
+    lift: 'A freight lift. The button stays dark however hard I press it.',
+    chart:
+      'A feeding chart. V-1 and V-2 are crossed out: MOVED TO LEVEL 0, 14.10. Against V-5, in red: DOUBLE.',
+    entrance:
+      "The main doors to level 0. Shut fast, and something heavy's piled against them on the inside.",
     /** The plaques on the five cages in the vivarium. */
     plaques: [
-      'V-1. A wolf, more or less. Do not feed by hand.',
-      'V-2. Boar. Charges the bars at the sight of a uniform. Feed through the hatch.',
+      'V-1. A wolf, more or less. Do not feed by hand. The cage is empty, and still locked.',
+      'V-2. Boar. Charges the bars at the sight of a uniform. Empty too, the lock untouched.',
       'V-3. Glass crawler. Bullets glance off it. Do not tap on the bars.',
       'V-4. Shade. No lamp: it hates the light. Do not stand close.',
       'V-5. Nobody wrote down what it was. The cage is empty, the bars bent outward.',

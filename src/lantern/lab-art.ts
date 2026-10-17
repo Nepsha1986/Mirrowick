@@ -71,6 +71,15 @@ export function paintLabTiles(at: At, r: () => number): void {
       p.line(x, y, x + (r() - 0.5) * 4, y - 3 - r() * 3, '#6e6650', 1);
     }
   });
+  // Underground: packed earth, stones in it, a root that came a long way down.
+  at(TL.EARTH, (p) => {
+    speck(p, '#2b2520', ['#332c26', '#241f1b', '#3a332b', '#2f2924'], 80, 2);
+    for (let k = 0; k < 2; k++) p.ell(r() * T, r() * T, 2 + r() * 3, 1.5 + r() * 2, '#4a443c', 0.6);
+    if (r() < 0.2) {
+      const x = r() * T;
+      p.line(x, 0, x + (r() - 0.5) * 10, T, 'rgba(70,52,36,.6)', 1);
+    }
+  });
   // The flat roof: tar and gravel, darker where water stands.
   at(TL.ROOFTOP, (p) => {
     speck(p, '#2a2b2c', ['#323334', '#252627', '#38393a', '#2e2f30'], 110, 1);
@@ -520,6 +529,94 @@ export function paintLabAtlas(scene: Phaser.Scene): void {
   add('extinguisher', 14, 22, (p) => {
     p.ell(7, 12, 5, 8, RED, 1);
     p.rect(4, 2, 6, 4, '#202224', 0.6);
+  });
+
+  // --- Round the circle ---
+  // A numbered marker, as left by whoever went over the hall inch by inch.
+  add('tag', 14, 12, (p) => {
+    p.poly(
+      [
+        [1, 11],
+        [7, 1],
+        [13, 11],
+      ],
+      YELLOW,
+      0.8,
+    );
+    p.line(5, 8, 9, 8, '#1a1a18', 1.2);
+  });
+  // A work light on a tripod: the legs, the head, a cable off to somewhere.
+  const worklight = (down: boolean) => (p: Painter) => {
+    if (!down) {
+      for (const a of [0.5, 2.6, 4.7])
+        p.line(18, 18, 18 + Math.cos(a) * 14, 18 + Math.sin(a) * 14, STEEL_DARK, 1.6);
+    } else {
+      for (const k of [-3, 0, 3]) p.line(6, 18 + k, 28, 18 + k * 0.4, STEEL_DARK, 1.6);
+    }
+    p.rect(12, 12, 13, 12, '#2a2c2e', 1);
+    p.rect(14, 14, 9, 8, down ? '#5a5c58' : '#fff6dc');
+    p.line(18, 24, 22, 34, INK, 1.4);
+  };
+  add('worklight', 36, 36, worklight(false));
+  add('worklightDown', 36, 36, worklight(true));
+  // Concrete stairs going up north, to level 0: worn nosings, a rail.
+  add('flight', 132, 132, (p) => {
+    p.rect(0, 0, 132, 132, '#1c1d1c');
+    for (let k = 0; k < 8; k++) {
+      const v = 70 + k * 9;
+      const y = 132 - (k + 1) * 16;
+      p.rect(4, y, 124, 17, `rgb(${v},${v + 1},${v - 2})`);
+      p.rect(4, y, 124, 2, 'rgba(216,169,46,.45)');
+      p.rect(4, y + 15, 124, 2, 'rgba(0,0,0,.4)');
+      if (ar() < 0.6) p.rect(10 + ar() * 100, y + 4 + ar() * 8, 6, 2, 'rgba(0,0,0,.3)');
+    }
+    p.rect(0, 0, 4, 132, STEEL_DARK);
+    p.rect(128, 0, 4, 132, STEEL_DARK);
+  });
+  // A steel roller shutter, down: slats, a dent, a padlocked bar.
+  add('shutter', 136, 20, (p) => {
+    p.rect(2, 3, 132, 14, '#5d6266', 1.2);
+    for (let x = 6; x < 132; x += 6) p.line(x, 4, x, 16, 'rgba(20,22,24,.45)', 1);
+    p.ell(80, 10, 9, 4, 'rgba(10,10,12,.35)');
+    p.rect(60, 14, 16, 4, YELLOW, 0.8);
+    wear(2, 3, 132, 14, 30);
+  });
+  // A freight lift's doors, shut, and its button panel, dark.
+  add('liftDoor', 76, 22, (p) => {
+    p.rect(1, 2, 74, 16, '#2a2d30', 1.2);
+    p.rect(4, 4, 33, 12, '#7a7f82', 1);
+    p.rect(39, 4, 33, 12, '#73787b', 1);
+    p.line(38, 4, 38, 16, INK, 1.2);
+    stripes(4, 13, 68, 3, 0.6);
+    wear(4, 4, 68, 12, 20);
+    p.rect(66, 17, 8, 5, '#1d2022', 0.8);
+  });
+  // A painted level number on the floor: −1, chipped.
+  add('stencilLevel', 64, 40, () => {
+    c.font = 'bold 32px sans-serif';
+    c.fillStyle = 'rgba(216,169,46,.6)';
+    c.fillText('−1', 6, 33);
+    for (let k = 0; k < 22; k++) {
+      c.fillStyle = 'rgba(92,94,91,.9)';
+      c.fillRect(6 + ar() * 50, 8 + ar() * 26, 2 + ar() * 3, 1.5);
+    }
+  });
+  // An electric utility cart, stopped where its battery died.
+  add('cart', 44, 72, (p) => {
+    shadow(p, 23, 38, 20, 32);
+    p.rect(4, 6, 36, 60, '#a8a49a', 1.4);
+    p.rect(7, 8, 30, 14, '#3a4a5a', 1);
+    p.rect(7, 26, 30, 4, '#7c786f');
+    p.rect(7, 34, 30, 28, '#5a5f63', 1);
+    p.rect(10, 38, 12, 9, '#6a5a3a', 0.8);
+    for (const [x, y] of [
+      [2, 12],
+      [38, 12],
+      [2, 54],
+      [38, 54],
+    ] as const)
+      p.rect(x, y, 4, 9, '#1a1b1c');
+    wear(4, 6, 36, 60, 30);
   });
 
   // --- The vivarium ---
