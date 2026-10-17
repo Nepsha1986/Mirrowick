@@ -300,14 +300,14 @@ button:focus-visible {
   display: none;
 }
 
-/* What the hero thinks or sees: a line above the action prompt. */
+/* What the hero thinks or sees: a line over him, or over the thing it is about. */
 .thought {
   position: absolute;
   left: 50%;
   bottom: 70px;
   transform: translateX(-50%);
   width: max-content;
-  max-width: min(520px, calc(100% - 32px));
+  max-width: min(420px, calc(100% - 32px));
   padding: 8px 16px;
   border-radius: 12px;
   background: rgba(20, 14, 10, 0.72);
@@ -319,6 +319,23 @@ button:focus-visible {
 
 .thought[hidden] {
   display: none;
+}
+
+/* Hung over a point in the world: the HUD moves it there every frame. */
+.pinned {
+  left: 0;
+  top: 0;
+  bottom: auto;
+  will-change: transform;
+}
+
+.action-pill.pinned {
+  padding: 7px 14px;
+  font-size: 12px;
+}
+
+.thought.pinned {
+  font-size: 14px;
 }
 
 /* How to play: a strip at the top for the first seconds of a new game. */
@@ -543,6 +560,13 @@ nav[hidden] {
   backdrop-filter: blur(6px);
   user-select: text;
   animation: fade-in 0.2s ease both;
+}
+
+/* By the thing it belongs to: the HUD moves it there. */
+.dialog.pinned {
+  left: 0;
+  top: 0;
+  width: min(340px, calc(100% - 32px));
 }
 
 .dialog[hidden] {
@@ -1050,4 +1074,10 @@ nav[hidden] {
 
 .bag-items li.bag-read:hover b {
   text-decoration: underline;
+}
+
+/* Done with: it fades, and he leaves it behind when he goes. */
+.bag-items li.bag-spent {
+  opacity: 0.5;
+  filter: grayscale(0.7);
 }

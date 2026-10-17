@@ -122,8 +122,11 @@ export interface Portal extends Pt {
   label: string;
   /** A flash of the Mirror's light, or a plain fade (stairs). */
   fade: 'glint' | 'dark';
-  /** Locked until you carry the key; trying it teaches the hero the fact. */
-  lock?: { key: string; fact: Fact; says: string };
+  /**
+   * Locked: trying it teaches the hero `fact`; with the key he unlocks it
+   * (the prompt `unlock`) and learns `open`, and it stays open from then on.
+   */
+  lock?: { key: string; fact: Fact; says: string; open: Fact; unlock: string };
 }
 
 /** Windmill sails that turn above a building's roof. */

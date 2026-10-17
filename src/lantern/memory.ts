@@ -75,9 +75,17 @@ export class Memory {
     return recall ?? t().thoughts.facts[fact];
   }
 
-  /** Whether something the fact calls for is still out of his pockets. */
+  /** Whether he is done with a thing: what it was for is behind him. */
+  spent(id: string): boolean {
+    const done = ITEMS[id]?.spent;
+    return !!done && this.known.has(done);
+  }
+
+  /** Whether something the fact calls for, and is still of use, is out of his pockets. */
   lacks(fact: Fact, carried: ReadonlySet<string>): boolean {
-    return Object.entries(ITEMS).some(([id, it]) => it.needs === fact && !carried.has(id));
+    return Object.entries(ITEMS).some(
+      ([id, it]) => it.needs === fact && !carried.has(id) && !this.spent(id),
+    );
   }
 
   /**
@@ -86,7 +94,7 @@ export class Memory {
    */
   worthLooking(hoard: Hoard, carried: ReadonlySet<string>): boolean {
     return hoard.items.some((id) => {
-      if (carried.has(id)) return false;
+      if (carried.has(id) || this.spent(id)) return false;
       const need = ITEMS[id]?.needs;
       return !this.known.has(seen(id)) || !need || this.known.has(need);
     });
@@ -97,7 +105,7 @@ export class Memory {
     const take: string[] = [];
     const left: string[] = [];
     for (const id of hoard.items) {
-      if (carried.has(id)) continue;
+      if (carried.has(id) || this.spent(id)) continue;
       const need = ITEMS[id]?.needs;
       if (!need || this.known.has(need)) take.push(id);
       else {
