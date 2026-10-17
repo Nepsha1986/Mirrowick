@@ -79,11 +79,15 @@ a merge commit or rebase.
   it that way.
 - `src/lantern/nav.ts`: circle collision, A* and path smoothing over the tile
   grid. Pass the map size: `new Nav(block, w, h)`.
+- `src/lantern/items.ts`, `memory.ts`: what the hero can carry, and his
+  memory: he leaves things until he learns he needs them (`Thing.hoard`,
+  `Portal.lock`).
 - `src/lantern/util.ts`: tile size (`T = 32`), map sizes, tile ids (`TL`),
   landmark positions, seeded PRNG and noise.
 - `src/audio/AmbientMusic.ts`: procedural Web Audio score, with
   `setMood('lower' | 'upper')`.
-- `src/ui/`: DOM overlay (menu, HUD with an action prompt).
+- `src/ui/`: DOM overlay (menu, the intro call, HUD with an action prompt and
+  the hero's thoughts).
 
 **Painting: nothing perfectly even.** Whenever you make an object, give it
 small, logical imperfections so it looks real and lived-in rather than

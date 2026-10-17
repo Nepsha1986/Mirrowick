@@ -10,6 +10,8 @@ import { writeSave } from '../lantern/save';
 import { generateWorld, type Portal, type Realm, type World } from '../lantern/world';
 import { DAY_LEN, T, TL, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { HERO_HP, HERO_SKILLS, PISTOL, SPARE_ROUNDS, type Ammo } from '../lantern/combat';
+import { ITEMS, type Fact } from '../lantern/items';
+import { Memory, type Hoard } from '../lantern/memory';
 import { Inventory, type BagItem } from '../ui/Inventory';
 import { LanternHud } from '../ui/LanternHud';
 import { Combat } from './Combat';
@@ -62,25 +64,13 @@ export interface LanternData {
   things?: string[];
   /** What you carry. */
   items?: string[];
+  /** What the hero knows and has seen. */
+  known?: string[];
   /** Rounds in the pistol and spare. */
   ammo?: [number, number];
   /** How you arrived: through a mirror, or down or up the stairs. */
   via?: Portal['fade'];
 }
-
-/** What the things you can carry are, and their pictures in the atlases. */
-const ITEMS: Record<string, { name: string; about: string; icon: [string, string] }> = {
-  flashlight: {
-    name: 'Flashlight',
-    about: 'A steady beam ahead of you.',
-    icon: ['ln-up', 'flashlight'],
-  },
-  pistol: {
-    name: 'Pistol',
-    about: 'A worn service pistol. It jams now and then.',
-    icon: ['ln-foes', 'pistol'],
-  },
-};
 
 const chunkOf = (p: Pt) => `${Math.floor(p.x / CHUNK)},${Math.floor(p.y / CHUNK)}`;
 
@@ -140,8 +130,6 @@ export class LanternScene extends Phaser.Scene {
   private glows: Phaser.GameObjects.Image[] = [];
   /** Mirrors and things you can use. */
   private targets: Target[] = [];
-  /** Something you clicked: used as soon as you reach it. */
-  private heading: Target | null = null;
   /** What is in reach and haloed: only ever one, however many things there are. */
   private halo: Target | null = null;
   private haloGlow?: Phaser.Filters.Glow;
@@ -159,6 +147,8 @@ export class LanternScene extends Phaser.Scene {
   private thingsOn = new Set<string>();
   /** What you carry: the flashlight, once you've found it. */
   private items = new Set<string>();
+  /** What the hero knows, and what he saw and left. */
+  private memory = new Memory();
   /** The pistol's rounds, carried between the worlds. */
   private ammo: Ammo = { mag: PISTOL.mag, spare: SPARE_ROUNDS };
   private bag?: Inventory;
@@ -211,13 +201,13 @@ export class LanternScene extends Phaser.Scene {
     this.walkers = [];
     this.combat = undefined;
     this.keys = {};
-    this.heading = null;
     this.halo = null;
     this.haloGlow = undefined;
     this.using = null;
     this.thingsOn = new Set(this.start.things ?? []);
     // The menu's backdrop wanders with a light; a new game starts empty-handed.
     this.items = new Set(this.start.items ?? (this.demo ? ['flashlight'] : []));
+    this.memory = new Memory(this.start.known);
     const [mag, spare] = this.start.ammo ?? [PISTOL.mag, SPARE_ROUNDS];
     this.ammo = { mag, spare };
     this.leaving = false;
@@ -637,11 +627,10 @@ export class LanternScene extends Phaser.Scene {
     if (foe) {
       this.combat?.attack(foe);
       this.hero.path = [];
-      this.heading = null;
       return;
     }
+    // Clicking a thing only walks you to it: you use it with E.
     this.combat?.release();
-    this.heading = this.targets.find((p) => Math.hypot(p.x - wp.x, p.y - wp.y) < 36) ?? null;
     this.hero.path = this.nav.route(this.hero, wp, HERO_R);
     const end = this.hero.path[this.hero.path.length - 1] ?? wp;
     this.markerAt = { x: end.x, y: end.y, t: 0.6 };
@@ -660,6 +649,9 @@ export class LanternScene extends Phaser.Scene {
     this.combat?.update(dt);
     this.tracks?.update(dt);
     this.checkTargets();
+    // The first night, or the dark below, tells the hero he needs a light.
+    if (!this.demo && !this.memory.knows('dark') && (this.realm === 'cellar' || this.night() > 0.6))
+      this.learn('dark');
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE) this.save();
     this.updateTownLife(dt);
@@ -677,15 +669,19 @@ export class LanternScene extends Phaser.Scene {
     this.targets = this.world.portals.map((p) => ({
       ...p,
       label: () => p.label,
-      use: () => this.travel(p),
+      use: () => this.tryWay(p),
     }));
     for (const t of this.world.things) {
       if (t.take && this.items.has(t.id)) continue;
       // How it looks and what it says now: switched on, or as it is.
       const now = () => (t.on && this.thingsOn.has(t.id) ? t.on : t);
       const img = this.chunked(
-        this.add.image(t.x, t.y, t.key, now().frame).setDepth(t.depth ?? t.y + 4),
+        this.add
+          .image(t.x, t.y, t.key, now().frame)
+          .setDepth(t.depth ?? t.y + 4)
+          .setScale(t.scale ?? 1),
       );
+      const hoard = t.hoard;
       this.targets.push({
         x: t.x,
         y: t.y,
@@ -696,7 +692,9 @@ export class LanternScene extends Phaser.Scene {
             ? this.toggle(t.id, () => img.setFrame(now().frame))
             : t.take
               ? this.take(t.id, img)
-              : this.useThing(t.id),
+              : hoard
+                ? this.look(hoard)
+                : this.useThing(t.id),
       });
     }
     this.haloPool = this.add
@@ -724,6 +722,30 @@ export class LanternScene extends Phaser.Scene {
     img.destroy();
     this.heroImg.setFrame(this.heroFrame());
     this.save();
+  }
+
+  /** Through a drawer: takes what seems worth it, and says what else is there. */
+  private look(hoard: Hoard): void {
+    const { take, says } = this.memory.search(hoard, this.items);
+    for (const id of take) this.items.add(id);
+    this.hud?.think(says);
+    this.heroImg.setFrame(this.heroFrame());
+    this.save();
+  }
+
+  /** Learns something; the first time, the hero thinks about it. */
+  private learn(fact: Fact): void {
+    const thought = this.memory.learn(fact, this.items);
+    if (thought) this.hud?.think(thought);
+    this.save();
+  }
+
+  /** Through, unless it is locked and you have no key. */
+  private tryWay(p: Portal): void {
+    const lock = p.lock;
+    if (!lock || this.items.has(lock.key)) return this.travel(p);
+    if (!this.memory.knows(lock.fact)) this.learn(lock.fact);
+    else this.hud?.think(lock.says);
   }
 
   /** Under a roof or on a floor, where feet leave no prints. */
@@ -811,10 +833,6 @@ export class LanternScene extends Phaser.Scene {
     if (this.haloGlow) this.haloGlow.outerStrength = 4 + pulse * 1.5;
     this.haloPool.setAlpha(0.45 + pulse * 0.15);
     this.hud?.prompt(near ? `E · ${near.label()}` : null);
-    if (near && this.heading === near) {
-      this.heading = null;
-      near.use();
-    }
   }
 
   /** Remembers where you are; the menu's Continue picks up from here. */
@@ -829,6 +847,7 @@ export class LanternScene extends Phaser.Scene {
       day: this.day,
       things: [...this.thingsOn],
       items: [...this.items],
+      known: this.memory.list,
       ammo: [this.ammo.mag, this.ammo.spare],
     });
   }
@@ -839,7 +858,6 @@ export class LanternScene extends Phaser.Scene {
   private travel(p: Portal): void {
     if (this.leaving) return;
     this.leaving = true;
-    this.heading = null;
     this.hero.path = [];
     this.setHalo(null);
     this.hud?.prompt(null);
@@ -853,6 +871,7 @@ export class LanternScene extends Phaser.Scene {
         day: this.day,
         things: [...this.thingsOn],
         items: [...this.items],
+        known: this.memory.list,
         ammo: [this.ammo.mag, this.ammo.spare],
         via: p.fade,
       };
@@ -864,7 +883,6 @@ export class LanternScene extends Phaser.Scene {
   private fall(): void {
     if (this.leaving) return;
     this.leaving = true;
-    this.heading = null;
     this.hero.path = [];
     this.setHalo(null);
     this.hud?.prompt(null);
@@ -878,6 +896,7 @@ export class LanternScene extends Phaser.Scene {
         day: this.day,
         things: [...this.thingsOn],
         items: [...this.items],
+        known: this.memory.list,
         ammo: [this.ammo.mag, this.ammo.spare],
         via: 'dark',
       } satisfies LanternData);
@@ -904,7 +923,6 @@ export class LanternScene extends Phaser.Scene {
       // Standing still while the light takes you.
     } else if (kx || ky) {
       h.path = [];
-      this.heading = null;
       const l = Math.hypot(kx, ky);
       want = { x: kx / l, y: ky / l };
     } else if (h.path.length) {

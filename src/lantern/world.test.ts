@@ -3,6 +3,7 @@ import { Nav } from './nav';
 import { generateUpperWorld } from './upper';
 import { T, TOWN, type Pt } from './util';
 import { generateCellar } from './cellar';
+import { ITEMS } from './items';
 import { generateWorld, type Portal, type World } from './world';
 
 describe('lantern world', () => {
@@ -40,9 +41,25 @@ describe('the worlds and the ways between them', () => {
   const all = Object.values(worlds);
   const nav = (w: World) => new Nav(w.block, w.w, w.h, w.walls);
 
-  it('starts the hero on free ground in the Upper World house', () => {
+  it('starts the hero on free ground by the car', () => {
     const { x, y } = worlds.upper.spawn;
     expect(nav(worlds.upper).circleFree(x, y, 10)).toBe(true);
+  });
+
+  it('lets the hero find everything he will need, and learn that he needs it', () => {
+    const { upper } = worlds;
+    const facts = new Set(['dark', ...all.flatMap((w) => w.portals.map((p) => p.lock?.fact))]);
+    for (const [id, item] of Object.entries(ITEMS)) {
+      if (!item.needs) continue;
+      expect(facts.has(item.needs), `${id} needs ${item.needs}`).toBe(true);
+      // It lies in the Upper World, which you can walk all over without a key.
+      const hoard = upper.things.find((t) => t.hoard?.items.includes(id));
+      expect(hoard, id).toBeDefined();
+      const at = hoard as Pt;
+      const route = nav(upper).route(upper.spawn, at, 10);
+      const end = route[route.length - 1] ?? upper.spawn;
+      expect(Math.hypot(end.x - at.x, end.y - at.y), id).toBeLessThan(1.4 * T);
+    }
   });
 
   it('lets the hero walk to every way out', () => {
@@ -92,7 +109,7 @@ describe('things', () => {
   const upper = generateUpperWorld();
   const nav = new Nav(upper.block, upper.w, upper.h, upper.walls);
 
-  it.each(['tv', 'mailbox', 'flashlight'])('put the %s within reach', (id) => {
+  it.each(['tv', 'mailbox', 'nightstand'])('put the %s within reach', (id) => {
     const thing = upper.things.find((t) => t.id === id) as Pt;
     expect(thing).toBeDefined();
     const route = nav.route(upper.spawn, thing, 10);

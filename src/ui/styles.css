@@ -299,6 +299,27 @@ button:focus-visible {
   display: none;
 }
 
+/* What the hero thinks or sees: a line above the action prompt. */
+.thought {
+  position: absolute;
+  left: 50%;
+  bottom: 70px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(520px, calc(100% - 32px));
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(20, 14, 10, 0.72);
+  font: italic 600 15px/1.45 var(--serif);
+  color: var(--paper);
+  text-align: center;
+  animation: fade-in 0.4s ease both;
+}
+
+.thought[hidden] {
+  display: none;
+}
+
 /* --- Settings ----------------------------------------------------------- */
 
 .settings {
@@ -653,4 +674,64 @@ nav[hidden] {
   margin-top: 6px;
   color: var(--paper-dim);
   letter-spacing: 0.04em;
+}
+
+/* --- Intro -------------------------------------------------------------- */
+
+.intro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 16px 72px;
+  background: #000;
+  cursor: pointer;
+  transition: opacity 0.8s ease;
+}
+
+.intro.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+}
+
+.intro-lines p {
+  margin: 0;
+  font: 400 18px/1.5 var(--sans);
+  color: var(--paper);
+  animation: fade-in 0.5s ease both;
+  transition: opacity 0.4s ease;
+}
+
+.intro-lines p.past {
+  opacity: 0.4;
+}
+
+.intro-lines p.told {
+  font: italic 600 17px/1.5 var(--serif);
+  color: var(--paper-dim);
+}
+
+.intro-lines b {
+  margin-right: 6px;
+  font-weight: 700;
+  color: var(--ember-hot);
+}
+
+.intro-hint {
+  position: absolute;
+  bottom: 24px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+  white-space: pre;
 }

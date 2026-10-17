@@ -20,7 +20,8 @@ export type Sfx =
   | 'yelp'
   | 'hurt'
   | 'thud'
-  | 'drum';
+  | 'drum'
+  | 'ring';
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -383,6 +384,13 @@ export class AmbientMusic {
       case 'drum':
         tone('sine', 72, 42, 0.2, 0.35);
         noise('lowpass', 140, 0.15, 0.12);
+        break;
+      case 'ring':
+        // A phone's trill: two tones flickering for a second.
+        for (let i = 0; i < 16; i++) {
+          const f = i % 2 ? 1320 : 1100;
+          tone('square', f, f, 0.025, 0.055, { delay: i * 0.06, cutoff: 2600 });
+        }
         break;
     }
   }

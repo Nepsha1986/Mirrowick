@@ -15,6 +15,8 @@ export interface SaveData {
   things: string[];
   /** What you carry. */
   items: string[];
+  /** What the hero knows and has seen; older saves have none. */
+  known?: string[];
   /** Rounds in the pistol and spare. */
   ammo?: [number, number];
 }
@@ -33,11 +35,12 @@ export function loadSave(): SaveData | null {
     const things = strings(d.things) ?? [];
     // Saves from before you had to find the flashlight already carry it.
     const items = strings(d.items) ?? ['flashlight'];
+    const known = strings(d.known) ?? undefined;
     const ammo =
       Array.isArray(d.ammo) && d.ammo.length === 2 && d.ammo.every((n) => num(n) && n >= 0)
         ? d.ammo
         : undefined;
-    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items, ammo };
+    return { realm: d.realm, x: d.x, y: d.y, tod: d.tod, day: d.day, things, items, known, ammo };
   } catch {
     return null;
   }
