@@ -7,7 +7,7 @@ import type { LanternData } from './LanternScene';
 
 /**
  * The title screen: the DOM menu over a live backdrop — the lantern scene in
- * demo mode, the camera drifting over the village at dusk.
+ * demo mode, the camera drifting over the mirror in Chamber 7.
  */
 export class MenuScene extends Phaser.Scene {
   private menu?: MainMenu;

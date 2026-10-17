@@ -1,4 +1,4 @@
-import { H, T, W, type Pt } from './util';
+import { T, type Pt } from './util';
 
 interface Rect {
   x: number;
@@ -28,8 +28,8 @@ export class Nav {
 
   constructor(
     private readonly block: Uint8Array,
-    private readonly w = W,
-    private readonly h = H,
+    private readonly w: number,
+    private readonly h: number,
     walls: Rect[] = [],
   ) {
     for (const r of walls) {

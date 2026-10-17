@@ -19,10 +19,10 @@ import {
   rollAttack,
   type Ammo,
   type FoeId,
+  type FoeSpawn,
   type FoeKind,
   type Weapon,
 } from '../lantern/combat';
-import type { FoeSpawn } from '../lantern/hollow';
 import type { Nav } from '../lantern/nav';
 import { T, clamp, lerp, rnd, type Pt } from '../lantern/util';
 import { CombatPanel, type Stance } from '../ui/CombatPanel';
@@ -41,6 +41,8 @@ const CALM = 11 * T;
 const ALERT = 5 * T;
 /** Seconds before the dead come back, once you're away. */
 const RESPAWN = 60;
+/** A caged beast comes to the bars and snarls when you're this close. */
+const CAGE_NOTICE = 4 * T;
 const RED = '#ff8a7a';
 const PALE = '#d8d0c0';
 
@@ -57,7 +59,7 @@ interface Foe extends Pt {
   /** The crawler's inner light, laid over its shell. */
   glow: Phaser.GameObjects.Image | null;
   facing: number;
-  /** Attack cooldown, or aim for the brigand. */
+  /** Attack cooldown; the gap between rounds and the reload, for the marauder. */
   cd: number;
   /** A general timer: wandering, fleeing, lying dead, a charge's stage. */
   t: number;
@@ -71,8 +73,11 @@ interface Foe extends Pt {
   skip: number;
   /** The lunge of a blow, for the look of it. */
   lunge: number;
-  /** The brigand's flintlock. */
+  /** The marauder's rifle: ready to fire, and rounds left in this burst. */
   loaded: boolean;
+  burst: number;
+  /** Shut in a cage for good. */
+  caged: boolean;
   /** The boar's charge: its stage, heading and how far it has run. */
   charge: Charge;
   dir: number;
@@ -104,8 +109,6 @@ export interface CombatHost {
   dark(p: Pt): number;
   /** The flashlight's beam is on this point. */
   inBeam(p: Pt): boolean;
-  /** Inside the village, where wounds heal quickly. */
-  safe(p: Pt): boolean;
   /** Down: the scene takes it from here. */
   fall(): void;
   /** Prints on the ground behind whoever walks. */
@@ -125,20 +128,20 @@ const unit = (dx: number, dy: number): Pt | null => {
 /** What each enemy sounds like when it notices you, and when it strikes. */
 const CRY: Record<FoeId, Sfx | null> = {
   wolf: 'growl',
-  brigand: 'reload',
+  marauder: 'reload',
   boar: 'snort',
   crawler: 'glass',
   shade: 'whisper',
 };
 const STRIKE: Record<FoeId, Sfx> = {
   wolf: 'bite',
-  brigand: 'boom',
+  marauder: 'rifle',
   boar: 'thud',
   crawler: 'swish',
   shade: 'swish',
 };
 /** How long each backs off after a blow, seconds. */
-const SKIP: Record<FoeId, number> = { wolf: 0.8, brigand: 0, boar: 0.9, crawler: 0.6, shade: 0.7 };
+const SKIP: Record<FoeId, number> = { wolf: 0.8, marauder: 0, boar: 0.9, crawler: 0.6, shade: 0.7 };
 
 /**
  * A real-time fight played like the old turn-based ones: you never aim. In
@@ -226,6 +229,8 @@ export class Combat {
         skip: 0,
         lunge: 0,
         loaded: true,
+        burst: 0,
+        caged: !!s.caged,
         charge: 'ready',
         dir: 0,
         ran: 0,
@@ -287,7 +292,9 @@ export class Combat {
 
   /** A living enemy under a click. */
   foeAt(p: Pt): Foe | null {
-    return this.foes.find((f) => f.state !== 'dead' && dist(f, p) < f.kind.r + 16) ?? null;
+    return (
+      this.foes.find((f) => !f.caged && f.state !== 'dead' && dist(f, p) < f.kind.r + 16) ?? null
+    );
   }
 
   /** Go for this one. */
@@ -378,6 +385,10 @@ export class Combat {
     let near = Infinity;
     let hunted = false;
     for (const f of this.foes) {
+      if (f.caged) {
+        this.pace(f, dt);
+        continue;
+      }
       this.updateFoe(f, dt);
       if (f.state !== 'hunt') continue;
       const d = dist(f, h);
@@ -409,9 +420,9 @@ export class Combat {
 
     if (!this.down) {
       this.heroAttacks(dt);
-      // Wounds close slowly once nothing hunts you, and quickly by the Wick.
+      // Wounds close slowly once nothing hunts you.
       if (this.sinceThreat > 6 && this.hp < HERO_HP) {
-        this.hp = Math.min(HERO_HP, this.hp + dt * (this.host.safe(h) ? 4 : 0.5));
+        this.hp = Math.min(HERO_HP, this.hp + dt * 0.5);
       }
     }
     this.draw(dt);
@@ -606,7 +617,7 @@ export class Combat {
   /** A gunshot wakes whatever sleeps close by. */
   private alert(): void {
     for (const f of this.foes) {
-      if (f.state === 'idle' && dist(f, this.host.hero) < ALERT) this.wake(f);
+      if (!f.caged && f.state === 'idle' && dist(f, this.host.hero) < ALERT) this.wake(f);
     }
   }
 
@@ -690,6 +701,7 @@ export class Combat {
       cd: 0,
       charge: 'ready',
       loaded: true,
+      burst: 0,
       path: [],
       wander: null,
     });
@@ -699,8 +711,8 @@ export class Combat {
     f.glow?.setVisible(true).setAlpha(1);
   }
 
-  /** An enemy's blow or shot at you: a roll like yours. */
-  private foeAttacks(f: Foe, bonus = 0, mult = 1): boolean {
+  /** An enemy's blow or shot at you: a roll like yours. A quiet miss says nothing. */
+  private foeAttacks(f: Foe, bonus = 0, mult = 1, quiet = false): boolean {
     const h = this.host.hero;
     const w = f.kind.attack;
     // Backing away from something at your throat leaves you open.
@@ -712,10 +724,12 @@ export class Combat {
     );
     const roll = rollAttack(chance, f.kind.skill, Math.random);
     f.lunge = 0.16;
-    if (f.kind.id !== 'brigand') music.sfx(STRIKE[f.kind.id]);
+    if (f.kind.id !== 'marauder') music.sfx(STRIKE[f.kind.id]);
     if (roll === 'miss' || roll === 'fumble') {
-      this.float(words().missFloat, h, PALE);
-      this.say(foe(f).missesYou);
+      if (!quiet) {
+        this.float(words().missFloat, h, PALE);
+        this.say(foe(f).missesYou);
+      }
       return false;
     }
     const dmg = Math.round(damage(w, { dt: 0, dr: 0 }, roll === 'crit', Math.random) * mult);
@@ -757,7 +771,7 @@ export class Combat {
     if (dist(f, f.home) > f.kind.leash * T) {
       return this.goHome(f, foe(f).givesUp);
     }
-    if (f.kind.id === 'brigand') this.brigand(f, d, dt);
+    if (f.kind.id === 'marauder') this.marauder(f, d, dt);
     else if (f.kind.id === 'boar' && f.charge !== 'ready') this.boar(f, d, dt);
     else this.melee(f, d, dt);
     // Bodies don't pass through each other.
@@ -771,6 +785,26 @@ export class Combat {
     f.calm = 6;
     f.charge = 'ready';
     if (line) this.say(line);
+  }
+
+  /**
+   * Shut in its cage: it paces about, and when you come close it presses up
+   * to the bars, watching you, and snarls now and then.
+   */
+  private pace(f: Foe, dt: number): void {
+    const h = this.host.hero;
+    f.t += dt;
+    f.lunge = Math.max(0, f.lunge - dt);
+    if (dist(f, h) > CAGE_NOTICE) return this.idle(f, dt);
+    f.wander = null;
+    if (dist(f, h) > this.contact(f)) this.step(f, h.x - f.x, h.y - f.y, f.kind.speed * 0.3, dt);
+    this.turn(f, angle(f, h), dt);
+    f.cd -= dt;
+    if (f.cd > 0) return;
+    f.cd = rnd(4, 8);
+    f.lunge = 0.16;
+    const cry = CRY[f.kind.id];
+    if (cry) music.sfx(cry);
   }
 
   /** Pottering about at home. */
@@ -872,12 +906,12 @@ export class Combat {
     }
   }
 
-  /** Keeps his distance, shoots, and takes an age to reload. */
-  private brigand(f: Foe, d: number, dt: number): void {
+  /** Keeps his distance and fires short bursts, then changes the magazine. */
+  private marauder(f: Foe, d: number, dt: number): void {
     const h = this.host.hero;
     const w = f.kind.attack;
     const line = this.host.nav.lineFree(f.x, f.y, h.x, h.y, 3);
-    if (!f.loaded) {
+    if (!f.loaded && !f.burst) {
       f.cd -= dt;
       if (f.cd <= 0) {
         f.loaded = true;
@@ -887,25 +921,44 @@ export class Combat {
     if (d < 3 * T) this.step(f, f.x - h.x, f.y - h.y, f.kind.speed, dt);
     else if (d > (w.range - 1) * T || !line) this.walk(f, h, f.kind.speed, dt);
     this.turn(f, angle(f, h), dt);
+    // Mid-burst: the next round, a moment after the last.
+    if (f.burst) {
+      f.cd -= dt;
+      if (f.cd <= 0) this.round(f);
+      return;
+    }
     if (!f.loaded) return;
     if (!line || d > w.range * T) {
       f.t = 0;
       return;
     }
-    // Takes his aim, then fires; sometimes the powder only flashes in the pan.
+    // Takes his aim, then fires; now and then the old rifle jams.
     if (f.t < 0.9) return;
     f.t = 0;
-    f.loaded = false;
-    f.cd = reloadTime(f.kind.skill, w);
     if (Math.random() < w.jam) {
+      f.loaded = false;
+      f.cd = reloadTime(f.kind.skill, w);
       music.sfx('click');
       this.say(words().misfire, 'good');
       return;
     }
-    music.sfx('boom');
-    this.flash(this.muzzle(f, f.facing, 20, 0), f.facing);
-    this.tracer(f, h, false);
-    this.foeAttacks(f);
+    f.burst = w.mag;
+    this.round(f);
+  }
+
+  /** One round of the marauder's burst; after the last he reloads. */
+  private round(f: Foe): void {
+    const w = f.kind.attack;
+    const h = this.host.hero;
+    music.sfx('rifle');
+    this.flash(this.muzzle(f, f.facing, 22, 0), f.facing);
+    const hit = this.foeAttacks(f, 0, 1, f.burst < w.mag);
+    this.tracer(f, h, !hit);
+    f.burst--;
+    f.cd = w.cycle;
+    if (f.burst) return;
+    f.loaded = false;
+    f.cd = reloadTime(f.kind.skill, w);
   }
 
   /** Walks towards a point, round whatever is in the way. */

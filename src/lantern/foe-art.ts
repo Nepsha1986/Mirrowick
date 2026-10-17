@@ -3,9 +3,9 @@ import { INK, painter, type Painter } from './brush';
 import { mulberry32 } from './util';
 
 /**
- * The Hollow's enemies and props, all seen from above and facing right
- * like the hero: a wolf, a brigand, a boar, a glass crawler and a shade,
- * the pistol on its stump, a crate of rounds, the brigand's camp.
+ * The enemies and the things you fight with, all seen from above and
+ * facing right like the hero: a wolf, a marauder, a boar, a glass crawler
+ * and a shade, the pistol and a crate of rounds.
  */
 export function paintFoeAtlas(scene: Phaser.Scene): void {
   const A = scene.textures.createCanvas('ln-foes', 512, 256);
@@ -88,25 +88,45 @@ export function paintFoeAtlas(scene: Phaser.Scene): void {
       0.9,
     );
   });
-  // A brigand in a wide hat and a patched coat, a long flintlock held out.
-  add('brigand', 40, 36, (p) => {
-    const skin = '#c99a74';
+  // A marauder in a gas mask and a grimy hood, a vest stuffed with
+  // magazines, holding a rifle out in both hands; one strap hangs loose.
+  add('marauder', 44, 36, (p) => {
+    const glove = '#2a2622';
     shadow(p, 18, 20, 12, 13);
-    p.ell(16, 8, 5, 3, '#4a3a2a', 1.2);
-    p.line(17, 8.5, 26, 15.5, INK, 5);
-    p.line(17, 8.5, 26, 15.5, '#4a3a2a', 3.4);
-    p.line(17, 28, 27, 20.5, INK, 5);
-    p.line(17, 28, 27, 20.5, '#4a3a2a', 3.4);
-    p.rect(25, 16.6, 13, 2.6, '#2b211a', 0.8);
-    p.rect(22.5, 16, 5, 4, '#5a3a22', 0.8);
-    p.circ(26.4, 15.8, 2, skin, 1);
-    p.circ(27.2, 20.6, 2, skin, 1);
-    p.ell(15.5, 18, 7, 11.5, '#54412e', 1.4);
-    p.rect(10, 20, 4, 4, '#6a5238');
-    p.line(19.6, 9, 20.4, 27, '#3a2c1e', 1);
-    p.circ(17, 18, 8.4, '#2e241c', 1.3);
-    p.circ(17.4, 18, 5, '#3b2f24', 0.8);
-    p.ell(15, 15.6, 3, 1.4, 'rgba(255,255,255,.08)');
+    // Arms forward to the rifle: the near hand on the grip, the far one on the guard.
+    p.line(16, 9, 27, 15.2, INK, 5.4);
+    p.line(16, 9, 27, 15.2, '#4b4a3c', 3.6);
+    p.line(16, 27.5, 22, 20, INK, 5.4);
+    p.line(16, 27.5, 22, 20, '#4b4a3c', 3.6);
+    // The rifle: stock, body, curved magazine, a long barrel.
+    p.rect(17, 17, 9, 3.2, '#3a2f24', 0.8);
+    p.rect(25, 16.6, 10, 3.6, '#24272a', 0.9);
+    p.poly(
+      [
+        [28, 20],
+        [31, 20],
+        [30.2, 24.5],
+        [27.6, 23.6],
+      ],
+      '#2c2f33',
+      0.8,
+    );
+    p.rect(35, 17.6, 8, 1.6, '#1c1e20', 0.6);
+    p.circ(27, 15.4, 2, glove, 1);
+    p.circ(22.2, 20, 2, glove, 1);
+    // Body: a dull jacket under a vest with pouches.
+    p.ell(15.5, 18, 7, 11.5, '#46473a', 1.4);
+    p.rect(11.5, 11.5, 7, 13, '#3a3b30', 0.9);
+    for (const y of [12.6, 16.2, 19.8]) p.rect(12.3, y, 3.2, 2.8, '#55553f', 0.6);
+    p.line(9.5, 22, 7, 27.5, '#2e2f27', 1.4);
+    // Hood, and the mask's round filter poking forward.
+    p.circ(17, 18, 7.8, '#3d3a30', 1.3);
+    p.circ(17.6, 18, 5, '#2d2b25', 0.8);
+    p.circ(23, 18, 2.4, '#5a5d5a', 0.9);
+    p.circ(23, 18, 1.1, '#2a2c2c');
+    p.ell(20, 15.7, 1.5, 1.1, 'rgba(160,190,170,.55)');
+    p.ell(20, 20.3, 1.5, 1.1, 'rgba(160,190,170,.4)');
+    p.ell(15, 15.4, 3, 1.4, 'rgba(255,255,255,.06)');
   });
   // A big boar: bristles down the spine, a pale scar, tusks forward.
   add('boar', 50, 32, (p) => {
@@ -314,19 +334,6 @@ export function paintFoeAtlas(scene: Phaser.Scene): void {
     );
     p.line(5, 4.4, 15, 4.4, 'rgba(255,255,255,.22)', 0.8);
   });
-  add('stump', 28, 28, (p) => {
-    shadow(p, 15, 16, 11, 9);
-    p.circ(13.5, 13.5, 10, '#4a3626', 1.3);
-    p.circ(13, 13, 7.4, '#8a6a48');
-    for (const r of [5.4, 3.4, 1.4]) {
-      c.strokeStyle = 'rgba(70,48,30,.6)';
-      c.lineWidth = 0.8;
-      c.beginPath();
-      c.arc(13.2, 13.2, r, 0, Math.PI * 2);
-      c.stroke();
-    }
-    p.line(13, 13, 19, 7, 'rgba(40,26,16,.7)', 1);
-  });
   // A crate of rounds, its lid slid half off.
   add('ammo', 28, 22, (p) => {
     shadow(p, 15, 13, 12, 8);
@@ -337,23 +344,6 @@ export function paintFoeAtlas(scene: Phaser.Scene): void {
     }
     p.rect(12, 2.5, 14, 12, '#56603f', 1.1);
     p.line(14, 8.5, 24, 8.5, 'rgba(0,0,0,.3)', 1);
-  });
-  add('campfire', 32, 32, (p) => {
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2 + ar() * 0.3;
-      p.circ(16 + Math.cos(a) * 11, 16 + Math.sin(a) * 11, 3 + ar(), '#5a554c', 0.9);
-    }
-    p.circ(16, 16, 8, '#1a120c');
-    p.line(10, 12, 22, 20, '#3a281b', 3);
-    p.line(10, 20, 21, 11, '#3a281b', 3);
-    p.circ(16, 16, 4.5, '#e0602a');
-    p.circ(15.4, 15.6, 2.6, '#ffc86a');
-  });
-  add('bedroll', 36, 18, (p) => {
-    shadow(p, 19, 10, 16, 6);
-    p.rect(3, 3, 30, 12, '#5a3a2a', 1.2);
-    p.rect(3, 3, 7, 12, '#7a5a40', 1);
-    p.line(14, 4, 15, 14, 'rgba(0,0,0,.25)', 1);
   });
   add('blood', 26, 22, (p) => {
     p.ell(13, 11, 8, 6, 'rgba(70,10,8,.75)');

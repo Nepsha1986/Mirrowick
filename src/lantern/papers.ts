@@ -28,6 +28,7 @@ export const PAPERS: Record<string, Hand> = {
   phone: 'phone',
   'bookshop-letter': 'typed',
   tome: 'print',
+  'shift-log': 'typed',
 };
 
 /** A paper in the current language, or nothing if there is no such paper. */

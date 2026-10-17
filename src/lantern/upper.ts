@@ -1,9 +1,9 @@
 import { t } from '../i18n';
-import { cellarStairs, upperHatch } from './mill';
-import type { Building } from './town';
+import { cellarStairs, upperHatch } from './ways';
 import { T, TL, UH, UW, makeNoise, mulberry32, type Pt } from './util';
 import {
   GLASS,
+  type Building,
   type GroundPatch,
   type Light,
   type Print,
@@ -412,7 +412,7 @@ export function generateUpperWorld(): World {
 
   // Bedroom: bed, bedside table, wardrobe, a rug.
   decal('rugBed', 17.5, 30);
-  objects.push({ key: 'ln-town', frame: 'bed', x: 15.5 * T, y: 30 * T });
+  objects.push({ key: 'ln-house', frame: 'bed', x: 15.5 * T, y: 30 * T });
   solid(15, 29);
   solid(15, 30);
   solid(15, 28);
@@ -420,7 +420,7 @@ export function generateUpperWorld(): World {
   // the key to the shed's hatch among them. You leave them until you need them.
   things.push({
     id: 'nightstand',
-    key: 'ln-town',
+    key: 'ln-house',
     frame: 'stable',
     ...C(15, 28),
     scale: 0.7,
@@ -639,7 +639,7 @@ export function generateUpperWorld(): World {
   });
   obj('wateringcan', 11.6, 19.1, { angle: -20 });
 
-  objects.push({ key: 'ln-town', frame: 'bench', ...C(20, 18.6), angle: 2 });
+  objects.push({ key: 'ln-house', frame: 'bench', ...C(20, 18.6), angle: 2 });
   solid(20, 19);
   obj('woodpile', 24, 21, { x: 24.5 * T, angle: -1.5 });
   for (const x of [23, 24, 25]) solid(x, 21);
@@ -834,13 +834,12 @@ export function generateUpperWorld(): World {
     h: UH,
     ground,
     block,
-    town: new Uint8Array(N),
     objects,
     decals,
     lights,
     // A new game starts by the car: you've just driven up.
     spawn: C(32.8, 31.8),
-    life: { buildings: [house, shed], festoons: [], spots: [] },
+    buildings: [house, shed],
     walls,
     patches,
     things,
@@ -860,7 +859,6 @@ export function generateUpperWorld(): World {
         },
       },
     ],
-    sails: [],
     trail,
     crowns,
     tall,

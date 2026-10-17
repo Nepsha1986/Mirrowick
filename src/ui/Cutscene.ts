@@ -41,6 +41,24 @@ const DESCENT: Line<keyof Messages['descent']>[] = [
   ['mark', 'what'],
 ];
 
+/** The first time through the mirror: a cold floor, and a place nobody has left. */
+const ARRIVAL: Line<keyof Messages['arrival']>[] = [
+  [null, 'through', 'mirror'],
+  [null, 'floor', 'thud'],
+  ['mark', 'cold'],
+  [null, 'hum', 'hum'],
+  ['mark', 'notCellar'],
+  [null, 'lamp'],
+  [null, 'drip', 'drip'],
+  ['mark', 'hello'],
+  [null, 'nobody'],
+  [null, 'dust'],
+  ['mark', 'left'],
+  [null, 'screen', 'hum'],
+  [null, 'far', 'scrape'],
+  ['mark', 'victor'],
+];
+
 /** How long a line stays before the next: time enough to read it unhurried. */
 const readTime = (text: string) => 1400 + text.length * 55;
 
@@ -105,6 +123,16 @@ export class Cutscene {
       DESCENT.map(([who, key, sound]) => ({ who, text: words[key], sound })),
       onDone,
       600,
+    );
+  }
+
+  /** The first time through the mirror, before the Facility shows. */
+  static arrival(onDone: () => void): Cutscene {
+    const words = t().arrival;
+    return new Cutscene(
+      ARRIVAL.map(([who, key, sound]) => ({ who, text: words[key], sound })),
+      onDone,
+      900,
     );
   }
 

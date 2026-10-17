@@ -2,18 +2,18 @@
 
 /** World pixels per tile. */
 export const T = 32;
-/** Map size in tiles. */
-export const W = 100;
-export const H = 80;
 /** Seconds in a full day–night cycle. */
 export const DAY_LEN = 360;
 
-/** The village inside the palisade: the only safe place. */
-export const TOWN = { x0: 38, y0: 31, x1: 61, y1: 48, cx: 50, cy: 40 };
-/** Where the worlds touch. */
-export const MIRROR = { x: 84, y: 14 };
-/** The windmill in the Lower World, where the mirror comes out. Centre tile. */
-export const LOWER_MILL = { x: 64, y: 23 };
+/**
+ * The Lower World: the Facility, a vast complex built round the mirror,
+ * on a map this many tiles across. Only a few rooms of it are built yet.
+ */
+export const LW = 120;
+export const LH = 120;
+/** Chamber 7, where the mirror stands, and the mirror in it (tiles). */
+export const CHAMBER = { x0: 50, y0: 56, w: 16, h: 13 };
+export const LAB_MIRROR = { x: 58, y: 61 };
 /** The Upper World map, in tiles. */
 export const UW = 60;
 export const UH = 44;
@@ -26,45 +26,29 @@ export const CELLAR_STAIRS = { x: 6.4, y: 13 };
 export const CELLAR_MIRROR = { x: 18.5, y: 13 };
 
 export const TL = {
-  G1: 0,
-  G2: 1,
-  G3: 2,
-  DIRT: 3,
-  ROAD: 4,
-  ROADC: 5,
-  WATER: 6,
-  BRIDGE: 7,
-  BBRIDGE: 8,
-  PAVE: 9,
-  FLOOR: 10,
-  WALL: 11,
-  TWALL: 12,
-  GLASS: 13,
-  SAND: 14,
-  GATE: 15,
-  // Village and interiors.
-  PLANK: 16,
-  PLANK2: 17,
-  PARQUET: 18,
-  CHECKER: 19,
-  FLAG: 20,
-  EARTH: 21,
-  TIMBER: 22,
-  PAVE2: 23,
-  PAVE3: 24,
-  SOIL: 25,
-  ASHLAR: 26,
-  CARPET: 27,
   // The Upper World.
-  UG1: 28,
-  UG2: 29,
-  UG3: 30,
-  TILEW: 31,
-  ROCK: 32,
+  UG1: 0,
+  UG2: 1,
+  UG3: 2,
+  TILEW: 3,
+  // Indoor floors.
+  PLANK: 4,
+  PLANK2: 5,
+  PARQUET: 6,
+  CHECKER: 7,
+  CARPET: 8,
+  // The cellar.
+  ROCK: 9,
+  // The Facility.
+  CONCRETE: 10,
+  LINO: 11,
+  GRATE: 12,
+  ASH: 13,
+  ROOFTOP: 14,
 } as const;
 
 /** Slots in the ground sheet. */
-export const TILE_SLOTS = 40;
+export const TILE_SLOTS = 16;
 
 export interface Pt {
   x: number;
@@ -107,9 +91,3 @@ export const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 export const rint = (a: number, b: number) => Math.floor(rnd(a, b + 1));
-
-/** The river's centre column for a row, and the brook's centre row for a column. */
-export const riverX = (y: number) =>
-  Math.round(24 + 3 * Math.sin(y * 0.12) + 2 * Math.sin(y * 0.31));
-export const brookY = (x: number) =>
-  Math.round(66 + 3 * Math.sin(x * 0.13) + 2 * Math.sin(x * 0.29));

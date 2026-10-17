@@ -4,7 +4,7 @@ import type { Pt } from '../lantern/util';
 /** How each walker marks the ground: its print, stride and gait width. */
 const KINDS = {
   hero: { frame: 'printShoe', stride: 15, side: 4, a: 0.5 },
-  brigand: { frame: 'printShoe', stride: 16, side: 4.5, a: 0.55 },
+  marauder: { frame: 'printShoe', stride: 16, side: 4.5, a: 0.55 },
   wolf: { frame: 'printPaw', stride: 13, side: 3, a: 0.5 },
   boar: { frame: 'printHoof', stride: 12, side: 4.5, a: 0.6 },
   crawler: { frame: 'printClaw', stride: 10, side: 9, a: 0.45 },

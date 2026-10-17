@@ -10,7 +10,7 @@ const MUSIC_FULL = 0.2;
 /** The sounds of a fight, and of using things and going between places. */
 export type Sfx =
   | 'shot'
-  | 'boom'
+  | 'rifle'
   | 'click'
   | 'reload'
   | 'hit'
@@ -36,7 +36,9 @@ export type Sfx =
   | 'rustle'
   | 'crawl'
   | 'drip'
-  | 'scrape';
+  | 'scrape'
+  | 'hum'
+  | 'door';
 
 /** The Lower World is dusk and dread; the Upper World is an ordinary sunny day. */
 export type Mood = 'lower' | 'upper';
@@ -372,9 +374,10 @@ export class AmbientMusic {
         noise('lowpass', 2600, 0.5, 0.25);
         tone('sine', 140, 50, 0.25, 0.12);
         break;
-      case 'boom':
-        noise('lowpass', 900, 0.6, 0.6);
-        tone('sine', 90, 35, 0.3, 0.4);
+      case 'rifle':
+        // A short, hard crack: one round of a burst.
+        noise('lowpass', 3600, 0.34, 0.14);
+        tone('square', 190, 60, 0.05, 0.06, { cutoff: 1400 });
         break;
       case 'click':
         tone('square', 1900, 1700, 0.06, 0.04);
@@ -505,6 +508,18 @@ export class AmbientMusic {
         // Something heavy dragged a little way, far behind.
         noise('bandpass', 260, 0.1, 1.1, { q: 6, swell: 0.4 });
         noise('bandpass', 340, 0.05, 0.9, { q: 8, swell: 0.5, delay: 0.15 });
+        break;
+      case 'hum':
+        // A machine somewhere close, still running: a low, steady drone that swells and fades.
+        tone('sawtooth', 55, 54, 0.05, 2.4, { cutoff: 220 });
+        tone('sine', 110, 109, 0.03, 2.2);
+        noise('bandpass', 120, 0.05, 2.2, { q: 4, swell: 0.8 });
+        break;
+      case 'door':
+        // A heavy door sliding into the wall on its rail, and the thump as it stops.
+        noise('bandpass', 380, 0.16, 1.1, { q: 3, swell: 0.3 });
+        noise('highpass', 2400, 0.04, 0.4, { swell: 0.1 });
+        noise('lowpass', 160, 0.4, 0.25, { delay: 1 });
         break;
       case 'mirror':
         // Glass that hums and rises, and lets you through.

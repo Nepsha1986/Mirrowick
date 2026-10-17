@@ -5,7 +5,7 @@ import { t } from '../i18n';
  * that someone's footprints glow in the beam. What he thinks of it is in
  * `thoughts.facts` of the language files.
  */
-export type Fact = 'dark' | 'cellar-lock' | 'cellar-open' | 'trail';
+export type Fact = 'dark' | 'cellar-lock' | 'cellar-open' | 'trail' | 'door7-lock' | 'door7-open';
 
 /** A thing you can carry. Its words are in `items` of the language files, by id. */
 export interface Item {
@@ -29,6 +29,7 @@ export interface Item {
 export const ITEMS: Record<string, Item> = {
   flashlight: { icon: ['ln-up', 'flashlight'], needs: 'dark' },
   'cellar-key': { icon: ['ln-up', 'key'], needs: 'cellar-lock', spent: 'cellar-open' },
+  keycard: { icon: ['ln-lab', 'keycard'], needs: 'door7-lock', spent: 'door7-open' },
   pistol: { icon: ['ln-foes', 'pistol'] },
 };
 
